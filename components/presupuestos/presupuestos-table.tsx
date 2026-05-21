@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Plus, Eye, ChevronLeft, ChevronRight, Filter, AlertTriangle, ChevronDown, ChevronUp } from 'lucide-react';
 import { formatCurrency, formatDate } from '@/lib/utils';
-import { EstadoPresupuesto, Prioridad } from '@prisma/client';
+import { ESTADO_PRESUPUESTO, PRIORIDAD, type EstadoPresupuesto, type Prioridad } from '@/lib/enums';
 
 const estadoBadgeVariant: Record<EstadoPresupuesto, 'default' | 'info' | 'success' | 'destructive' | 'warning' | 'secondary' | 'outline' | 'purple'> = {
   BORRADOR: 'secondary',
@@ -157,7 +157,7 @@ export function PresupuestosTable({ presupuestos, total, page, perPage, clientes
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="__all__">Todos</SelectItem>
-              {Object.values(EstadoPresupuesto).map((e) => (
+              {Object.values(ESTADO_PRESUPUESTO).map((e) => (
                 <SelectItem key={e} value={e}>{estadoLabel[e]}</SelectItem>
               ))}
             </SelectContent>

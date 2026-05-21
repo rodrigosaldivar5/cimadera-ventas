@@ -14,7 +14,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2, Plus, Trash2, ChevronRight, ChevronLeft, Save, Send, ArrowLeft } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
 import Link from 'next/link';
-import { EstadoPresupuesto } from '@prisma/client';
+import type { EstadoPresupuesto } from '@prisma/client';
 
 const paso1Schema = z.object({
   clienteId: z.string().min(1, 'Seleccioná un cliente'),

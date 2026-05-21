@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Edit, Download, RefreshCw } from 'lucide-react';
-import { EstadoPresupuesto } from '@prisma/client';
+import { ESTADO_PRESUPUESTO, type EstadoPresupuesto } from '@/lib/enums';
 import Link from 'next/link';
 
 const estadoLabel: Record<EstadoPresupuesto, string> = {
@@ -59,7 +59,7 @@ export function PresupuestoAcciones({ presupuesto }: Props) {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {Object.values(EstadoPresupuesto).map((e) => (
+              {Object.values(ESTADO_PRESUPUESTO).map((e) => (
                 <SelectItem key={e} value={e}>{estadoLabel[e]}</SelectItem>
               ))}
             </SelectContent>
