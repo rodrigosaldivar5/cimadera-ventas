@@ -1,0 +1,218 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Division {
+  id     String @id @default(cuid())
+  nombre String @unique
+  areas  Area[]
+}
+
+model Area {
+  id         String   @id @default(cuid())
+  nombre     String
+  divisionId String
+  division   Division @relation(fields: [divisionId], references: [id])
+  roles      Rol[]
+}
+
+model Rol {
+  id       String       @id @default(cuid())
+  nombre   String
+  areaId   String
+  area     Area         @relation(fields: [areaId], references: [id])
+  permisos PermisoRol[]
+  usuarios User[]
+}
+
+model User {
+  id                    String        @id @default(cuid())
+  nombre                String
+  email                 String        @unique
+  password              String
+  aprobado              Boolean       @default(false)
+  rolId                 String?
+  rol                   Rol?          @relation(fields: [rolId], references: [id])
+  createdAt             DateTime      @default(now())
+  presupuestosCreados   Presupuesto[] @relation("PresupuestoCreadoPor")
+  presupuestosAsignados Presupuesto[] @relation("PresupuestoResponsable")
+}
+
+model PermisoRol {
+  id             String  @id @default(cuid())
+  rolId          String
+  rol            Rol     @relation(fields: [rolId], references: [id])
+  modulo         String
+  puede_ver      Boolean @default(false)
+  puede_crear    Boolean @default(false)
+  puede_editar   Boolean @default(false)
+  puede_eliminar Boolean @default(false)
+}
+
+model Cliente {
+  id           String        @id @default(cuid())
+  razonSocial  String
+  cuit         String?       @unique
+  email        String?
+  telefono     String?
+  direccion    String?
+  ciudad       String?
+  provincia    String?
+  activo       Boolean       @default(true)
+  createdAt    DateTime      @default(now())
+  presupuestos Presupuesto[]
+}
+
+model CategoriaItem {
+  id     String @id @default(cuid())
+  nombre String @unique
+  items  Item[]
+}
+
+model Item {
+  id                String            @id @default(cuid())
+  nombre            String
+  descripcion       String?
+  categoriaId       String
+  categoria         CategoriaItem     @relation(fields: [categoriaId], references: [id])
+  costoBase         Decimal           @db.Decimal(10, 2)
+  indiceUtilidad    Decimal           @db.Decimal(5, 2) @default(1.30)
+  precioVenta       Decimal           @db.Decimal(10, 2)
+  unidad            String            @default("unidad")
+  activo            Boolean           @default(true)
+  lineasPresupuesto LineaPresupuesto[]
+}
+
+model Presupuesto {
+  id                String             @id @default(cuid())
+  numero            Int                @unique @default(autoincrement())
+  nombrePresupuesto String?
+  clienteId         String
+  cliente           Cliente            @relation(fields: [clienteId], references: [id])
+  creadoPorId       String
+  creadoPor         User               @relation("PresupuestoCreadoPor", fields: [creadoPorId], references: [id])
+  responsableId     String?
+  responsable       User?              @relation("PresupuestoResponsable", fields: [responsableId], references: [id])
+  estado            EstadoPresupuesto  @default(BORRADOR)
+  prioridad         Prioridad          @default(MEDIA)
+  fechaCreacion     DateTime           @default(now())
+  fechaRecepcion    DateTime?
+  fechaEnvio        DateTime?
+  fechaVencimiento  DateTime?
+  observaciones     String?
+  descuento         Decimal            @db.Decimal(5, 2) @default(0)
+  subtotal          Decimal            @db.Decimal(10, 2) @default(0)
+  totalFinal        Decimal            @db.Decimal(10, 2) @default(0)
+  lineas            LineaPresupuesto[]
+  puertas           PuertaPresupuesto[]
+}
+
+enum EstadoPresupuesto {
+  BORRADOR
+  ENVIADO
+  APROBADO
+  RECHAZADO
+  VENCIDO
+}
+
+enum Prioridad {
+  ALTA
+  MEDIA
+  BAJA
+}
+
+model LineaPresupuesto {
+  id             String                   @id @default(cuid())
+  presupuestoId  String
+  presupuesto    Presupuesto              @relation(fields: [presupuestoId], references: [id], onDelete: Cascade)
+  itemId         String?
+  item           Item?                    @relation(fields: [itemId], references: [id])
+  cantidad       Decimal                  @db.Decimal(10, 2)
+  precioUnitario Decimal                  @db.Decimal(10, 2)
+  subtotal       Decimal                  @db.Decimal(10, 2)
+  productoId     String?
+  productoNombre String?
+  opciones       OpcionLineaPresupuesto[]
+}
+
+model TipoPuerta {
+  id      String              @id @default(cuid())
+  nombre  String
+  puertas PuertaPresupuesto[]
+}
+
+model PuertaPresupuesto {
+  id             String      @id @default(cuid())
+  presupuestoId  String
+  presupuesto    Presupuesto @relation(fields: [presupuestoId], references: [id], onDelete: Cascade)
+  tipoPuertaId   String
+  tipoPuerta     TipoPuerta  @relation(fields: [tipoPuertaId], references: [id])
+  cantidad       Int         @default(1)
+  ancho          Decimal     @db.Decimal(6, 2)
+  alto           Decimal     @db.Decimal(6, 2)
+  bisagraId      String?
+  cerraduraId    String?
+  chapaId        String?
+  marcoId        String?
+  hojaId         String?
+  colorMarca     String?
+  observaciones  String?
+  precioUnitario Decimal     @db.Decimal(10, 2) @default(0)
+  subtotal       Decimal     @db.Decimal(10, 2) @default(0)
+}
+
+model CategoriaProducto {
+  id        String     @id @default(cuid())
+  nombre    String     @unique
+  productos Producto[]
+}
+
+model Producto {
+  id           String             @id @default(cuid())
+  nombre       String
+  descripcion  String?
+  categoriaId  String
+  categoria    CategoriaProducto  @relation(fields: [categoriaId], references: [id])
+  activo       Boolean            @default(true)
+  createdAt    DateTime           @default(now())
+  atributos    AtributoProducto[]
+  opcionesLinea OpcionLineaPresupuesto[]
+}
+
+model AtributoProducto {
+  id         String           @id @default(cuid())
+  productoId String
+  producto   Producto         @relation(fields: [productoId], references: [id], onDelete: Cascade)
+  nombre     String
+  requerido  Boolean          @default(true)
+  opciones   OpcionAtributo[]
+}
+
+model OpcionAtributo {
+  id             String           @id @default(cuid())
+  atributoId     String
+  atributo       AtributoProducto @relation(fields: [atributoId], references: [id], onDelete: Cascade)
+  nombre         String
+  costoBase      Decimal          @db.Decimal(10, 2)
+  indiceUtilidad Decimal          @db.Decimal(5, 2) @default(1.30)
+  precioVenta    Decimal          @db.Decimal(10, 2)
+  unidad         String           @default("unidad")
+  activo         Boolean          @default(true)
+}
+
+model OpcionLineaPresupuesto {
+  id             String           @id @default(cuid())
+  lineaId        String
+  linea          LineaPresupuesto @relation(fields: [lineaId], references: [id], onDelete: Cascade)
+  atributoNombre String
+  opcionNombre   String
+  precioUnitario Decimal          @db.Decimal(10, 2)
+  cantidad       Decimal          @db.Decimal(10, 2) @default(1)
+  subtotal       Decimal          @db.Decimal(10, 2)
+  productoId     String?
+  producto       Producto?        @relation(fields: [productoId], references: [id])
+}

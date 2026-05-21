@@ -1,0 +1,22 @@
+{
+  "name": "CIMAdera Ventas",
+  "short_name": "CIMAdera",
+  "description": "Sistema de Presupuestos y Ventas - CIMAdera S.A.",
+  "start_url": "https://ventas.cimadera.net/dashboard",
+  "scope": "https://ventas.cimadera.net",
+  "display": "standalone",
+  "background_color": "#F1F5F9",
+  "theme_color": "#0EA5E9",
+  "icons": [
+    {
+      "src": "/icons/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/icons/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
