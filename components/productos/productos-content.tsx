@@ -12,8 +12,15 @@ import { Plus, Trash2, PlusCircle, FolderPlus, Edit, Loader2 } from 'lucide-reac
 import { formatCurrency } from '@/lib/utils';
 import type { Producto, CategoriaProducto, AtributoProducto, OpcionAtributo, CategoriaItem, Item } from '@prisma/client';
 
-type OpcionForm = { nombre: string; costoBase: string; indiceUtilidad: string; unidad: string };
-type AtributoForm = { nombre: string; requerido: boolean; opciones: OpcionForm[]; itemId?: string };
+type OpcionForm = {
+  nombre: string;
+  costoBase: string;
+  indiceUtilidad: string;
+  unidad: string;
+  _catId?: string;
+  _itemId?: string;
+};
+type AtributoForm = { nombre: string; requerido: boolean; opciones: OpcionForm[] };
 
 type ProductoCompleto = Producto & {
   categoria: CategoriaProducto;
@@ -41,14 +48,12 @@ export function ProductosContent({ productos, categorias, categoriasItem }: Prop
   const [tab, setTab] = useState<'productos' | 'categorias'>('productos');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [editingProductoId, setEditingProductoId] = useState<string | null>(null);
 
   const [nombre, setNombre] = useState('');
   const [descripcion, setDescripcion] = useState('');
   const [categoriaId, setCategoriaId] = useState('');
   const [atributos, setAtributos] = useState<AtributoForm[]>([]);
-
-  // Para el selector de material por atributo
-  const [atribCatSelec, setAtribCatSelec] = useState<Record<number, string>>({});
 
   // Categorías CRUD
   const [catDialogOpen, setCatDialogOpen] = useState(false);
@@ -61,50 +66,37 @@ export function ProductosContent({ productos, categorias, categoriasItem }: Prop
     setDescripcion('');
     setCategoriaId('');
     setAtributos([]);
-    setAtribCatSelec({});
+    setEditingProductoId(null);
+  };
+
+  const openEdit = (p: ProductoCompleto) => {
+    setEditingProductoId(p.id);
+    setNombre(p.nombre);
+    setDescripcion(p.descripcion ?? '');
+    setCategoriaId(p.categoriaId);
+    setAtributos(
+      p.atributos.map((a) => ({
+        nombre: a.nombre,
+        requerido: a.requerido,
+        opciones: a.opciones.map((o) => ({
+          nombre: o.nombre,
+          costoBase: String(Number(o.costoBase)),
+          indiceUtilidad: String(Number(o.indiceUtilidad)),
+          unidad: o.unidad,
+        })),
+      }))
+    );
+    setDialogOpen(true);
   };
 
   const addAtributo = () =>
     setAtributos((prev) => [...prev, { nombre: '', requerido: true, opciones: [] }]);
 
-  const removeAtributo = (i: number) => {
+  const removeAtributo = (i: number) =>
     setAtributos((prev) => prev.filter((_, idx) => idx !== i));
-    setAtribCatSelec((prev) => {
-      const next = { ...prev };
-      delete next[i];
-      return next;
-    });
-  };
 
   const updateAtributo = (i: number, field: keyof AtributoForm, value: unknown) =>
     setAtributos((prev) => prev.map((a, idx) => (idx === i ? { ...a, [field]: value } : a)));
-
-  const selectMaterialItem = (ai: number, itemId: string) => {
-    const catId = atribCatSelec[ai];
-    const cat = categoriasItem.find((c) => c.id === catId);
-    const item = cat?.items.find((i) => i.id === itemId);
-    if (!item) return;
-
-    setAtributos((prev) =>
-      prev.map((a, idx) =>
-        idx === ai
-          ? {
-              ...a,
-              nombre: item.nombre,
-              itemId: item.id,
-              opciones: [
-                {
-                  nombre: item.nombre,
-                  costoBase: String(Number(item.costoBase)),
-                  indiceUtilidad: String(Number(item.indiceUtilidad)),
-                  unidad: item.unidad,
-                },
-              ],
-            }
-          : a
-      )
-    );
-  };
 
   const addOpcion = (ai: number) =>
     setAtributos((prev) =>
@@ -131,36 +123,69 @@ export function ProductosContent({ productos, categorias, categoriasItem }: Prop
       )
     );
 
+  const selectItemForOpcion = (ai: number, oi: number, itemId: string) => {
+    setAtributos((prev) =>
+      prev.map((a, idx) => {
+        if (idx !== ai) return a;
+        const updatedOpciones = a.opciones.map((o, odx) => {
+          if (odx !== oi) return o;
+          const catId = o._catId;
+          const cat = categoriasItem.find((c) => c.id === catId);
+          const item = cat?.items.find((i) => i.id === itemId);
+          if (!item) return { ...o, _itemId: itemId };
+          return {
+            ...o,
+            _itemId: item.id,
+            nombre: item.nombre,
+            costoBase: String(Number(item.costoBase)),
+            indiceUtilidad: String(Number(item.indiceUtilidad)),
+            unidad: item.unidad,
+          };
+        });
+        return { ...a, opciones: updatedOpciones };
+      })
+    );
+  };
+
   const guardar = async () => {
     if (!nombre.trim() || !categoriaId) return;
     setSaving(true);
-    await fetch('/api/productos', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        nombre: nombre.trim(),
-        descripcion: descripcion.trim() || null,
-        categoriaId,
-        atributos: atributos.map((a) => ({
-          nombre: a.nombre,
-          requerido: a.requerido,
-          itemId: a.itemId || null,
-          opciones: a.opciones.map((o) => ({
-            nombre: o.nombre,
-            costoBase: parseFloat(o.costoBase) || 0,
-            indiceUtilidad: parseFloat(o.indiceUtilidad) || 1.3,
-            unidad: o.unidad,
-          })),
+    const payload = {
+      nombre: nombre.trim(),
+      descripcion: descripcion.trim() || null,
+      categoriaId,
+      atributos: atributos.map((a) => ({
+        nombre: a.nombre,
+        requerido: a.requerido,
+        opciones: a.opciones.map((o) => ({
+          nombre: o.nombre,
+          costoBase: parseFloat(o.costoBase) || 0,
+          indiceUtilidad: parseFloat(o.indiceUtilidad) || 1.3,
+          unidad: o.unidad,
         })),
-      }),
-    });
+      })),
+    };
+
+    if (editingProductoId) {
+      await fetch(`/api/productos/${editingProductoId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+    } else {
+      await fetch('/api/productos', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+    }
+
     setSaving(false);
     setDialogOpen(false);
     resetForm();
     router.refresh();
   };
 
-  // Categorías handlers
   const openNewCat = () => { setEditingCat(null); setCatNombre(''); setCatDialogOpen(true); };
   const openEditCat = (cat: CategoriaProducto) => { setEditingCat(cat); setCatNombre(cat.nombre); setCatDialogOpen(true); };
 
@@ -216,7 +241,7 @@ export function ProductosContent({ productos, categorias, categoriasItem }: Prop
         </div>
 
         {tab === 'productos' ? (
-          <Button className="bg-sky-500 hover:bg-sky-600" onClick={() => setDialogOpen(true)}>
+          <Button className="bg-sky-500 hover:bg-sky-600" onClick={() => { resetForm(); setDialogOpen(true); }}>
             <Plus className="mr-2 h-4 w-4" /> Nuevo Producto
           </Button>
         ) : (
@@ -237,6 +262,7 @@ export function ProductosContent({ productos, categorias, categoriasItem }: Prop
                 <TableHead>Atributos</TableHead>
                 <TableHead>Opciones totales</TableHead>
                 <TableHead>Estado</TableHead>
+                <TableHead className="w-20">Acciones</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -249,11 +275,16 @@ export function ProductosContent({ productos, categorias, categoriasItem }: Prop
                   <TableCell>
                     <Badge variant={p.activo ? 'success' : 'secondary'}>{p.activo ? 'Activo' : 'Inactivo'}</Badge>
                   </TableCell>
+                  <TableCell>
+                    <Button variant="ghost" size="icon" onClick={() => openEdit(p)}>
+                      <Edit className="h-4 w-4" />
+                    </Button>
+                  </TableCell>
                 </TableRow>
               ))}
               {productos.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center text-slate-400 py-10">No hay productos.</TableCell>
+                  <TableCell colSpan={6} className="text-center text-slate-400 py-10">No hay productos.</TableCell>
                 </TableRow>
               )}
             </TableBody>
@@ -293,11 +324,11 @@ export function ProductosContent({ productos, categorias, categoriasItem }: Prop
         </div>
       )}
 
-      {/* Dialog Nuevo Producto */}
+      {/* Dialog Producto (nuevo o editar) */}
       <Dialog open={dialogOpen} onOpenChange={(v) => { setDialogOpen(v); if (!v) resetForm(); }}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Nuevo Producto</DialogTitle>
+            <DialogTitle>{editingProductoId ? 'Editar Producto' : 'Nuevo Producto'}</DialogTitle>
           </DialogHeader>
           <div className="space-y-5 pt-2">
             <div className="grid grid-cols-2 gap-4">
@@ -331,41 +362,6 @@ export function ProductosContent({ productos, categorias, categoriasItem }: Prop
 
               {atributos.map((atrib, ai) => (
                 <div key={ai} className="rounded-lg border p-4 space-y-3">
-                  {/* Selector de material */}
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-1">
-                      <label className="text-xs font-medium text-slate-500 uppercase tracking-wide">Categoría de material</label>
-                      <Select
-                        value={atribCatSelec[ai] ?? '__none__'}
-                        onValueChange={(v) => {
-                          setAtribCatSelec((prev) => ({ ...prev, [ai]: v === '__none__' ? '' : v }));
-                        }}
-                      >
-                        <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Elegir categoría..." /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="__none__">— Ninguna —</SelectItem>
-                          {categoriasItem.map((c) => <SelectItem key={c.id} value={c.id}>{c.nombre}</SelectItem>)}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-xs font-medium text-slate-500 uppercase tracking-wide">Material / Accesorio</label>
-                      <Select
-                        value={atrib.itemId ?? '__none__'}
-                        onValueChange={(v) => v !== '__none__' && selectMaterialItem(ai, v)}
-                        disabled={!atribCatSelec[ai]}
-                      >
-                        <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Elegir ítem..." /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="__none__">— Seleccioná —</SelectItem>
-                          {(categoriasItem.find((c) => c.id === atribCatSelec[ai])?.items ?? []).map((item) => (
-                            <SelectItem key={item.id} value={item.id}>{item.nombre}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-
                   <div className="flex items-center gap-3">
                     <Input
                       className="flex-1"
@@ -388,26 +384,61 @@ export function ProductosContent({ productos, categorias, categoriasItem }: Prop
                   </div>
 
                   {/* Opciones */}
-                  <div className="space-y-2 pl-2">
+                  <div className="space-y-3 pl-2">
                     {atrib.opciones.map((op, oi) => (
-                      <div key={oi} className="grid grid-cols-12 gap-2 items-center">
-                        <Input className="col-span-3" value={op.nombre} onChange={(e) => updateOpcion(ai, oi, 'nombre', e.target.value)} placeholder="Opción" />
-                        <Input className="col-span-2" type="number" value={op.costoBase} onChange={(e) => updateOpcion(ai, oi, 'costoBase', e.target.value)} placeholder="Costo" />
-                        <Input className="col-span-2" type="number" step="0.01" value={op.indiceUtilidad} onChange={(e) => updateOpcion(ai, oi, 'indiceUtilidad', e.target.value)} placeholder="Índice" />
-                        <div className="col-span-2">
-                          <Select value={op.unidad} onValueChange={(v) => updateOpcion(ai, oi, 'unidad', v)}>
-                            <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
-                            <SelectContent>
-                              {UNIDADES.map((u) => <SelectItem key={u} value={u}>{u}</SelectItem>)}
-                            </SelectContent>
-                          </Select>
+                      <div key={oi} className="rounded border bg-slate-50 p-3 space-y-2">
+                        {/* Material selectors */}
+                        <div className="grid grid-cols-2 gap-2">
+                          <div className="space-y-1">
+                            <label className="text-xs text-slate-500">Categoría de material</label>
+                            <Select
+                              value={op._catId ?? '__none__'}
+                              onValueChange={(v) => updateOpcion(ai, oi, '_catId', v === '__none__' ? '' : v)}
+                            >
+                              <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Elegir categoría..." /></SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="__none__">— Ninguna —</SelectItem>
+                                {categoriasItem.map((c) => <SelectItem key={c.id} value={c.id}>{c.nombre}</SelectItem>)}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div className="space-y-1">
+                            <label className="text-xs text-slate-500">Material / Accesorio</label>
+                            <Select
+                              value={op._itemId ?? '__none__'}
+                              onValueChange={(v) => v !== '__none__' && selectItemForOpcion(ai, oi, v)}
+                              disabled={!op._catId}
+                            >
+                              <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Elegir ítem..." /></SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="__none__">— Seleccioná —</SelectItem>
+                                {(categoriasItem.find((c) => c.id === op._catId)?.items ?? []).map((item) => (
+                                  <SelectItem key={item.id} value={item.id}>{item.nombre}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
                         </div>
-                        <span className="col-span-2 text-sm text-green-600 font-medium text-right">
-                          {formatCurrency(precioVenta(op.costoBase, op.indiceUtilidad))}
-                        </span>
-                        <Button variant="ghost" size="icon" className="col-span-1 text-red-400 hover:text-red-600" onClick={() => removeOpcion(ai, oi)}>
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </Button>
+                        {/* Fields */}
+                        <div className="grid grid-cols-12 gap-2 items-center">
+                          <Input className="col-span-3" value={op.nombre} onChange={(e) => updateOpcion(ai, oi, 'nombre', e.target.value)} placeholder="Nombre opción" />
+                          <Input className="col-span-2" type="number" value={op.costoBase} onChange={(e) => updateOpcion(ai, oi, 'costoBase', e.target.value)} placeholder="Costo" />
+                          <Input className="col-span-2" type="number" step="0.01" value={op.indiceUtilidad} onChange={(e) => updateOpcion(ai, oi, 'indiceUtilidad', e.target.value)} placeholder="Índice" />
+                          <div className="col-span-2">
+                            <Select value={op.unidad} onValueChange={(v) => updateOpcion(ai, oi, 'unidad', v)}>
+                              <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                              <SelectContent>
+                                {UNIDADES.map((u) => <SelectItem key={u} value={u}>{u}</SelectItem>)}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <span className="col-span-2 text-sm text-green-600 font-medium text-right">
+                            {formatCurrency(precioVenta(op.costoBase, op.indiceUtilidad))}
+                          </span>
+                          <Button variant="ghost" size="icon" className="col-span-1 text-red-400 hover:text-red-600" onClick={() => removeOpcion(ai, oi)}>
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
                       </div>
                     ))}
                     <Button variant="ghost" size="sm" className="text-sky-600 hover:text-sky-700" onClick={() => addOpcion(ai)}>
@@ -431,7 +462,7 @@ export function ProductosContent({ productos, categorias, categoriasItem }: Prop
                 disabled={!nombre.trim() || !categoriaId || saving}
                 onClick={guardar}
               >
-                {saving ? 'Guardando...' : 'Guardar Producto'}
+                {saving ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Guardando...</> : (editingProductoId ? 'Guardar cambios' : 'Guardar Producto')}
               </Button>
             </div>
           </div>

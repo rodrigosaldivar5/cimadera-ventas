@@ -20,7 +20,7 @@ import { TIPO_CLIENTE, TIPO_CLIENTE_LABEL, type TipoCliente } from '@/lib/enums'
 const DRAFT_KEY = 'presupuesto-nuevo-draft';
 
 const paso1Schema = z.object({
-  numero: z.number().int().min(1, 'Número inválido'),
+  numero: z.number().int().min(1, 'Número inválido').optional(),
   clienteId: z.string().min(1, 'Seleccioná un cliente'),
   obraId: z.string().optional(),
   nombrePresupuesto: z.string().optional(),
@@ -98,6 +98,7 @@ export default function NuevoPresupuestoPage() {
   const [draftDate, setDraftDate] = useState('');
   const [numeroDisponible, setNumeroDisponible] = useState<boolean | null>(null);
   const [checkingNumero, setCheckingNumero] = useState(false);
+  const [nextNumero, setNextNumero] = useState<number>(0);
   const [obras, setObras] = useState<{ id: string; nombre: string }[]>([]);
   const [nuevaObraOpen, setNuevaObraOpen] = useState(false);
   const [nuevaObraNombre, setNuevaObraNombre] = useState('');
@@ -105,7 +106,7 @@ export default function NuevoPresupuestoPage() {
 
   const { register, handleSubmit, watch, setValue, formState: { errors } } = useForm<Paso1Data>({
     resolver: zodResolver(paso1Schema),
-    defaultValues: { numero: 0, descuento: 0, prioridad: 'MEDIA', clienteId: clienteIdParam },
+    defaultValues: { descuento: 0, prioridad: 'MEDIA', clienteId: clienteIdParam },
   });
 
   const { register: regCliente, handleSubmit: handleCliente, reset: resetCliente, setValue: setValueCliente, formState: { errors: errCliente } } = useForm<NuevoClienteData>({
@@ -136,7 +137,7 @@ export default function NuevoPresupuestoPage() {
       setClientes(cls.clientes ?? []);
       setTodosItems(items.items ?? []);
       setProductos(prods.productos ?? []);
-      setValue('numero', sig.numero ?? 1001);
+      setNextNumero(sig.numero ?? 1001);
     });
   }, []);
 
@@ -255,6 +256,7 @@ export default function NuevoPresupuestoPage() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
+        numero: watch('numero') || nextNumero,
         clienteId: cId,
         nombrePresupuesto: watch('nombrePresupuesto') || null,
         prioridad: watch('prioridad') ?? 'MEDIA',
@@ -318,6 +320,7 @@ export default function NuevoPresupuestoPage() {
 
   const guardar = async (data: Paso1Data, enviar: boolean) => {
     setIsSubmitting(true);
+    const numero = data.numero ?? nextNumero;
 
     const lineasPayload = [
       ...itemsProducto.map((item) => ({
@@ -347,6 +350,7 @@ export default function NuevoPresupuestoPage() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         ...data,
+        numero,
         puertas: [],
         lineas: lineasPayload,
         subtotal,
@@ -402,8 +406,21 @@ export default function NuevoPresupuestoPage() {
                   <Input
                     type="number"
                     min={1}
-                    {...register('numero', { valueAsNumber: true })}
-                    onBlur={(e) => verificarNumero(Number(e.target.value))}
+                    placeholder={nextNumero ? String(nextNumero) : ''}
+                    value={watch('numero') ?? ''}
+                    onChange={(e) => {
+                      const val = parseInt(e.target.value);
+                      setValue('numero', isNaN(val) ? undefined : val, { shouldValidate: false });
+                    }}
+                    onBlur={(e) => {
+                      const val = parseInt(e.target.value);
+                      if (!val && nextNumero) {
+                        setValue('numero', nextNumero);
+                        verificarNumero(nextNumero);
+                      } else if (val) {
+                        verificarNumero(val);
+                      }
+                    }}
                     className={numeroDisponible === false ? 'border-red-400' : ''}
                   />
                   {checkingNumero && <p className="text-xs text-slate-400">Verificando...</p>}

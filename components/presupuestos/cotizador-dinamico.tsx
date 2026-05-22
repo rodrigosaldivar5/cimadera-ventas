@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Trash2, ShoppingCart } from 'lucide-react';
+import { Plus, Trash2, ShoppingCart, ChevronDown, ChevronUp } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
 
 export interface OpcionSeleccionada {
@@ -19,11 +19,19 @@ export interface OpcionSeleccionada {
   subtotal: number;
 }
 
+export interface ItemLibre {
+  descripcion: string;
+  cantidad: number;
+  precioUnitario: number;
+  subtotal: number;
+}
+
 export interface ItemProducto {
   productoId: string;
   productoNombre: string;
   cantidad: number;
   opciones: OpcionSeleccionada[];
+  itemsLibres?: ItemLibre[];
   subtotal: number;
 }
 
@@ -61,12 +69,31 @@ export function CotizadorDinamico({ productos, items, onChange }: Props) {
   const [productoSeleccionado, setProductoSeleccionado] = useState<Producto | null>(null);
   const [cantidad, setCantidad] = useState(1);
   const [selecciones, setSelecciones] = useState<Record<string, { opcionId: string; medida: number }>>({});
+  const [itemsLibres, setItemsLibres] = useState<ItemLibre[]>([]);
+  const [libresOpen, setLibresOpen] = useState(false);
 
   const resetDialog = () => {
     setProductoSeleccionado(null);
     setCantidad(1);
     setSelecciones({});
+    setItemsLibres([]);
+    setLibresOpen(false);
   };
+
+  const agregarItemLibre = () =>
+    setItemsLibres((prev) => [...prev, { descripcion: '', cantidad: 1, precioUnitario: 0, subtotal: 0 }]);
+
+  const updateItemLibre = (idx: number, field: keyof ItemLibre, value: string | number) => {
+    setItemsLibres((prev) => {
+      const updated = [...prev];
+      updated[idx] = { ...updated[idx], [field]: value };
+      updated[idx].subtotal = Number(updated[idx].cantidad) * Number(updated[idx].precioUnitario);
+      return updated;
+    });
+  };
+
+  const removeItemLibre = (idx: number) =>
+    setItemsLibres((prev) => prev.filter((_, i) => i !== idx));
 
   const elegirProducto = async (productoId: string) => {
     console.log('[CotizadorDinamico] elegirProducto:', productoId);
@@ -87,11 +114,11 @@ export function CotizadorDinamico({ productos, items, onChange }: Props) {
     setSelecciones((prev) => ({ ...prev, [atributoId]: { ...prev[atributoId], medida } }));
   };
 
-  const calcularSubtotalItem = (): number => {
+  const calcularSubtotalAtributos = (): number => {
     if (!productoSeleccionado) return 0;
     return productoSeleccionado.atributos.reduce((sum, atrib) => {
       const sel = selecciones[atrib.id];
-      if (!sel?.opcionId) return sum;
+      if (!sel?.opcionId || sel.opcionId === '__none__') return sum;
       const opcion = atrib.opciones.find((o) => o.id === sel.opcionId);
       if (!opcion) return sum;
       const medida = UNIDADES_CON_MEDIDA.includes(opcion.unidad) ? (sel.medida || 1) : 1;
@@ -99,11 +126,16 @@ export function CotizadorDinamico({ productos, items, onChange }: Props) {
     }, 0) * cantidad;
   };
 
+  const calcularSubtotalItem = (): number => {
+    const libresTotal = itemsLibres.reduce((s, l) => s + l.subtotal, 0);
+    return calcularSubtotalAtributos() + libresTotal;
+  };
+
   const agregarAlPresupuesto = () => {
     if (!productoSeleccionado) return;
 
     const opciones: OpcionSeleccionada[] = productoSeleccionado.atributos
-      .filter((a) => selecciones[a.id]?.opcionId)
+      .filter((a) => selecciones[a.id]?.opcionId && selecciones[a.id].opcionId !== '__none__')
       .map((atrib) => {
         const sel = selecciones[atrib.id];
         const opcion = atrib.opciones.find((o) => o.id === sel.opcionId)!;
@@ -119,13 +151,16 @@ export function CotizadorDinamico({ productos, items, onChange }: Props) {
         };
       });
 
-    const subtotal = opciones.reduce((s, o) => s + o.subtotal, 0) * cantidad;
+    const subtotalOpciones = opciones.reduce((s, o) => s + o.subtotal, 0) * cantidad;
+    const subtotalLibres = itemsLibres.reduce((s, l) => s + l.subtotal, 0);
+    const subtotal = subtotalOpciones + subtotalLibres;
 
     const nuevoItem: ItemProducto = {
       productoId: productoSeleccionado.id,
       productoNombre: productoSeleccionado.nombre,
       cantidad,
       opciones,
+      itemsLibres: itemsLibres.filter((l) => l.descripcion.trim()),
       subtotal,
     };
 
@@ -172,6 +207,11 @@ export function CotizadorDinamico({ productos, items, onChange }: Props) {
                   <Badge key={oi} variant="secondary" className="text-xs">
                     {op.atributoNombre}: {op.opcionNombre}
                     {UNIDADES_CON_MEDIDA.includes(op.unidad) && ` (${op.cantidad} ${op.unidad})`}
+                  </Badge>
+                ))}
+                {item.itemsLibres?.filter((l) => l.descripcion).map((l, li) => (
+                  <Badge key={`libre-${li}`} variant="outline" className="text-xs text-slate-500">
+                    {l.descripcion} × {l.cantidad}
                   </Badge>
                 ))}
               </div>
@@ -251,10 +291,7 @@ export function CotizadorDinamico({ productos, items, onChange }: Props) {
                           <SelectContent>
                             {atrib.opciones.map((op) => (
                               <SelectItem key={op.id} value={op.id}>
-                                <span>{op.nombre}</span>
-                                <span className="ml-2 text-green-600 font-medium">
-                                  {formatCurrency(op.precioVenta)}/{op.unidad}
-                                </span>
+                                {op.nombre} — {formatCurrency(op.precioVenta)}
                               </SelectItem>
                             ))}
                           </SelectContent>
@@ -276,6 +313,53 @@ export function CotizadorDinamico({ productos, items, onChange }: Props) {
                       </div>
                     );
                   })}
+                </div>
+
+                {/* Ítems adicionales libres */}
+                <div className="border rounded-lg overflow-hidden">
+                  <button
+                    type="button"
+                    className="w-full flex items-center justify-between px-4 py-2.5 text-sm font-medium text-slate-700 bg-slate-50 hover:bg-slate-100 transition-colors"
+                    onClick={() => setLibresOpen((v) => !v)}
+                  >
+                    <span>Ítems adicionales</span>
+                    {libresOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                  </button>
+                  {libresOpen && (
+                    <div className="p-3 space-y-2">
+                      {itemsLibres.map((l, idx) => (
+                        <div key={idx} className="grid grid-cols-12 gap-2 items-center">
+                          <Input
+                            className="col-span-5"
+                            value={l.descripcion}
+                            onChange={(e) => updateItemLibre(idx, 'descripcion', e.target.value)}
+                            placeholder="Descripción..."
+                          />
+                          <Input
+                            className="col-span-2"
+                            type="number" min={0.1} step={0.1}
+                            value={l.cantidad}
+                            onChange={(e) => updateItemLibre(idx, 'cantidad', Number(e.target.value))}
+                            placeholder="Cant."
+                          />
+                          <Input
+                            className="col-span-2"
+                            type="number" min={0} step={0.01}
+                            value={l.precioUnitario}
+                            onChange={(e) => updateItemLibre(idx, 'precioUnitario', Number(e.target.value))}
+                            placeholder="P. unit."
+                          />
+                          <span className="col-span-2 text-sm font-medium text-right">{formatCurrency(l.subtotal)}</span>
+                          <Button variant="ghost" size="icon" className="col-span-1 text-red-400 hover:text-red-600" onClick={() => removeItemLibre(idx)}>
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                      ))}
+                      <Button variant="ghost" size="sm" className="text-sky-600 hover:text-sky-700" onClick={agregarItemLibre}>
+                        <Plus className="mr-1 h-3.5 w-3.5" /> Agregar ítem
+                      </Button>
+                    </div>
+                  )}
                 </div>
 
                 {/* Total en tiempo real */}

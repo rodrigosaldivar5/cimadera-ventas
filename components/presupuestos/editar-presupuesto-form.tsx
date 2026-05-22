@@ -237,7 +237,7 @@ export function EditarPresupuestoForm({ presupuesto }: { presupuesto: Presupuest
         ))}
         <span className="ml-2 text-sm text-slate-500">
           {paso === 1 && 'Datos generales'}
-          {paso === 2 && 'Configuración de puertas'}
+          {paso === 2 && 'Configuración de Productos'}
           {paso === 3 && 'Resumen y totales'}
         </span>
       </div>
@@ -267,7 +267,7 @@ export function EditarPresupuestoForm({ presupuesto }: { presupuesto: Presupuest
               <div className="space-y-2">
                 <Label>Cliente *</Label>
                 <Select
-                  defaultValue={presupuesto.clienteId}
+                  value={watch('clienteId') || presupuesto.clienteId}
                   onValueChange={(v) => setValue('clienteId', v)}
                 >
                   <SelectTrigger>
@@ -321,16 +321,16 @@ export function EditarPresupuestoForm({ presupuesto }: { presupuesto: Presupuest
         <div className="space-y-4">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle>Configuración de puertas</CardTitle>
+              <CardTitle>Configuración de Productos</CardTitle>
               <Button size="sm" onClick={agregarPuerta} className="bg-sky-500 hover:bg-sky-600">
-                <Plus className="mr-1 h-4 w-4" /> Agregar puerta
+                <Plus className="mr-1 h-4 w-4" /> Agregar Producto
               </Button>
             </CardHeader>
             <CardContent className="space-y-6">
               {puertas.map((puerta, idx) => (
                 <div key={idx} className="border rounded-lg p-4 space-y-4">
                   <div className="flex items-center justify-between">
-                    <span className="font-medium text-sm">Puerta #{idx + 1}</span>
+                    <span className="font-medium text-sm">Producto #{idx + 1}</span>
                     <Button
                       variant="ghost"
                       size="icon"
@@ -345,11 +345,12 @@ export function EditarPresupuestoForm({ presupuesto }: { presupuesto: Presupuest
                     <div className="space-y-1 col-span-2">
                       <Label>Tipo</Label>
                       <Select
-                        value={puerta.tipoPuertaId}
-                        onValueChange={(v) => updatePuerta(idx, 'tipoPuertaId', v)}
+                        value={puerta.tipoPuertaId || '__none__'}
+                        onValueChange={(v) => updatePuerta(idx, 'tipoPuertaId', v === '__none__' ? '' : v)}
                       >
-                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectTrigger><SelectValue placeholder="Seleccionar tipo" /></SelectTrigger>
                         <SelectContent>
+                          <SelectItem value="__none__">— Seleccioná —</SelectItem>
                           {tiposPuerta.map((t) => (
                             <SelectItem key={t.id} value={t.id}>{t.nombre}</SelectItem>
                           ))}
@@ -404,14 +405,14 @@ export function EditarPresupuestoForm({ presupuesto }: { presupuesto: Presupuest
                       <div key={field} className="space-y-1">
                         <Label>{label}</Label>
                         <Select
-                          value={puerta[field]}
-                          onValueChange={(v) => updatePuerta(idx, field, v)}
+                          value={puerta[field] || '__none__'}
+                          onValueChange={(v) => updatePuerta(idx, field, v === '__none__' ? '' : v)}
                         >
                           <SelectTrigger>
                             <SelectValue placeholder={`Seleccionar ${label.toLowerCase()}`} />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="">Sin {label.toLowerCase()}</SelectItem>
+                            <SelectItem value="__none__">Sin {label.toLowerCase()}</SelectItem>
                             {items.map((i) => (
                               <SelectItem key={i.id} value={i.id}>
                                 {i.nombre} — {formatCurrency(i.precioVenta)}
@@ -441,7 +442,7 @@ export function EditarPresupuestoForm({ presupuesto }: { presupuesto: Presupuest
 
               {puertas.length === 0 && (
                 <div className="text-center py-8 text-slate-400">
-                  No hay puertas. Hacé click en "Agregar puerta".
+                  No hay productos. Hacé click en &quot;Agregar Producto&quot;.
                 </div>
               )}
             </CardContent>
@@ -473,11 +474,12 @@ export function EditarPresupuestoForm({ presupuesto }: { presupuesto: Presupuest
                 <div key={idx} className="grid grid-cols-12 gap-2 items-end">
                   <div className="col-span-5">
                     <Select
-                      value={linea.itemId}
-                      onValueChange={(v) => updateLinea(idx, 'itemId', v)}
+                      value={linea.itemId || '__none__'}
+                      onValueChange={(v) => updateLinea(idx, 'itemId', v === '__none__' ? '' : v)}
                     >
                       <SelectTrigger><SelectValue placeholder="Seleccionar ítem" /></SelectTrigger>
                       <SelectContent>
+                        <SelectItem value="__none__">— Seleccioná —</SelectItem>
                         {todosItems.map((i) => (
                           <SelectItem key={i.id} value={i.id}>{i.nombre}</SelectItem>
                         ))}
@@ -522,7 +524,7 @@ export function EditarPresupuestoForm({ presupuesto }: { presupuesto: Presupuest
             <CardContent className="space-y-3">
               {puertas.map((p, idx) => (
                 <div key={idx} className="flex justify-between text-sm">
-                  <span className="text-slate-600">Puerta #{idx + 1} × {p.cantidad}</span>
+                  <span className="text-slate-600">Producto #{idx + 1} × {p.cantidad}</span>
                   <span>{formatCurrency(p.subtotal)}</span>
                 </div>
               ))}
