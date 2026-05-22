@@ -2,7 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -10,27 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Plus, Eye, ChevronLeft, ChevronRight, Filter, AlertTriangle, ChevronDown, ChevronUp } from 'lucide-react';
 import { formatCurrency, formatDate } from '@/lib/utils';
-import { ESTADO_PRESUPUESTO, PRIORIDAD, type EstadoPresupuesto, type Prioridad } from '@/lib/enums';
-
-const estadoBadgeVariant: Record<EstadoPresupuesto, 'default' | 'info' | 'success' | 'destructive' | 'warning' | 'secondary' | 'outline' | 'purple'> = {
-  PENDIENTE: 'secondary',
-  EN_PROCESO: 'info',
-  FINALIZADO: 'success',
-  PARA_ENVIAR: 'warning',
-  ENVIADO: 'outline',
-  APROBADO: 'success',
-  RECHAZADO: 'destructive',
-};
-
-const estadoLabel: Record<EstadoPresupuesto, string> = {
-  PENDIENTE: 'Pendiente',
-  EN_PROCESO: 'En proceso',
-  FINALIZADO: 'Finalizado',
-  PARA_ENVIAR: 'Para enviar',
-  ENVIADO: 'Enviado',
-  APROBADO: 'Aprobado',
-  RECHAZADO: 'Rechazado',
-};
+import { ESTADO_PRESUPUESTO, PRIORIDAD, estadoBadgeClass, estadoLabel, type EstadoPresupuesto, type Prioridad } from '@/lib/enums';
 
 const prioridadVariant: Record<Prioridad, 'destructive' | 'warning' | 'success'> = {
   ALTA: 'destructive',
@@ -51,6 +31,7 @@ type PresupuestoRow = {
   cliente: { razonSocial: string };
   creadoPor: { nombre: string };
   responsable: { nombre: string } | null;
+  obra: { nombre: string } | null;
 };
 
 type PresupuestoCritico = {
@@ -70,7 +51,7 @@ interface Props {
   clientes: { id: string; razonSocial: string }[];
   usuarios: { id: string; nombre: string }[];
   criticos: PresupuestoCritico[];
-  filters: { estado?: string; clienteId?: string; desde?: string; hasta?: string };
+  filters: { estado?: string; clienteId?: string; obraId?: string; desde?: string; hasta?: string };
 }
 
 function diasDesde(fecha: Date | null): number {
@@ -85,13 +66,21 @@ export function PresupuestosTable({ presupuestos, total, page, perPage, clientes
 
   const [estado, setEstado] = useState(filters.estado ?? '');
   const [clienteId, setClienteId] = useState(filters.clienteId ?? '');
+  const [obraId, setObraId] = useState(filters.obraId ?? '');
+  const [obrasCliente, setObrasCliente] = useState<{ id: string; nombre: string }[]>([]);
   const [desde, setDesde] = useState(filters.desde ?? '');
   const [hasta, setHasta] = useState(filters.hasta ?? '');
+
+  useEffect(() => {
+    if (!clienteId) { setObrasCliente([]); setObraId(''); return; }
+    fetch(`/api/clientes/${clienteId}/obras`).then((r) => r.json()).then((d) => setObrasCliente(d.obras ?? []));
+  }, [clienteId]);
 
   const applyFilters = () => {
     const params = new URLSearchParams();
     if (estado) params.set('estado', estado);
     if (clienteId) params.set('clienteId', clienteId);
+    if (obraId) params.set('obraId', obraId);
     if (desde) params.set('desde', desde);
     if (hasta) params.set('hasta', hasta);
     router.push(`/presupuestos?${params.toString()}`);
@@ -179,6 +168,20 @@ export function PresupuestosTable({ presupuestos, total, page, perPage, clientes
             </SelectContent>
           </Select>
 
+          {obrasCliente.length > 0 && (
+            <Select value={obraId || '__all__'} onValueChange={(v) => setObraId(v === '__all__' ? '' : v)}>
+              <SelectTrigger className="w-44">
+                <SelectValue placeholder="Obra" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__all__">Todas las obras</SelectItem>
+                {obrasCliente.map((o) => (
+                  <SelectItem key={o.id} value={o.id}>{o.nombre}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+
           <Input type="date" value={desde} onChange={(e) => setDesde(e.target.value)} className="w-36" />
           <Input type="date" value={hasta} onChange={(e) => setHasta(e.target.value)} className="w-36" />
 
@@ -197,6 +200,7 @@ export function PresupuestosTable({ presupuestos, total, page, perPage, clientes
               <TableHead>Nro</TableHead>
               <TableHead>Nombre</TableHead>
               <TableHead>Cliente</TableHead>
+              <TableHead>Obra</TableHead>
               <TableHead>Responsable</TableHead>
               <TableHead>Prioridad</TableHead>
               <TableHead>Estado</TableHead>
@@ -213,6 +217,7 @@ export function PresupuestosTable({ presupuestos, total, page, perPage, clientes
                   {p.nombrePresupuesto ?? '—'}
                 </TableCell>
                 <TableCell className="max-w-[150px] truncate">{p.cliente.razonSocial}</TableCell>
+                <TableCell className="text-slate-500 text-sm max-w-[120px] truncate">{p.obra?.nombre ?? '—'}</TableCell>
                 <TableCell className="text-slate-500 text-sm">
                   {p.responsable?.nombre ?? p.creadoPor.nombre}
                 </TableCell>
@@ -220,7 +225,7 @@ export function PresupuestosTable({ presupuestos, total, page, perPage, clientes
                   <Badge variant={prioridadVariant[p.prioridad]}>{p.prioridad}</Badge>
                 </TableCell>
                 <TableCell>
-                  <Badge variant={estadoBadgeVariant[p.estado]}>{estadoLabel[p.estado]}</Badge>
+                  <Badge variant="outline" className={estadoBadgeClass[p.estado]}>{estadoLabel[p.estado]}</Badge>
                 </TableCell>
                 <TableCell className="text-slate-500 text-sm">
                   {p.fechaRecepcion ? formatDate(p.fechaRecepcion) : '—'}
@@ -235,7 +240,7 @@ export function PresupuestosTable({ presupuestos, total, page, perPage, clientes
             ))}
             {presupuestos.length === 0 && (
               <TableRow>
-                <TableCell colSpan={9} className="text-center text-slate-400 py-10">
+                <TableCell colSpan={10} className="text-center text-slate-400 py-10">
                   No hay presupuestos con los filtros aplicados
                 </TableCell>
               </TableRow>

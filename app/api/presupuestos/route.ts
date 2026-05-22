@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { EstadoPresupuesto, Prioridad } from '@prisma/client';
+import { getNextNumeroPresupuesto } from '@/lib/presupuesto-utils';
 
 export async function GET(req: NextRequest) {
   const session = await auth();
@@ -55,12 +56,16 @@ export async function POST(req: NextRequest) {
       opciones?: { atributoNombre: string; opcionNombre: string; precioUnitario: number; cantidad: number; subtotal: number }[];
     };
 
+    const numero = data.numero ? Number(data.numero) : await getNextNumeroPresupuesto();
+
     const presupuesto = await prisma.presupuesto.create({
       data: {
+        numero,
         clienteId: data.clienteId,
         creadoPorId: session.user.id,
         nombrePresupuesto: data.nombrePresupuesto || null,
-        estado: data.estado ?? 'BORRADOR',
+        obraId: data.obraId || null,
+        estado: data.estado ?? 'PENDIENTE',
         prioridad: (data.prioridad as Prioridad) ?? 'MEDIA',
         fechaVencimiento: data.fechaVencimiento ? new Date(data.fechaVencimiento) : null,
         fechaRecepcion: data.fechaRecepcion ? new Date(data.fechaRecepcion) : null,

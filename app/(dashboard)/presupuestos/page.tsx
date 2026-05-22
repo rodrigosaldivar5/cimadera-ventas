@@ -7,10 +7,10 @@ import { EstadoPresupuesto } from '@prisma/client';
 interface SearchParams {
   estado?: string;
   clienteId?: string;
+  obraId?: string;
   desde?: string;
   hasta?: string;
   page?: string;
-  tab?: string;
 }
 
 export default async function PresupuestosPage({ searchParams }: { searchParams: SearchParams }) {
@@ -23,6 +23,7 @@ export default async function PresupuestosPage({ searchParams }: { searchParams:
     where.estado = searchParams.estado as EstadoPresupuesto;
   }
   if (searchParams.clienteId) where.clienteId = searchParams.clienteId;
+  if (searchParams.obraId) where.obraId = searchParams.obraId;
   if (searchParams.desde || searchParams.hasta) {
     where.fechaCreacion = {};
     if (searchParams.desde) (where.fechaCreacion as Record<string, unknown>).gte = new Date(searchParams.desde);
@@ -35,7 +36,7 @@ export default async function PresupuestosPage({ searchParams }: { searchParams:
       skip,
       take: perPage,
       orderBy: { fechaCreacion: 'desc' },
-      include: { cliente: true, creadoPor: true, responsable: true },
+      include: { cliente: true, creadoPor: true, responsable: true, obra: true },
     }),
     prisma.presupuesto.count({ where }),
     prisma.cliente.findMany({ where: { activo: true }, orderBy: { razonSocial: 'asc' }, select: { id: true, razonSocial: true } }),
@@ -57,7 +58,7 @@ export default async function PresupuestosPage({ searchParams }: { searchParams:
       clientes={clientes}
       usuarios={usuarios}
       criticos={criticos}
-      filters={{ estado: searchParams.estado, clienteId: searchParams.clienteId, desde: searchParams.desde, hasta: searchParams.hasta }}
+      filters={{ estado: searchParams.estado, clienteId: searchParams.clienteId, obraId: searchParams.obraId, desde: searchParams.desde, hasta: searchParams.hasta }}
     />
   );
 }

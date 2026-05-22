@@ -20,7 +20,9 @@ import { TIPO_CLIENTE, TIPO_CLIENTE_LABEL, type TipoCliente } from '@/lib/enums'
 const DRAFT_KEY = 'presupuesto-nuevo-draft';
 
 const paso1Schema = z.object({
+  numero: z.number().int().min(1, 'Número inválido'),
   clienteId: z.string().min(1, 'Seleccioná un cliente'),
+  obraId: z.string().optional(),
   nombrePresupuesto: z.string().optional(),
   fechaVencimiento: z.string().optional(),
   fechaRecepcion: z.string().optional(),
@@ -94,10 +96,16 @@ export default function NuevoPresupuestoPage() {
   const [nuevoClienteOpen, setNuevoClienteOpen] = useState(false);
   const [hasDraft, setHasDraft] = useState(false);
   const [draftDate, setDraftDate] = useState('');
+  const [numeroDisponible, setNumeroDisponible] = useState<boolean | null>(null);
+  const [checkingNumero, setCheckingNumero] = useState(false);
+  const [obras, setObras] = useState<{ id: string; nombre: string }[]>([]);
+  const [nuevaObraOpen, setNuevaObraOpen] = useState(false);
+  const [nuevaObraNombre, setNuevaObraNombre] = useState('');
+  const [nuevaObraDireccion, setNuevaObraDireccion] = useState('');
 
   const { register, handleSubmit, watch, setValue, formState: { errors } } = useForm<Paso1Data>({
     resolver: zodResolver(paso1Schema),
-    defaultValues: { descuento: 0, prioridad: 'MEDIA', clienteId: clienteIdParam },
+    defaultValues: { numero: 0, descuento: 0, prioridad: 'MEDIA', clienteId: clienteIdParam },
   });
 
   const { register: regCliente, handleSubmit: handleCliente, reset: resetCliente, setValue: setValueCliente, formState: { errors: errCliente } } = useForm<NuevoClienteData>({
@@ -123,10 +131,12 @@ export default function NuevoPresupuestoPage() {
       fetch('/api/clientes?all=true').then((r) => r.json()),
       fetch('/api/materiales/items?all=true').then((r) => r.json()),
       fetch('/api/productos').then((r) => r.json()),
-    ]).then(([cls, items, prods]) => {
+      fetch('/api/presupuestos/siguiente-numero').then((r) => r.json()),
+    ]).then(([cls, items, prods, sig]) => {
       setClientes(cls.clientes ?? []);
       setTodosItems(items.items ?? []);
       setProductos(prods.productos ?? []);
+      setValue('numero', sig.numero ?? 1001);
     });
   }, []);
 
@@ -175,9 +185,18 @@ export default function NuevoPresupuestoPage() {
     setHasDraft(false);
   };
 
-  // Fetch descuento y criterios cuando se selecciona cliente
+  const verificarNumero = async (n: number) => {
+    if (!n || isNaN(n)) return;
+    setCheckingNumero(true);
+    const res = await fetch(`/api/presupuestos/verificar-numero?numero=${n}`);
+    const data = await res.json();
+    setNumeroDisponible(data.disponible);
+    setCheckingNumero(false);
+  };
+
+  // Fetch descuento, criterios y obras cuando se selecciona cliente
   useEffect(() => {
-    if (!clienteId) return;
+    if (!clienteId) { setObras([]); return; }
     fetch(`/api/clientes/${clienteId}/indice`).then((r) => r.json()).then((data) => {
       setValue('descuento', Number(data.descuento));
     });
@@ -186,12 +205,32 @@ export default function NuevoPresupuestoPage() {
       setCriterios(activos);
       setCriteriosBanner(activos.length > 0);
     });
+    fetch(`/api/clientes/${clienteId}/obras`).then((r) => r.json()).then((data) => {
+      setObras(data.obras ?? []);
+    });
+    setValue('obraId', undefined);
   }, [clienteId, setValue]);
 
   const tipoClienteLabel = () => {
     const c = clientes.find((cl) => cl.id === clienteId);
     if (!c?.tipoCliente) return '';
     return TIPO_CLIENTE_LABEL[(c.tipoCliente as TipoCliente)] ?? '';
+  };
+
+  const crearObraInline = async () => {
+    if (!clienteId || !nuevaObraNombre.trim()) return;
+    const res = await fetch(`/api/clientes/${clienteId}/obras`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ nombre: nuevaObraNombre.trim(), direccion: nuevaObraDireccion || null }),
+    });
+    if (!res.ok) return;
+    const obra = await res.json();
+    setObras((prev) => [...prev, { id: obra.id, nombre: obra.nombre }]);
+    setValue('obraId', obra.id);
+    setNuevaObraOpen(false);
+    setNuevaObraNombre('');
+    setNuevaObraDireccion('');
   };
 
   const crearClienteInline = async (data: NuevoClienteData) => {
@@ -313,6 +352,7 @@ export default function NuevoPresupuestoPage() {
         subtotal,
         totalFinal: total,
         estado: enviar ? 'ENVIADO' : 'EN_PROCESO',
+        obraId: data.obraId || null,
       }),
     });
     setIsSubmitting(false);
@@ -357,7 +397,23 @@ export default function NuevoPresupuestoPage() {
           <CardContent>
             <form id="paso1" onSubmit={handleSubmit(() => setPaso(2))} className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
-                <div className="col-span-2 space-y-2">
+                <div className="space-y-2">
+                  <Label>Número de presupuesto *</Label>
+                  <Input
+                    type="number"
+                    min={1}
+                    {...register('numero', { valueAsNumber: true })}
+                    onBlur={(e) => verificarNumero(Number(e.target.value))}
+                    className={numeroDisponible === false ? 'border-red-400' : ''}
+                  />
+                  {checkingNumero && <p className="text-xs text-slate-400">Verificando...</p>}
+                  {!checkingNumero && numeroDisponible === false && (
+                    <p className="text-xs text-red-500">Este número ya está en uso</p>
+                  )}
+                  {errors.numero && <p className="text-xs text-red-500">{errors.numero.message}</p>}
+                </div>
+
+                <div className="space-y-2">
                   <Label>Nombre del presupuesto</Label>
                   <Input {...register('nombrePresupuesto')} placeholder="Ej: Reforma baño principal" />
                 </div>
@@ -410,6 +466,32 @@ export default function NuevoPresupuestoPage() {
                       >
                         <ExternalLink className="h-3.5 w-3.5" />
                       </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Selector de obra */}
+                {clienteId && (
+                  <div className="col-span-2 space-y-2">
+                    <Label>Obra (opcional)</Label>
+                    <div className="flex gap-2">
+                      <Select
+                        value={watch('obraId') || '__none__'}
+                        onValueChange={(v) => setValue('obraId', v === '__none__' ? undefined : v)}
+                      >
+                        <SelectTrigger className="flex-1">
+                          <SelectValue placeholder="Sin obra asociada" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="__none__">Sin obra</SelectItem>
+                          {obras.map((o) => (
+                            <SelectItem key={o.id} value={o.id}>{o.nombre}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <Button type="button" variant="outline" size="sm" onClick={() => setNuevaObraOpen(true)} className="shrink-0">
+                        <Plus className="mr-1 h-3.5 w-3.5" /> Nueva obra
+                      </Button>
                     </div>
                   </div>
                 )}
@@ -651,6 +733,27 @@ export default function NuevoPresupuestoPage() {
           </div>
         </div>
       )}
+
+      {/* Dialog: Nueva obra */}
+      <Dialog open={nuevaObraOpen} onOpenChange={setNuevaObraOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader><DialogTitle>Nueva obra</DialogTitle></DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-1.5">
+              <Label>Nombre *</Label>
+              <Input value={nuevaObraNombre} onChange={(e) => setNuevaObraNombre(e.target.value)} autoFocus placeholder="Ej: Torre Madero Piso 3" />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Dirección</Label>
+              <Input value={nuevaObraDireccion} onChange={(e) => setNuevaObraDireccion(e.target.value)} placeholder="Ej: Av. Madero 1234" />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setNuevaObraOpen(false); setNuevaObraNombre(''); setNuevaObraDireccion(''); }}>Cancelar</Button>
+            <Button onClick={crearObraInline} disabled={!nuevaObraNombre.trim()} className="bg-sky-500 hover:bg-sky-600">Crear obra</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Dialog: Crear nuevo cliente */}
       <Dialog open={nuevoClienteOpen} onOpenChange={setNuevoClienteOpen}>

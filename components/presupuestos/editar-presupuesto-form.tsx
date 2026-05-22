@@ -17,6 +17,7 @@ import Link from 'next/link';
 import type { EstadoPresupuesto } from '@prisma/client';
 
 const paso1Schema = z.object({
+  numero: z.number().int().min(1, 'Número inválido'),
   clienteId: z.string().min(1, 'Seleccioná un cliente'),
   fechaVencimiento: z.string().optional(),
   observaciones: z.string().optional(),
@@ -73,6 +74,8 @@ interface PresupuestoInicial {
 export function EditarPresupuestoForm({ presupuesto }: { presupuesto: PresupuestoInicial }) {
   const router = useRouter();
   const [paso, setPaso] = useState(1);
+  const [numeroDisponible, setNumeroDisponible] = useState<boolean | null>(null);
+  const [checkingNumero, setCheckingNumero] = useState(false);
   const [clientes, setClientes] = useState<{ id: string; razonSocial: string }[]>([]);
   const [tiposPuerta, setTiposPuerta] = useState<TipoPuerta[]>([]);
   const [itemsBisagra, setItemsBisagra] = useState<ItemCatalogo[]>([]);
@@ -88,12 +91,22 @@ export function EditarPresupuestoForm({ presupuesto }: { presupuesto: Presupuest
   const { register, handleSubmit, watch, setValue, formState: { errors } } = useForm<Paso1Data>({
     resolver: zodResolver(paso1Schema),
     defaultValues: {
+      numero: presupuesto.numero,
       clienteId: presupuesto.clienteId,
       fechaVencimiento: presupuesto.fechaVencimiento,
       observaciones: presupuesto.observaciones,
       descuento: presupuesto.descuento,
     },
   });
+
+  const verificarNumero = async (n: number) => {
+    if (!n || isNaN(n) || n === presupuesto.numero) { setNumeroDisponible(null); return; }
+    setCheckingNumero(true);
+    const res = await fetch(`/api/presupuestos/verificar-numero?numero=${n}&excludeId=${presupuesto.id}`);
+    const data = await res.json();
+    setNumeroDisponible(data.disponible);
+    setCheckingNumero(false);
+  };
 
   const descuento = watch('descuento') ?? 0;
 
@@ -184,6 +197,7 @@ export function EditarPresupuestoForm({ presupuesto }: { presupuesto: Presupuest
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         ...data,
+        numero: data.numero,
         puertas,
         lineas,
         subtotal,
@@ -234,6 +248,22 @@ export function EditarPresupuestoForm({ presupuesto }: { presupuesto: Presupuest
           <CardHeader><CardTitle>Datos generales</CardTitle></CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit(() => setPaso(2))} className="space-y-4">
+              <div className="space-y-2">
+                <Label>Número de presupuesto *</Label>
+                <Input
+                  type="number"
+                  min={1}
+                  {...register('numero', { valueAsNumber: true })}
+                  onBlur={(e) => verificarNumero(Number(e.target.value))}
+                  className={numeroDisponible === false ? 'border-red-400' : ''}
+                />
+                {checkingNumero && <p className="text-xs text-slate-400">Verificando...</p>}
+                {!checkingNumero && numeroDisponible === false && (
+                  <p className="text-xs text-red-500">Este número ya está en uso</p>
+                )}
+                {errors.numero && <p className="text-xs text-red-500">{errors.numero.message}</p>}
+              </div>
+
               <div className="space-y-2">
                 <Label>Cliente *</Label>
                 <Select

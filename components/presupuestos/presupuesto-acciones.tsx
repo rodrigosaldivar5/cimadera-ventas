@@ -6,14 +6,9 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Edit, Download, RefreshCw } from 'lucide-react';
-import { ESTADO_PRESUPUESTO, type EstadoPresupuesto } from '@/lib/enums';
+import { ESTADO_PRESUPUESTO, estadoLabel, type EstadoPresupuesto } from '@/lib/enums';
 import Link from 'next/link';
 import { generarPresupuestoPDF } from '@/lib/pdf/generar-presupuesto';
-
-const estadoLabel: Record<EstadoPresupuesto, string> = {
-  PENDIENTE: 'Pendiente', EN_PROCESO: 'En proceso', FINALIZADO: 'Finalizado',
-  PARA_ENVIAR: 'Para enviar', ENVIADO: 'Enviado', APROBADO: 'Aprobado', RECHAZADO: 'Rechazado',
-};
 
 type PresupuestoParaPDF = Parameters<typeof generarPresupuestoPDF>[0];
 

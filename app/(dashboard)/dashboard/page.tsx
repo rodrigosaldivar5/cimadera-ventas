@@ -11,28 +11,8 @@ import { FileText, Send, CheckCircle, XCircle, TrendingUp, Clock } from 'lucide-
 import { startOfMonth, endOfMonth, subMonths, format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import Link from 'next/link';
-import { EstadoPresupuesto } from '@prisma/client';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-
-const estadoBadgeVariant: Record<EstadoPresupuesto, 'default' | 'info' | 'success' | 'destructive' | 'warning' | 'secondary' | 'outline' | 'purple'> = {
-  PENDIENTE: 'secondary',
-  EN_PROCESO: 'info',
-  FINALIZADO: 'success',
-  PARA_ENVIAR: 'warning',
-  ENVIADO: 'outline',
-  APROBADO: 'success',
-  RECHAZADO: 'destructive',
-};
-
-const estadoLabel: Record<EstadoPresupuesto, string> = {
-  PENDIENTE: 'Pendiente',
-  EN_PROCESO: 'En proceso',
-  FINALIZADO: 'Finalizado',
-  PARA_ENVIAR: 'Para enviar',
-  ENVIADO: 'Enviado',
-  APROBADO: 'Aprobado',
-  RECHAZADO: 'Rechazado',
-};
+import { estadoBadgeClass, estadoLabel } from '@/lib/enums';
 
 export default async function DashboardPage({ searchParams }: { searchParams: { userId?: string } }) {
   const userId = searchParams.userId;
@@ -202,7 +182,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: { 
                   </TableCell>
                   <TableCell className="max-w-[140px] truncate">{p.cliente.razonSocial}</TableCell>
                   <TableCell>
-                    <Badge variant={estadoBadgeVariant[p.estado]}>
+                    <Badge variant="outline" className={estadoBadgeClass[p.estado]}>
                       {estadoLabel[p.estado]}
                     </Badge>
                   </TableCell>

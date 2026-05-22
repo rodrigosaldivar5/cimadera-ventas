@@ -12,21 +12,7 @@ import { PresupuestoAcciones } from '@/components/presupuestos/presupuesto-accio
 import type { EstadoPresupuesto } from '@prisma/client';
 import Link from 'next/link';
 import { ArrowLeft, Building2, User2, Calendar } from 'lucide-react';
-
-const estadoBadgeVariant: Record<EstadoPresupuesto, 'default' | 'info' | 'success' | 'destructive' | 'warning' | 'secondary' | 'outline' | 'purple'> = {
-  PENDIENTE: 'secondary',
-  EN_PROCESO: 'info',
-  FINALIZADO: 'success',
-  PARA_ENVIAR: 'warning',
-  ENVIADO: 'outline',
-  APROBADO: 'success',
-  RECHAZADO: 'destructive',
-};
-
-const estadoLabel: Record<EstadoPresupuesto, string> = {
-  PENDIENTE: 'Pendiente', EN_PROCESO: 'En proceso', FINALIZADO: 'Finalizado',
-  PARA_ENVIAR: 'Para enviar', ENVIADO: 'Enviado', APROBADO: 'Aprobado', RECHAZADO: 'Rechazado',
-};
+import { estadoBadgeClass, estadoLabel } from '@/lib/enums';
 
 export default async function PresupuestoDetallePage({ params }: { params: { id: string } }) {
   const presupuesto = await prisma.presupuesto.findUnique({
@@ -49,7 +35,7 @@ export default async function PresupuestoDetallePage({ params }: { params: { id:
           <Link href="/presupuestos"><ArrowLeft className="mr-2 h-4 w-4" /> Volver</Link>
         </Button>
         <div className="flex items-center gap-3">
-          <Badge variant={estadoBadgeVariant[presupuesto.estado]} className="text-sm px-3 py-1">
+          <Badge variant="outline" className={`text-sm px-3 py-1 ${estadoBadgeClass[presupuesto.estado]}`}>
             {estadoLabel[presupuesto.estado]}
           </Badge>
           <PresupuestoAcciones

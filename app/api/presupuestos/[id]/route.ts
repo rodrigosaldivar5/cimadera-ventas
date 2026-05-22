@@ -29,8 +29,10 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
     const presupuesto = await prisma.presupuesto.update({
       where: { id: params.id },
       data: {
+        ...(data.numero ? { numero: data.numero } : {}),
         clienteId: data.clienteId,
         estado: data.estado,
+        obraId: data.obraId || null,
         fechaVencimiento: data.fechaVencimiento ? new Date(data.fechaVencimiento) : null,
         observaciones: data.observaciones ?? null,
         descuento: data.descuento ?? 0,

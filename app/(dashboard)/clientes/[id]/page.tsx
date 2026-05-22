@@ -11,27 +11,9 @@ import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { CriteriosTab } from '@/components/clientes/criterios-tab';
-import type { EstadoPresupuesto } from '@prisma/client';
-import { TIPO_CLIENTE_LABEL, type TipoCliente } from '@/lib/enums';
+import { ObrasTab } from '@/components/clientes/obras-tab';
+import { TIPO_CLIENTE_LABEL, estadoBadgeClass, estadoLabel, type TipoCliente } from '@/lib/enums';
 import { ArrowLeft, Building2, Mail, Phone, MapPin, Hash, FileText } from 'lucide-react';
-
-const estadoBadgeVariant: Record<
-  EstadoPresupuesto,
-  'default' | 'info' | 'success' | 'destructive' | 'warning' | 'secondary' | 'outline' | 'purple'
-> = {
-  PENDIENTE: 'secondary',
-  EN_PROCESO: 'info',
-  FINALIZADO: 'success',
-  PARA_ENVIAR: 'warning',
-  ENVIADO: 'outline',
-  APROBADO: 'success',
-  RECHAZADO: 'destructive',
-};
-
-const estadoLabel: Record<EstadoPresupuesto, string> = {
-  PENDIENTE: 'Pendiente', EN_PROCESO: 'En proceso', FINALIZADO: 'Finalizado',
-  PARA_ENVIAR: 'Para enviar', ENVIADO: 'Enviado', APROBADO: 'Aprobado', RECHAZADO: 'Rechazado',
-};
 
 export default async function ClienteDetallePage({ params }: { params: { id: string } }) {
   const cliente = await prisma.cliente.findUnique({
@@ -43,6 +25,11 @@ export default async function ClienteDetallePage({ params }: { params: { id: str
         include: { creadoPor: { select: { nombre: true } } },
       },
       criterios: { orderBy: { createdAt: 'asc' } },
+      obras: {
+        where: { activo: true },
+        orderBy: { createdAt: 'asc' },
+        include: { _count: { select: { presupuestos: true } } },
+      },
     },
   });
 
@@ -136,6 +123,12 @@ export default async function ClienteDetallePage({ params }: { params: { id: str
       <Tabs defaultValue="presupuestos">
         <TabsList>
           <TabsTrigger value="presupuestos">Presupuestos</TabsTrigger>
+          <TabsTrigger value="obras">
+            Obras
+            {cliente.obras.length > 0 && (
+              <Badge variant="secondary" className="ml-2 text-xs">{cliente.obras.length}</Badge>
+            )}
+          </TabsTrigger>
           <TabsTrigger value="criterios">
             Criterios
             {criteriosActivos > 0 && (
@@ -167,7 +160,7 @@ export default async function ClienteDetallePage({ params }: { params: { id: str
                         </Link>
                       </TableCell>
                       <TableCell>
-                        <Badge variant={estadoBadgeVariant[p.estado]}>{estadoLabel[p.estado]}</Badge>
+                        <Badge variant="outline" className={estadoBadgeClass[p.estado]}>{estadoLabel[p.estado]}</Badge>
                       </TableCell>
                       <TableCell>{formatDate(p.fechaCreacion)}</TableCell>
                       <TableCell>{p.fechaVencimiento ? formatDate(p.fechaVencimiento) : '—'}</TableCell>
@@ -186,6 +179,10 @@ export default async function ClienteDetallePage({ params }: { params: { id: str
               </Table>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="obras">
+          <ObrasTab clienteId={cliente.id} obras={cliente.obras} />
         </TabsContent>
 
         <TabsContent value="criterios">
