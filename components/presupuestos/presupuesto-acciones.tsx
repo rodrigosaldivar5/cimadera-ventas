@@ -8,16 +8,20 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Edit, Download, RefreshCw } from 'lucide-react';
 import { ESTADO_PRESUPUESTO, type EstadoPresupuesto } from '@/lib/enums';
 import Link from 'next/link';
+import { generarPresupuestoPDF } from '@/lib/pdf/generar-presupuesto';
 
 const estadoLabel: Record<EstadoPresupuesto, string> = {
   BORRADOR: 'Borrador', ENVIADO: 'Enviado', APROBADO: 'Aprobado', RECHAZADO: 'Rechazado', VENCIDO: 'Vencido',
 };
 
+type PresupuestoParaPDF = Parameters<typeof generarPresupuestoPDF>[0];
+
 interface Props {
   presupuesto: { id: string; estado: EstadoPresupuesto; numero: number };
+  presupuestoPDF?: PresupuestoParaPDF;
 }
 
-export function PresupuestoAcciones({ presupuesto }: Props) {
+export function PresupuestoAcciones({ presupuesto, presupuestoPDF }: Props) {
   const router = useRouter();
   const [estadoDialog, setEstadoDialog] = useState(false);
   const [nuevoEstado, setNuevoEstado] = useState<EstadoPresupuesto>(presupuesto.estado);
@@ -42,7 +46,11 @@ export function PresupuestoAcciones({ presupuesto }: Props) {
           <Edit className="mr-1.5 h-4 w-4" /> Editar
         </Link>
       </Button>
-      <Button variant="outline" size="sm" onClick={() => window.print()}>
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={() => presupuestoPDF ? generarPresupuestoPDF(presupuestoPDF) : window.print()}
+      >
         <Download className="mr-1.5 h-4 w-4" /> Exportar PDF
       </Button>
       <Button size="sm" onClick={() => setEstadoDialog(true)} className="bg-sky-500 hover:bg-sky-600">

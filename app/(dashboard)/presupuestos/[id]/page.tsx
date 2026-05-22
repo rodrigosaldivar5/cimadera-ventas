@@ -9,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { PresupuestoAcciones } from '@/components/presupuestos/presupuesto-acciones';
-import { EstadoPresupuesto } from '@prisma/client';
+import type { EstadoPresupuesto } from '@prisma/client';
 import Link from 'next/link';
 import { ArrowLeft, Building2, User2, Calendar } from 'lucide-react';
 
@@ -31,7 +31,7 @@ export default async function PresupuestoDetallePage({ params }: { params: { id:
     include: {
       cliente: true,
       creadoPor: true,
-      lineas: { include: { item: true } },
+      lineas: { include: { item: true, opciones: true } },
       puertas: { include: { tipoPuerta: true } },
     },
   });
@@ -49,11 +49,46 @@ export default async function PresupuestoDetallePage({ params }: { params: { id:
           <Badge variant={estadoBadgeVariant[presupuesto.estado]} className="text-sm px-3 py-1">
             {estadoLabel[presupuesto.estado]}
           </Badge>
-          <PresupuestoAcciones presupuesto={{
-            id: presupuesto.id,
-            estado: presupuesto.estado,
-            numero: presupuesto.numero,
-          }} />
+          <PresupuestoAcciones
+            presupuesto={{ id: presupuesto.id, estado: presupuesto.estado, numero: presupuesto.numero }}
+            presupuestoPDF={{
+              numero: presupuesto.numero,
+              nombrePresupuesto: presupuesto.nombrePresupuesto,
+              fechaCreacion: presupuesto.fechaCreacion,
+              fechaVencimiento: presupuesto.fechaVencimiento,
+              observaciones: presupuesto.observaciones,
+              subtotal: Number(presupuesto.subtotal),
+              descuento: Number(presupuesto.descuento),
+              totalFinal: Number(presupuesto.totalFinal),
+              cliente: {
+                razonSocial: presupuesto.cliente.razonSocial,
+                cuit: presupuesto.cliente.cuit,
+                email: presupuesto.cliente.email,
+                telefono: presupuesto.cliente.telefono,
+                ciudad: presupuesto.cliente.ciudad,
+                provincia: presupuesto.cliente.provincia,
+                tipoCliente: presupuesto.cliente.tipoCliente,
+              },
+              creadoPor: { nombre: presupuesto.creadoPor.nombre },
+              lineas: presupuesto.lineas.map((l) => ({
+                nombre: l.item?.nombre ?? l.productoNombre ?? '—',
+                cantidad: Number(l.cantidad),
+                precioUnitario: Number(l.precioUnitario),
+                subtotal: Number(l.subtotal),
+                unidad: l.item?.unidad,
+                opciones: l.opciones.map((o) => ({ atributoNombre: o.atributoNombre, opcionNombre: o.opcionNombre })),
+              })),
+              puertas: presupuesto.puertas.map((pu) => ({
+                tipoPuerta: { nombre: pu.tipoPuerta.nombre },
+                ancho: Number(pu.ancho),
+                alto: Number(pu.alto),
+                cantidad: pu.cantidad,
+                colorMarca: pu.colorMarca,
+                precioUnitario: Number(pu.precioUnitario),
+                subtotal: Number(pu.subtotal),
+              })),
+            }}
+          />
         </div>
       </div>
 

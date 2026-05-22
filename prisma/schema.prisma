@@ -54,17 +54,19 @@ model PermisoRol {
 }
 
 model Cliente {
-  id           String        @id @default(cuid())
+  id           String            @id @default(cuid())
   razonSocial  String
-  cuit         String?       @unique
+  cuit         String?           @unique
   email        String?
   telefono     String?
   direccion    String?
   ciudad       String?
   provincia    String?
-  activo       Boolean       @default(true)
-  createdAt    DateTime      @default(now())
+  tipoCliente  TipoCliente       @default(PARTICULAR)
+  activo       Boolean           @default(true)
+  createdAt    DateTime          @default(now())
   presupuestos Presupuesto[]
+  criterios    CriterioCliente[]
 }
 
 model CategoriaItem {
@@ -74,17 +76,18 @@ model CategoriaItem {
 }
 
 model Item {
-  id                String            @id @default(cuid())
+  id                String             @id @default(cuid())
   nombre            String
   descripcion       String?
   categoriaId       String
-  categoria         CategoriaItem     @relation(fields: [categoriaId], references: [id])
-  costoBase         Decimal           @db.Decimal(10, 2)
-  indiceUtilidad    Decimal           @db.Decimal(5, 2) @default(1.30)
-  precioVenta       Decimal           @db.Decimal(10, 2)
-  unidad            String            @default("unidad")
-  activo            Boolean           @default(true)
+  categoria         CategoriaItem      @relation(fields: [categoriaId], references: [id])
+  costoBase         Decimal            @db.Decimal(10, 2)
+  indiceUtilidad    Decimal            @db.Decimal(5, 2) @default(1.30)
+  precioVenta       Decimal            @db.Decimal(10, 2)
+  unidad            String             @default("unidad")
+  activo            Boolean            @default(true)
   lineasPresupuesto LineaPresupuesto[]
+  atributos         AtributoProducto[]
 }
 
 model Presupuesto {
@@ -99,6 +102,7 @@ model Presupuesto {
   responsable       User?              @relation("PresupuestoResponsable", fields: [responsableId], references: [id])
   estado            EstadoPresupuesto  @default(BORRADOR)
   prioridad         Prioridad          @default(MEDIA)
+  indiceCliente     Decimal            @db.Decimal(5, 2) @default(1.00)
   fechaCreacion     DateTime           @default(now())
   fechaRecepcion    DateTime?
   fechaEnvio        DateTime?
@@ -189,6 +193,8 @@ model AtributoProducto {
   producto   Producto         @relation(fields: [productoId], references: [id], onDelete: Cascade)
   nombre     String
   requerido  Boolean          @default(true)
+  itemId     String?
+  item       Item?            @relation(fields: [itemId], references: [id])
   opciones   OpcionAtributo[]
 }
 
@@ -215,4 +221,27 @@ model OpcionLineaPresupuesto {
   subtotal       Decimal          @db.Decimal(10, 2)
   productoId     String?
   producto       Producto?        @relation(fields: [productoId], references: [id])
+}
+
+enum TipoCliente {
+  CONSTRUCTORA
+  DESARROLLADOR
+  PARTICULAR
+}
+
+model IndiceCliente {
+  id             String      @id @default(cuid())
+  tipoCliente    TipoCliente @unique
+  indiceUtilidad Decimal     @db.Decimal(5, 2)
+  descripcion    String?
+}
+
+model CriterioCliente {
+  id          String   @id @default(cuid())
+  clienteId   String
+  cliente     Cliente  @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+  titulo      String
+  descripcion String?
+  activo      Boolean  @default(true)
+  createdAt   DateTime @default(now())
 }

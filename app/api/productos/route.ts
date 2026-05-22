@@ -30,9 +30,10 @@ export async function POST(req: NextRequest) {
       descripcion: descripcion || null,
       categoriaId,
       atributos: {
-        create: (atributos ?? []).map((a: { nombre: string; requerido: boolean; opciones: { nombre: string; costoBase: number; indiceUtilidad: number; unidad: string }[] }) => ({
+        create: (atributos ?? []).map((a: { nombre: string; requerido: boolean; itemId?: string; opciones: { nombre: string; costoBase: number; indiceUtilidad: number; unidad: string }[] }) => ({
           nombre: a.nombre,
           requerido: a.requerido ?? true,
+          itemId: a.itemId || null,
           opciones: {
             create: (a.opciones ?? []).map((o) => ({
               nombre: o.nombre,

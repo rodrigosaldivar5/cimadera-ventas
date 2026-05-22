@@ -55,6 +55,7 @@ export async function POST(req: NextRequest) {
         direccion: data.direccion || null,
         ciudad: data.ciudad || null,
         provincia: data.provincia || null,
+        tipoCliente: data.tipoCliente || 'PARTICULAR',
       },
     });
     return NextResponse.json(cliente, { status: 201 });

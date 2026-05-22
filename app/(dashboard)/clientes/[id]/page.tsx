@@ -8,13 +8,12 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
-import {
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
-} from '@/components/ui/table';
-import { EstadoPresupuesto } from '@prisma/client';
-import {
-  ArrowLeft, Building2, Mail, Phone, MapPin, Hash, FileText,
-} from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { CriteriosTab } from '@/components/clientes/criterios-tab';
+import type { EstadoPresupuesto } from '@prisma/client';
+import { TIPO_CLIENTE_LABEL, type TipoCliente } from '@/lib/enums';
+import { ArrowLeft, Building2, Mail, Phone, MapPin, Hash, FileText } from 'lucide-react';
 
 const estadoBadgeVariant: Record<
   EstadoPresupuesto,
@@ -28,18 +27,10 @@ const estadoBadgeVariant: Record<
 };
 
 const estadoLabel: Record<EstadoPresupuesto, string> = {
-  BORRADOR: 'Borrador',
-  ENVIADO: 'Enviado',
-  APROBADO: 'Aprobado',
-  RECHAZADO: 'Rechazado',
-  VENCIDO: 'Vencido',
+  BORRADOR: 'Borrador', ENVIADO: 'Enviado', APROBADO: 'Aprobado', RECHAZADO: 'Rechazado', VENCIDO: 'Vencido',
 };
 
-export default async function ClienteDetallePage({
-  params,
-}: {
-  params: { id: string };
-}) {
+export default async function ClienteDetallePage({ params }: { params: { id: string } }) {
   const cliente = await prisma.cliente.findUnique({
     where: { id: params.id },
     include: {
@@ -48,6 +39,7 @@ export default async function ClienteDetallePage({
         take: 20,
         include: { creadoPor: { select: { nombre: true } } },
       },
+      criterios: { orderBy: { createdAt: 'asc' } },
     },
   });
 
@@ -57,30 +49,33 @@ export default async function ClienteDetallePage({
     .filter((p) => p.estado === 'APROBADO')
     .reduce((sum, p) => sum + Number(p.totalFinal), 0);
 
+  const criteriosActivos = cliente.criterios.filter((c) => c.activo).length;
+
   return (
     <div className="max-w-4xl mx-auto space-y-6">
       {/* Toolbar */}
       <div className="flex items-center justify-between">
         <Button variant="ghost" asChild>
           <Link href="/clientes">
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Volver a Clientes
+            <ArrowLeft className="mr-2 h-4 w-4" /> Volver a Clientes
           </Link>
         </Button>
         <Button asChild className="bg-sky-500 hover:bg-sky-600">
           <Link href={`/presupuestos/nuevo?clienteId=${cliente.id}`}>
-            <FileText className="mr-2 h-4 w-4" />
-            Nuevo Presupuesto
+            <FileText className="mr-2 h-4 w-4" /> Nuevo Presupuesto
           </Link>
         </Button>
       </div>
 
-      {/* Datos del cliente */}
+      {/* Card datos */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Building2 className="h-5 w-5 text-sky-500" />
             {cliente.razonSocial}
+            <Badge variant="outline" className="ml-2 text-xs font-normal">
+              {TIPO_CLIENTE_LABEL[(cliente.tipoCliente as TipoCliente) ?? 'PARTICULAR']}
+            </Badge>
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -107,9 +102,7 @@ export default async function ClienteDetallePage({
               <div className="flex items-center gap-2 text-slate-600">
                 <MapPin className="h-4 w-4 text-slate-400 shrink-0" />
                 <span>
-                  {[cliente.direccion, cliente.ciudad, cliente.provincia]
-                    .filter(Boolean)
-                    .join(', ')}
+                  {[cliente.direccion, cliente.ciudad, cliente.provincia].filter(Boolean).join(', ')}
                 </span>
               </div>
             )}
@@ -117,12 +110,9 @@ export default async function ClienteDetallePage({
 
           <Separator className="my-4" />
 
-          {/* KPIs del cliente */}
           <div className="grid grid-cols-3 gap-4 text-center">
             <div>
-              <p className="text-2xl font-bold text-slate-800">
-                {cliente.presupuestos.length}
-              </p>
+              <p className="text-2xl font-bold text-slate-800">{cliente.presupuestos.length}</p>
               <p className="text-xs text-slate-500 mt-0.5">Presupuestos totales</p>
             </div>
             <div>
@@ -132,72 +122,73 @@ export default async function ClienteDetallePage({
               <p className="text-xs text-slate-500 mt-0.5">Aprobados</p>
             </div>
             <div>
-              <p className="text-2xl font-bold text-sky-600">
-                {formatCurrency(totalAprobado)}
-              </p>
+              <p className="text-2xl font-bold text-sky-600">{formatCurrency(totalAprobado)}</p>
               <p className="text-xs text-slate-500 mt-0.5">Facturado aprobado</p>
             </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* Historial de presupuestos */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Historial de presupuestos</CardTitle>
-        </CardHeader>
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Nro</TableHead>
-                <TableHead>Estado</TableHead>
-                <TableHead>Fecha</TableHead>
-                <TableHead>Vencimiento</TableHead>
-                <TableHead>Creado por</TableHead>
-                <TableHead className="text-right">Total</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {cliente.presupuestos.map((p) => (
-                <TableRow key={p.id}>
-                  <TableCell className="font-medium">
-                    <Link
-                      href={`/presupuestos/${p.id}`}
-                      className="text-sky-600 hover:underline"
-                    >
-                      #{p.numero}
-                    </Link>
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant={estadoBadgeVariant[p.estado]}>
-                      {estadoLabel[p.estado]}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>{formatDate(p.fechaCreacion)}</TableCell>
-                  <TableCell>
-                    {p.fechaVencimiento ? formatDate(p.fechaVencimiento) : '—'}
-                  </TableCell>
-                  <TableCell>{p.creadoPor.nombre}</TableCell>
-                  <TableCell className="text-right font-medium">
-                    {formatCurrency(Number(p.totalFinal))}
-                  </TableCell>
-                </TableRow>
-              ))}
-              {cliente.presupuestos.length === 0 && (
-                <TableRow>
-                  <TableCell
-                    colSpan={6}
-                    className="text-center text-slate-400 py-10"
-                  >
-                    Este cliente no tiene presupuestos aún
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+      {/* Tabs */}
+      <Tabs defaultValue="presupuestos">
+        <TabsList>
+          <TabsTrigger value="presupuestos">Presupuestos</TabsTrigger>
+          <TabsTrigger value="criterios">
+            Criterios
+            {criteriosActivos > 0 && (
+              <Badge variant="warning" className="ml-2 text-xs">{criteriosActivos}</Badge>
+            )}
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="presupuestos">
+          <Card>
+            <CardContent className="p-0">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Nro</TableHead>
+                    <TableHead>Estado</TableHead>
+                    <TableHead>Fecha</TableHead>
+                    <TableHead>Vencimiento</TableHead>
+                    <TableHead>Creado por</TableHead>
+                    <TableHead className="text-right">Total</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {cliente.presupuestos.map((p) => (
+                    <TableRow key={p.id}>
+                      <TableCell className="font-medium">
+                        <Link href={`/presupuestos/${p.id}`} className="text-sky-600 hover:underline">
+                          #{p.numero}
+                        </Link>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={estadoBadgeVariant[p.estado]}>{estadoLabel[p.estado]}</Badge>
+                      </TableCell>
+                      <TableCell>{formatDate(p.fechaCreacion)}</TableCell>
+                      <TableCell>{p.fechaVencimiento ? formatDate(p.fechaVencimiento) : '—'}</TableCell>
+                      <TableCell>{p.creadoPor.nombre}</TableCell>
+                      <TableCell className="text-right font-medium">{formatCurrency(Number(p.totalFinal))}</TableCell>
+                    </TableRow>
+                  ))}
+                  {cliente.presupuestos.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={6} className="text-center text-slate-400 py-10">
+                        Este cliente no tiene presupuestos aún
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="criterios">
+          <CriteriosTab clienteId={cliente.id} criterios={cliente.criterios} />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

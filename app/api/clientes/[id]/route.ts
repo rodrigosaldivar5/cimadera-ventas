@@ -31,6 +31,7 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
         direccion: data.direccion || null,
         ciudad: data.ciudad || null,
         provincia: data.provincia || null,
+        tipoCliente: data.tipoCliente || 'PARTICULAR',
       },
     });
     return NextResponse.json(cliente);

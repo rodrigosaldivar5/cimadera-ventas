@@ -12,11 +12,13 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Plus, Search, Edit, Trash2, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 import type { Cliente } from '@prisma/client';
+import { TIPO_CLIENTE, TIPO_CLIENTE_LABEL, type TipoCliente } from '@/lib/enums';
 
 const clienteSchema = z.object({
   razonSocial: z.string().min(2, 'Razón social requerida'),
@@ -26,6 +28,7 @@ const clienteSchema = z.object({
   direccion: z.string().optional(),
   ciudad: z.string().optional(),
   provincia: z.string().optional(),
+  tipoCliente: z.enum(['CONSTRUCTORA', 'DESARROLLADOR', 'PARTICULAR']).optional(),
 });
 
 type ClienteFormData = z.infer<typeof clienteSchema>;
@@ -46,8 +49,9 @@ export function ClientesTable({ clientes, total, page, perPage, q }: ClientesTab
   const [isSubmitting, setIsSubmitting] = useState(false);
   const totalPages = Math.ceil(total / perPage);
 
-  const { register, handleSubmit, reset, formState: { errors } } = useForm<ClienteFormData>({
+  const { register, handleSubmit, reset, setValue, formState: { errors } } = useForm<ClienteFormData>({
     resolver: zodResolver(clienteSchema),
+    defaultValues: { tipoCliente: 'PARTICULAR' },
   });
 
   const openNew = () => {
@@ -66,6 +70,7 @@ export function ClientesTable({ clientes, total, page, perPage, q }: ClientesTab
       direccion: cliente.direccion ?? '',
       ciudad: cliente.ciudad ?? '',
       provincia: cliente.provincia ?? '',
+      tipoCliente: (cliente.tipoCliente as TipoCliente) ?? 'PARTICULAR',
     });
     setDialogOpen(true);
   };
@@ -132,6 +137,7 @@ export function ClientesTable({ clientes, total, page, perPage, q }: ClientesTab
               <TableHead>Teléfono</TableHead>
               <TableHead>Ciudad</TableHead>
               <TableHead>Provincia</TableHead>
+              <TableHead>Tipo</TableHead>
               <TableHead className="w-24">Acciones</TableHead>
             </TableRow>
           </TableHeader>
@@ -144,6 +150,7 @@ export function ClientesTable({ clientes, total, page, perPage, q }: ClientesTab
                 <TableCell>{c.telefono ?? '—'}</TableCell>
                 <TableCell>{c.ciudad ?? '—'}</TableCell>
                 <TableCell>{c.provincia ?? '—'}</TableCell>
+                <TableCell className="text-sm text-slate-500">{TIPO_CLIENTE_LABEL[(c.tipoCliente as TipoCliente) ?? 'PARTICULAR']}</TableCell>
                 <TableCell>
                   <div className="flex gap-1">
                     <Button variant="ghost" size="icon" onClick={() => openEdit(c)}>
@@ -158,7 +165,7 @@ export function ClientesTable({ clientes, total, page, perPage, q }: ClientesTab
             ))}
             {clientes.length === 0 && (
               <TableRow>
-                <TableCell colSpan={7} className="text-center text-slate-400 py-10">
+                <TableCell colSpan={8} className="text-center text-slate-400 py-10">
                   No se encontraron clientes
                 </TableCell>
               </TableRow>
@@ -230,6 +237,20 @@ export function ClientesTable({ clientes, total, page, perPage, q }: ClientesTab
               <div className="space-y-1">
                 <Label>Provincia</Label>
                 <Input {...register('provincia')} />
+              </div>
+              <div className="col-span-2 space-y-1">
+                <Label>Tipo de cliente</Label>
+                <Select
+                  defaultValue={editingCliente?.tipoCliente ?? 'PARTICULAR'}
+                  onValueChange={(v) => setValue('tipoCliente', v as TipoCliente)}
+                >
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {Object.values(TIPO_CLIENTE).map((t) => (
+                      <SelectItem key={t} value={t}>{TIPO_CLIENTE_LABEL[t]}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
             <DialogFooter>

@@ -8,21 +8,24 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Plus, Trash2, PlusCircle } from 'lucide-react';
+import { Plus, Trash2, PlusCircle, FolderPlus, Edit, Loader2 } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
-import type { Producto, CategoriaProducto, AtributoProducto, OpcionAtributo } from '@prisma/client';
+import type { Producto, CategoriaProducto, AtributoProducto, OpcionAtributo, CategoriaItem, Item } from '@prisma/client';
 
 type OpcionForm = { nombre: string; costoBase: string; indiceUtilidad: string; unidad: string };
-type AtributoForm = { nombre: string; requerido: boolean; opciones: OpcionForm[] };
+type AtributoForm = { nombre: string; requerido: boolean; opciones: OpcionForm[]; itemId?: string };
 
 type ProductoCompleto = Producto & {
   categoria: CategoriaProducto;
   atributos: (AtributoProducto & { opciones: OpcionAtributo[] })[];
 };
 
+type CategoriaConItems = CategoriaItem & { items: Item[] };
+
 interface Props {
   productos: ProductoCompleto[];
   categorias: CategoriaProducto[];
+  categoriasItem: CategoriaConItems[];
 }
 
 const UNIDADES = ['unidad', 'm2', 'ml', 'juego', 'par'];
@@ -33,8 +36,9 @@ function precioVenta(costo: string, indice: string): number {
   return Math.round(c * i);
 }
 
-export function ProductosContent({ productos, categorias }: Props) {
+export function ProductosContent({ productos, categorias, categoriasItem }: Props) {
   const router = useRouter();
+  const [tab, setTab] = useState<'productos' | 'categorias'>('productos');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -43,21 +47,64 @@ export function ProductosContent({ productos, categorias }: Props) {
   const [categoriaId, setCategoriaId] = useState('');
   const [atributos, setAtributos] = useState<AtributoForm[]>([]);
 
+  // Para el selector de material por atributo
+  const [atribCatSelec, setAtribCatSelec] = useState<Record<number, string>>({});
+
+  // Categorías CRUD
+  const [catDialogOpen, setCatDialogOpen] = useState(false);
+  const [editingCat, setEditingCat] = useState<CategoriaProducto | null>(null);
+  const [catNombre, setCatNombre] = useState('');
+  const [catSaving, setCatSaving] = useState(false);
+
   const resetForm = () => {
     setNombre('');
     setDescripcion('');
     setCategoriaId('');
     setAtributos([]);
+    setAtribCatSelec({});
   };
 
   const addAtributo = () =>
     setAtributos((prev) => [...prev, { nombre: '', requerido: true, opciones: [] }]);
 
-  const removeAtributo = (i: number) =>
+  const removeAtributo = (i: number) => {
     setAtributos((prev) => prev.filter((_, idx) => idx !== i));
+    setAtribCatSelec((prev) => {
+      const next = { ...prev };
+      delete next[i];
+      return next;
+    });
+  };
 
   const updateAtributo = (i: number, field: keyof AtributoForm, value: unknown) =>
     setAtributos((prev) => prev.map((a, idx) => (idx === i ? { ...a, [field]: value } : a)));
+
+  const selectMaterialItem = (ai: number, itemId: string) => {
+    const catId = atribCatSelec[ai];
+    const cat = categoriasItem.find((c) => c.id === catId);
+    const item = cat?.items.find((i) => i.id === itemId);
+    if (!item) return;
+
+    setAtributos((prev) =>
+      prev.map((a, idx) =>
+        idx === ai
+          ? {
+              ...a,
+              nombre: item.nombre,
+              itemId: item.id,
+              opciones: [
+                {
+                  nombre: item.nombre,
+                  costoBase: String(Number(item.costoBase)),
+                  indiceUtilidad: String(Number(item.indiceUtilidad)),
+                  unidad: item.unidad,
+                },
+              ],
+            }
+          : a
+      )
+    );
+  };
 
   const addOpcion = (ai: number) =>
     setAtributos((prev) =>
@@ -79,12 +126,7 @@ export function ProductosContent({ productos, categorias }: Props) {
     setAtributos((prev) =>
       prev.map((a, idx) =>
         idx === ai
-          ? {
-              ...a,
-              opciones: a.opciones.map((o, odx) =>
-                odx === oi ? { ...o, [field]: value } : o
-              ),
-            }
+          ? { ...a, opciones: a.opciones.map((o, odx) => (odx === oi ? { ...o, [field]: value } : o)) }
           : a
       )
     );
@@ -102,6 +144,7 @@ export function ProductosContent({ productos, categorias }: Props) {
         atributos: atributos.map((a) => ({
           nombre: a.nombre,
           requerido: a.requerido,
+          itemId: a.itemId || null,
           opciones: a.opciones.map((o) => ({
             nombre: o.nombre,
             costoBase: parseFloat(o.costoBase) || 0,
@@ -117,59 +160,146 @@ export function ProductosContent({ productos, categorias }: Props) {
     router.refresh();
   };
 
+  // Categorías handlers
+  const openNewCat = () => { setEditingCat(null); setCatNombre(''); setCatDialogOpen(true); };
+  const openEditCat = (cat: CategoriaProducto) => { setEditingCat(cat); setCatNombre(cat.nombre); setCatDialogOpen(true); };
+
+  const saveCat = async () => {
+    if (!catNombre.trim()) return;
+    setCatSaving(true);
+    if (editingCat) {
+      await fetch(`/api/productos/categorias/${editingCat.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nombre: catNombre.trim() }),
+      });
+    } else {
+      await fetch('/api/productos/categorias', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nombre: catNombre.trim() }),
+      });
+    }
+    setCatSaving(false);
+    setCatDialogOpen(false);
+    router.refresh();
+  };
+
+  const deleteCat = async (cat: CategoriaProducto & { productos?: { length?: number } }) => {
+    if (!confirm(`¿Eliminar categoría "${cat.nombre}"?`)) return;
+    const res = await fetch(`/api/productos/categorias/${cat.id}`, { method: 'DELETE' });
+    if (!res.ok) {
+      const json = await res.json();
+      alert(json.error ?? 'Error al eliminar');
+      return;
+    }
+    router.refresh();
+  };
+
   return (
     <div className="space-y-4">
+      {/* Tabs */}
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold text-slate-800">Productos</h1>
-        <Button className="bg-sky-500 hover:bg-sky-600" onClick={() => setDialogOpen(true)}>
-          <Plus className="mr-2 h-4 w-4" />
-          Nuevo Producto
-        </Button>
+        <div className="flex gap-1 bg-slate-100 rounded-lg p-1">
+          <button
+            onClick={() => setTab('productos')}
+            className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${tab === 'productos' ? 'bg-white shadow-sm text-slate-800' : 'text-slate-500 hover:text-slate-700'}`}
+          >
+            Productos
+          </button>
+          <button
+            onClick={() => setTab('categorias')}
+            className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${tab === 'categorias' ? 'bg-white shadow-sm text-slate-800' : 'text-slate-500 hover:text-slate-700'}`}
+          >
+            Categorías
+          </button>
+        </div>
+
+        {tab === 'productos' ? (
+          <Button className="bg-sky-500 hover:bg-sky-600" onClick={() => setDialogOpen(true)}>
+            <Plus className="mr-2 h-4 w-4" /> Nuevo Producto
+          </Button>
+        ) : (
+          <Button className="bg-sky-500 hover:bg-sky-600" onClick={openNewCat}>
+            <FolderPlus className="mr-2 h-4 w-4" /> Nueva Categoría
+          </Button>
+        )}
       </div>
 
-      <div className="rounded-lg border bg-white shadow-sm overflow-hidden">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Nombre</TableHead>
-              <TableHead>Categoría</TableHead>
-              <TableHead>Atributos</TableHead>
-              <TableHead>Opciones totales</TableHead>
-              <TableHead>Estado</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {productos.map((p) => (
-              <TableRow key={p.id}>
-                <TableCell className="font-medium">{p.nombre}</TableCell>
-                <TableCell>{p.categoria.nombre}</TableCell>
-                <TableCell>{p.atributos.length}</TableCell>
-                <TableCell>{p.atributos.reduce((s, a) => s + a.opciones.length, 0)}</TableCell>
-                <TableCell>
-                  <Badge variant={p.activo ? 'success' : 'secondary'}>
-                    {p.activo ? 'Activo' : 'Inactivo'}
-                  </Badge>
-                </TableCell>
-              </TableRow>
-            ))}
-            {productos.length === 0 && (
+      {/* Tab Productos */}
+      {tab === 'productos' && (
+        <div className="rounded-lg border bg-white shadow-sm overflow-hidden">
+          <Table>
+            <TableHeader>
               <TableRow>
-                <TableCell colSpan={5} className="text-center text-slate-400 py-10">
-                  No hay productos. Creá el primero.
-                </TableCell>
+                <TableHead>Nombre</TableHead>
+                <TableHead>Categoría</TableHead>
+                <TableHead>Atributos</TableHead>
+                <TableHead>Opciones totales</TableHead>
+                <TableHead>Estado</TableHead>
               </TableRow>
-            )}
-          </TableBody>
-        </Table>
-      </div>
+            </TableHeader>
+            <TableBody>
+              {productos.map((p) => (
+                <TableRow key={p.id}>
+                  <TableCell className="font-medium">{p.nombre}</TableCell>
+                  <TableCell>{p.categoria.nombre}</TableCell>
+                  <TableCell>{p.atributos.length}</TableCell>
+                  <TableCell>{p.atributos.reduce((s, a) => s + a.opciones.length, 0)}</TableCell>
+                  <TableCell>
+                    <Badge variant={p.activo ? 'success' : 'secondary'}>{p.activo ? 'Activo' : 'Inactivo'}</Badge>
+                  </TableCell>
+                </TableRow>
+              ))}
+              {productos.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={5} className="text-center text-slate-400 py-10">No hay productos.</TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </div>
+      )}
 
+      {/* Tab Categorías */}
+      {tab === 'categorias' && (
+        <div className="rounded-lg border bg-white shadow-sm overflow-hidden">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Nombre</TableHead>
+                <TableHead className="w-24">Acciones</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {categorias.map((cat) => (
+                <TableRow key={cat.id}>
+                  <TableCell className="font-medium">{cat.nombre}</TableCell>
+                  <TableCell>
+                    <div className="flex gap-1">
+                      <Button variant="ghost" size="icon" onClick={() => openEditCat(cat)}><Edit className="h-4 w-4" /></Button>
+                      <Button variant="ghost" size="icon" onClick={() => deleteCat(cat)} className="text-red-500"><Trash2 className="h-4 w-4" /></Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+              {categorias.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={2} className="text-center text-slate-400 py-8">No hay categorías</TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </div>
+      )}
+
+      {/* Dialog Nuevo Producto */}
       <Dialog open={dialogOpen} onOpenChange={(v) => { setDialogOpen(v); if (!v) resetForm(); }}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Nuevo Producto</DialogTitle>
           </DialogHeader>
           <div className="space-y-5 pt-2">
-            {/* Datos base */}
             <div className="grid grid-cols-2 gap-4">
               <div className="col-span-2 space-y-1.5">
                 <label className="text-sm font-medium text-slate-700">Nombre del producto *</label>
@@ -180,9 +310,7 @@ export function ProductosContent({ productos, categorias }: Props) {
                 <Select value={categoriaId} onValueChange={setCategoriaId}>
                   <SelectTrigger><SelectValue placeholder="Seleccioná categoría" /></SelectTrigger>
                   <SelectContent>
-                    {categorias.map((c) => (
-                      <SelectItem key={c.id} value={c.id}>{c.nombre}</SelectItem>
-                    ))}
+                    {categorias.map((c) => <SelectItem key={c.id} value={c.id}>{c.nombre}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
@@ -197,13 +325,47 @@ export function ProductosContent({ productos, categorias }: Props) {
               <div className="flex items-center justify-between">
                 <h3 className="font-medium text-slate-800">Atributos configurables</h3>
                 <Button variant="outline" size="sm" onClick={addAtributo}>
-                  <PlusCircle className="mr-1.5 h-4 w-4" />
-                  Agregar atributo
+                  <PlusCircle className="mr-1.5 h-4 w-4" /> Agregar atributo
                 </Button>
               </div>
 
               {atributos.map((atrib, ai) => (
                 <div key={ai} className="rounded-lg border p-4 space-y-3">
+                  {/* Selector de material */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <label className="text-xs font-medium text-slate-500 uppercase tracking-wide">Categoría de material</label>
+                      <Select
+                        value={atribCatSelec[ai] ?? '__none__'}
+                        onValueChange={(v) => {
+                          setAtribCatSelec((prev) => ({ ...prev, [ai]: v === '__none__' ? '' : v }));
+                        }}
+                      >
+                        <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Elegir categoría..." /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="__none__">— Ninguna —</SelectItem>
+                          {categoriasItem.map((c) => <SelectItem key={c.id} value={c.id}>{c.nombre}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-xs font-medium text-slate-500 uppercase tracking-wide">Material / Accesorio</label>
+                      <Select
+                        value={atrib.itemId ?? '__none__'}
+                        onValueChange={(v) => v !== '__none__' && selectMaterialItem(ai, v)}
+                        disabled={!atribCatSelec[ai]}
+                      >
+                        <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Elegir ítem..." /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="__none__">— Seleccioná —</SelectItem>
+                          {(categoriasItem.find((c) => c.id === atribCatSelec[ai])?.items ?? []).map((item) => (
+                            <SelectItem key={item.id} value={item.id}>{item.nombre}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
                   <div className="flex items-center gap-3">
                     <Input
                       className="flex-1"
@@ -225,7 +387,7 @@ export function ProductosContent({ productos, categorias }: Props) {
                     </Button>
                   </div>
 
-                  {/* Opciones del atributo */}
+                  {/* Opciones */}
                   <div className="space-y-2 pl-2">
                     {atrib.opciones.map((op, oi) => (
                       <div key={oi} className="grid grid-cols-12 gap-2 items-center">
@@ -249,8 +411,7 @@ export function ProductosContent({ productos, categorias }: Props) {
                       </div>
                     ))}
                     <Button variant="ghost" size="sm" className="text-sky-600 hover:text-sky-700" onClick={() => addOpcion(ai)}>
-                      <Plus className="mr-1 h-3.5 w-3.5" />
-                      Agregar opción
+                      <Plus className="mr-1 h-3.5 w-3.5" /> Agregar opción
                     </Button>
                   </div>
                 </div>
@@ -273,6 +434,26 @@ export function ProductosContent({ productos, categorias }: Props) {
                 {saving ? 'Guardando...' : 'Guardar Producto'}
               </Button>
             </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog Categoría */}
+      <Dialog open={catDialogOpen} onOpenChange={setCatDialogOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>{editingCat ? 'Editar Categoría' : 'Nueva Categoría de Producto'}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <label className="text-sm font-medium text-slate-700">Nombre *</label>
+            <Input value={catNombre} onChange={(e) => setCatNombre(e.target.value)} placeholder="Ej: Puertas interiores" autoFocus />
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setCatDialogOpen(false)}>Cancelar</Button>
+            <Button className="bg-sky-500 hover:bg-sky-600" disabled={!catNombre.trim() || catSaving} onClick={saveCat}>
+              {catSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {editingCat ? 'Guardar' : 'Crear'}
+            </Button>
           </div>
         </DialogContent>
       </Dialog>
