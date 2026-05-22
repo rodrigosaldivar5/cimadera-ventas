@@ -100,7 +100,7 @@ model Presupuesto {
   creadoPor         User               @relation("PresupuestoCreadoPor", fields: [creadoPorId], references: [id])
   responsableId     String?
   responsable       User?              @relation("PresupuestoResponsable", fields: [responsableId], references: [id])
-  estado            EstadoPresupuesto  @default(BORRADOR)
+  estado            EstadoPresupuesto  @default(PENDIENTE)
   prioridad         Prioridad          @default(MEDIA)
   fechaCreacion     DateTime           @default(now())
   fechaRecepcion    DateTime?
@@ -116,11 +116,12 @@ model Presupuesto {
 
 enum EstadoPresupuesto {
   PENDIENTE
-  BORRADOR
+  EN_PROCESO
+  FINALIZADO
+  PARA_ENVIAR
   ENVIADO
   APROBADO
   RECHAZADO
-  VENCIDO
 }
 
 enum Prioridad {

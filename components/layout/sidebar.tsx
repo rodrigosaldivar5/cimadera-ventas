@@ -88,19 +88,29 @@ export function Sidebar({ userName, userEmail, rolNombre }: SidebarProps) {
               const isOpen = openItems[item.href] ?? false;
               return (
                 <li key={item.href}>
-                  <button
-                    onClick={() => toggleItem(item.href)}
-                    className={cn(
-                      'w-full flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors',
-                      isActive
-                        ? 'bg-slate-800 text-sky-400'
-                        : 'text-slate-400 hover:bg-slate-800 hover:text-slate-100'
-                    )}
-                  >
-                    <Icon className="h-5 w-5 shrink-0" />
-                    {item.label}
-                    <ChevronRight className={cn('ml-auto h-4 w-4 transition-transform', isOpen && 'rotate-90')} />
-                  </button>
+                  <div className={cn(
+                    'flex items-center rounded-lg transition-colors',
+                    isActive ? 'bg-slate-800' : 'hover:bg-slate-800',
+                  )}>
+                    <Link
+                      href={item.href}
+                      className={cn(
+                        'flex items-center gap-3 flex-1 px-3 py-2.5 text-sm font-medium',
+                        isActive ? 'text-sky-400' : 'text-slate-400 hover:text-slate-100'
+                      )}
+                    >
+                      <Icon className="h-5 w-5 shrink-0" />
+                      {item.label}
+                    </Link>
+                    <button
+                      onClick={() => toggleItem(item.href)}
+                      className={cn(
+                        'px-2 py-2.5 text-slate-400 hover:text-slate-100',
+                      )}
+                    >
+                      <ChevronRight className={cn('h-4 w-4 transition-transform', isOpen && 'rotate-90')} />
+                    </button>
+                  </div>
                   {isOpen && (
                     <ul className="mt-1 ml-4 space-y-1 border-l border-slate-700 pl-3">
                       {item.children.map((child) => {

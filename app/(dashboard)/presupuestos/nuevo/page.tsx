@@ -231,7 +231,7 @@ export default function NuevoPresupuestoPage() {
     setIsSavingPendiente(false);
     if (res.ok) {
       localStorage.removeItem(DRAFT_KEY);
-      router.push('/presupuestos?tab=pendientes');
+      router.push('/presupuestos');
     }
   };
 
@@ -312,7 +312,7 @@ export default function NuevoPresupuestoPage() {
         lineas: lineasPayload,
         subtotal,
         totalFinal: total,
-        estado: enviar ? 'ENVIADO' : 'BORRADOR',
+        estado: enviar ? 'ENVIADO' : 'EN_PROCESO',
       }),
     });
     setIsSubmitting(false);

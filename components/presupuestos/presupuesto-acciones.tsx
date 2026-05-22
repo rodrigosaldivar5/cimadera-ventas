@@ -11,7 +11,8 @@ import Link from 'next/link';
 import { generarPresupuestoPDF } from '@/lib/pdf/generar-presupuesto';
 
 const estadoLabel: Record<EstadoPresupuesto, string> = {
-  PENDIENTE: 'Pendiente', BORRADOR: 'Borrador', ENVIADO: 'Enviado', APROBADO: 'Aprobado', RECHAZADO: 'Rechazado', VENCIDO: 'Vencido',
+  PENDIENTE: 'Pendiente', EN_PROCESO: 'En proceso', FINALIZADO: 'Finalizado',
+  PARA_ENVIAR: 'Para enviar', ENVIADO: 'Enviado', APROBADO: 'Aprobado', RECHAZADO: 'Rechazado',
 };
 
 type PresupuestoParaPDF = Parameters<typeof generarPresupuestoPDF>[0];

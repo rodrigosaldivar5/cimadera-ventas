@@ -8,27 +8,28 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Plus, Eye, ChevronLeft, ChevronRight, Filter, AlertTriangle, ChevronDown, ChevronUp, Play } from 'lucide-react';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Plus, Eye, ChevronLeft, ChevronRight, Filter, AlertTriangle, ChevronDown, ChevronUp } from 'lucide-react';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { ESTADO_PRESUPUESTO, PRIORIDAD, type EstadoPresupuesto, type Prioridad } from '@/lib/enums';
 
 const estadoBadgeVariant: Record<EstadoPresupuesto, 'default' | 'info' | 'success' | 'destructive' | 'warning' | 'secondary' | 'outline' | 'purple'> = {
-  PENDIENTE: 'warning',
-  BORRADOR: 'secondary',
-  ENVIADO: 'info',
+  PENDIENTE: 'secondary',
+  EN_PROCESO: 'info',
+  FINALIZADO: 'success',
+  PARA_ENVIAR: 'warning',
+  ENVIADO: 'outline',
   APROBADO: 'success',
   RECHAZADO: 'destructive',
-  VENCIDO: 'outline',
 };
 
 const estadoLabel: Record<EstadoPresupuesto, string> = {
   PENDIENTE: 'Pendiente',
-  BORRADOR: 'Borrador',
+  EN_PROCESO: 'En proceso',
+  FINALIZADO: 'Finalizado',
+  PARA_ENVIAR: 'Para enviar',
   ENVIADO: 'Enviado',
   APROBADO: 'Aprobado',
   RECHAZADO: 'Rechazado',
-  VENCIDO: 'Vencido',
 };
 
 const prioridadVariant: Record<Prioridad, 'destructive' | 'warning' | 'success'> = {
@@ -63,14 +64,13 @@ type PresupuestoCritico = {
 
 interface Props {
   presupuestos: PresupuestoRow[];
-  pendientes: PresupuestoRow[];
   total: number;
   page: number;
   perPage: number;
   clientes: { id: string; razonSocial: string }[];
   usuarios: { id: string; nombre: string }[];
   criticos: PresupuestoCritico[];
-  filters: { estado?: string; clienteId?: string; desde?: string; hasta?: string; tab?: string };
+  filters: { estado?: string; clienteId?: string; desde?: string; hasta?: string };
 }
 
 function diasDesde(fecha: Date | null): number {
@@ -78,22 +78,10 @@ function diasDesde(fecha: Date | null): number {
   return Math.floor((Date.now() - new Date(fecha).getTime()) / 86_400_000);
 }
 
-export function PresupuestosTable({ presupuestos, pendientes, total, page, perPage, clientes, criticos, filters }: Props) {
+export function PresupuestosTable({ presupuestos, total, page, perPage, clientes, criticos, filters }: Props) {
   const router = useRouter();
   const totalPages = Math.ceil(total / perPage);
   const [criticosOpen, setCriticosOpen] = useState(true);
-  const [comenzandoId, setComenzandoId] = useState<string | null>(null);
-
-  const comenzarPresupuesto = async (id: string) => {
-    setComenzandoId(id);
-    await fetch(`/api/presupuestos/${id}/estado`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ estado: 'BORRADOR' }),
-    });
-    setComenzandoId(null);
-    router.push(`/presupuestos/${id}`);
-  };
 
   const [estado, setEstado] = useState(filters.estado ?? '');
   const [clienteId, setClienteId] = useState(filters.clienteId ?? '');
@@ -109,83 +97,8 @@ export function PresupuestosTable({ presupuestos, pendientes, total, page, perPa
     router.push(`/presupuestos?${params.toString()}`);
   };
 
-  const activeTab = filters.tab === 'pendientes' ? 'pendientes' : 'activos';
-
   return (
     <div className="space-y-4">
-      <Tabs value={activeTab} onValueChange={(v) => router.push(v === 'pendientes' ? '/presupuestos?tab=pendientes' : '/presupuestos')}>
-        <div className="flex items-center justify-between flex-wrap gap-3">
-          <TabsList>
-            <TabsTrigger value="activos">En elaboración / Finalizados</TabsTrigger>
-            <TabsTrigger value="pendientes">
-              Pendientes de realizar
-              {pendientes.length > 0 && (
-                <span className="ml-1.5 rounded-full bg-amber-500 text-white text-xs font-bold px-1.5 py-0.5 leading-none">
-                  {pendientes.length}
-                </span>
-              )}
-            </TabsTrigger>
-          </TabsList>
-          <Button asChild className="bg-sky-500 hover:bg-sky-600">
-            <Link href="/presupuestos/nuevo">
-              <Plus className="mr-2 h-4 w-4" />
-              Nuevo Presupuesto
-            </Link>
-          </Button>
-        </div>
-
-        <TabsContent value="pendientes" className="space-y-3 mt-4">
-          {pendientes.length === 0 ? (
-            <p className="text-sm text-slate-400 text-center py-12 border rounded-lg bg-white">
-              No hay presupuestos pendientes de realizar.
-            </p>
-          ) : (
-            <div className="rounded-lg border bg-white shadow-sm overflow-hidden">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Nro</TableHead>
-                    <TableHead>Nombre</TableHead>
-                    <TableHead>Cliente</TableHead>
-                    <TableHead>Responsable</TableHead>
-                    <TableHead>Prioridad</TableHead>
-                    <TableHead>Fecha</TableHead>
-                    <TableHead className="w-32"></TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {pendientes.map((p) => (
-                    <TableRow key={p.id}>
-                      <TableCell className="font-medium">#{p.numero}</TableCell>
-                      <TableCell className="max-w-[140px] truncate text-slate-600">{p.nombrePresupuesto ?? '—'}</TableCell>
-                      <TableCell className="max-w-[150px] truncate">{p.cliente.razonSocial}</TableCell>
-                      <TableCell className="text-slate-500 text-sm">{p.responsable?.nombre ?? p.creadoPor.nombre}</TableCell>
-                      <TableCell>
-                        <Badge variant={prioridadVariant[p.prioridad]}>{p.prioridad}</Badge>
-                      </TableCell>
-                      <TableCell className="text-slate-500 text-sm">{formatDate(p.fechaCreacion)}</TableCell>
-                      <TableCell>
-                        <Button
-                          size="sm"
-                          className="bg-sky-500 hover:bg-sky-600"
-                          disabled={comenzandoId === p.id}
-                          onClick={() => comenzarPresupuesto(p.id)}
-                        >
-                          {comenzandoId === p.id
-                            ? <span className="animate-spin mr-1">⏳</span>
-                            : <Play className="mr-1 h-3.5 w-3.5" />}
-                          Comenzar
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          )}
-        </TabsContent>
-
-        <TabsContent value="activos" className="space-y-4 mt-4">
 
       {/* Sección Críticos */}
       {criticos.length > 0 && (
@@ -196,7 +109,7 @@ export function PresupuestosTable({ presupuestos, pendientes, total, page, perPa
           >
             <AlertTriangle className="h-4 w-4 text-red-500 shrink-0" />
             <span className="font-semibold text-red-700 text-sm">
-              Presupuestos Críticos — {criticos.length} pendiente{criticos.length > 1 ? 's' : ''} de alta prioridad
+              Presupuestos Críticos — {criticos.length} de alta prioridad
             </span>
             {criticosOpen ? <ChevronUp className="ml-auto h-4 w-4 text-red-400" /> : <ChevronDown className="ml-auto h-4 w-4 text-red-400" />}
           </button>
@@ -230,7 +143,16 @@ export function PresupuestosTable({ presupuestos, pendientes, total, page, perPa
 
       {/* Toolbar */}
       <div className="flex flex-col gap-3">
-        <h2 className="text-sm text-slate-500">{total} presupuestos encontrados</h2>
+        <div className="flex justify-between items-center">
+          <h2 className="text-sm text-slate-500">{total} presupuestos encontrados</h2>
+          <Button asChild className="bg-sky-500 hover:bg-sky-600">
+            <Link href="/presupuestos/nuevo">
+              <Plus className="mr-2 h-4 w-4" />
+              Nuevo Presupuesto
+            </Link>
+          </Button>
+        </div>
+
         {/* Filtros */}
         <div className="flex flex-wrap gap-3 p-4 bg-white rounded-lg border">
           <Select value={estado || '__all__'} onValueChange={(v) => setEstado(v === '__all__' ? '' : v)}>
@@ -337,8 +259,6 @@ export function PresupuestosTable({ presupuestos, pendientes, total, page, perPa
           </div>
         </div>
       )}
-        </TabsContent>
-      </Tabs>
     </div>
   );
 }

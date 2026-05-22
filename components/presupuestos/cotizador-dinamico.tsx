@@ -68,9 +68,11 @@ export function CotizadorDinamico({ productos, items, onChange }: Props) {
     setSelecciones({});
   };
 
-  const elegirProducto = (productoId: string) => {
-    const p = productos.find((x) => x.id === productoId);
-    if (!p) return;
+  const elegirProducto = async (productoId: string) => {
+    console.log('[CotizadorDinamico] elegirProducto:', productoId);
+    const res = await fetch(`/api/productos/${productoId}`);
+    const p: Producto = await res.json();
+    console.log('[CotizadorDinamico] cargado:', p.nombre, '| atributos:', p.atributos?.length, '| opciones:', p.atributos?.map((a) => a.opciones.length));
     setProductoSeleccionado(p);
     const sel: Record<string, { opcionId: string; medida: number }> = {};
     p.atributos.forEach((a) => { sel[a.id] = { opcionId: '__none__', medida: 1 }; });

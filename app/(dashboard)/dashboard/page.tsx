@@ -15,21 +15,23 @@ import { EstadoPresupuesto } from '@prisma/client';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 const estadoBadgeVariant: Record<EstadoPresupuesto, 'default' | 'info' | 'success' | 'destructive' | 'warning' | 'secondary' | 'outline' | 'purple'> = {
-  PENDIENTE: 'warning',
-  BORRADOR: 'secondary',
-  ENVIADO: 'info',
+  PENDIENTE: 'secondary',
+  EN_PROCESO: 'info',
+  FINALIZADO: 'success',
+  PARA_ENVIAR: 'warning',
+  ENVIADO: 'outline',
   APROBADO: 'success',
   RECHAZADO: 'destructive',
-  VENCIDO: 'outline',
 };
 
 const estadoLabel: Record<EstadoPresupuesto, string> = {
   PENDIENTE: 'Pendiente',
-  BORRADOR: 'Borrador',
+  EN_PROCESO: 'En proceso',
+  FINALIZADO: 'Finalizado',
+  PARA_ENVIAR: 'Para enviar',
   ENVIADO: 'Enviado',
   APROBADO: 'Aprobado',
   RECHAZADO: 'Rechazado',
-  VENCIDO: 'Vencido',
 };
 
 export default async function DashboardPage({ searchParams }: { searchParams: { userId?: string } }) {
@@ -59,8 +61,8 @@ export default async function DashboardPage({ searchParams }: { searchParams: { 
     }),
     // Rechazados este mes
     prisma.presupuesto.count({ where: { ...whereBase, estado: 'RECHAZADO', fechaCreacion: { gte: inicioMes, lte: finMes } } }),
-    // Pendientes de realizar
-    prisma.presupuesto.count({ where: { ...whereBase, estado: 'PENDIENTE' } }),
+    // Pendientes (PENDIENTE + EN_PROCESO)
+    prisma.presupuesto.count({ where: { ...whereBase, estado: { in: ['PENDIENTE', 'EN_PROCESO'] } } }),
     // Últimos 10
     prisma.presupuesto.findMany({
       where: whereBase,
@@ -81,7 +83,9 @@ export default async function DashboardPage({ searchParams }: { searchParams: { 
         }).then((data) => ({
           mes: format(mes, 'MMM', { locale: es }),
           PENDIENTE: data.find((d) => d.estado === 'PENDIENTE')?._count ?? 0,
-          BORRADOR: data.find((d) => d.estado === 'BORRADOR')?._count ?? 0,
+          EN_PROCESO: data.find((d) => d.estado === 'EN_PROCESO')?._count ?? 0,
+          FINALIZADO: data.find((d) => d.estado === 'FINALIZADO')?._count ?? 0,
+          PARA_ENVIAR: data.find((d) => d.estado === 'PARA_ENVIAR')?._count ?? 0,
           ENVIADO: data.find((d) => d.estado === 'ENVIADO')?._count ?? 0,
           APROBADO: data.find((d) => d.estado === 'APROBADO')?._count ?? 0,
           RECHAZADO: data.find((d) => d.estado === 'RECHAZADO')?._count ?? 0,
