@@ -6,6 +6,7 @@ import {
 
 interface ChartData {
   mes: string;
+  PENDIENTE: number;
   BORRADOR: number;
   ENVIADO: number;
   APROBADO: number;
@@ -21,6 +22,7 @@ export function DashboardChart({ data }: { data: ChartData[] }) {
         <YAxis tick={{ fontSize: 12 }} allowDecimals={false} />
         <Tooltip />
         <Legend wrapperStyle={{ fontSize: 12 }} />
+        <Bar dataKey="PENDIENTE" name="Pendiente" fill="#F59E0B" radius={[2, 2, 0, 0]} />
         <Bar dataKey="ENVIADO" name="Enviado" fill="#38BDF8" radius={[2, 2, 0, 0]} />
         <Bar dataKey="APROBADO" name="Aprobado" fill="#22C55E" radius={[2, 2, 0, 0]} />
         <Bar dataKey="RECHAZADO" name="Rechazado" fill="#EF4444" radius={[2, 2, 0, 0]} />

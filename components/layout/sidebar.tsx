@@ -14,6 +14,7 @@ import {
   ShoppingBag,
   UserCog,
   Shield,
+  Percent,
 } from 'lucide-react';
 import { Logo } from '@/components/logo';
 import { cn } from '@/lib/utils';
@@ -29,7 +30,14 @@ type NavItem = {
 
 const navItems: NavItem[] = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/clientes', label: 'Clientes', icon: Users },
+  {
+    href: '/clientes',
+    label: 'Clientes',
+    icon: Users,
+    children: [
+      { href: '/clientes/descuentos', label: 'Descuentos por tipo', icon: Percent },
+    ],
+  },
   { href: '/presupuestos', label: 'Presupuestos', icon: FileText },
   { href: '/productos', label: 'Productos', icon: ShoppingBag },
   { href: '/materiales', label: 'Materiales', icon: Package },
@@ -52,7 +60,13 @@ interface SidebarProps {
 
 export function Sidebar({ userName, userEmail, rolNombre }: SidebarProps) {
   const pathname = usePathname();
-  const [adminOpen, setAdminOpen] = useState(pathname.startsWith('/admin'));
+  const [openItems, setOpenItems] = useState<Record<string, boolean>>({
+    '/admin': pathname.startsWith('/admin'),
+    '/clientes': pathname.startsWith('/clientes/descuentos'),
+  });
+
+  const toggleItem = (href: string) =>
+    setOpenItems((prev) => ({ ...prev, [href]: !prev[href] }));
 
   return (
     <aside className="flex h-full w-64 flex-col bg-slate-900">
@@ -71,10 +85,11 @@ export function Sidebar({ userName, userEmail, rolNombre }: SidebarProps) {
               : pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href));
 
             if (item.children) {
+              const isOpen = openItems[item.href] ?? false;
               return (
                 <li key={item.href}>
                   <button
-                    onClick={() => setAdminOpen((v) => !v)}
+                    onClick={() => toggleItem(item.href)}
                     className={cn(
                       'w-full flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors',
                       isActive
@@ -84,9 +99,9 @@ export function Sidebar({ userName, userEmail, rolNombre }: SidebarProps) {
                   >
                     <Icon className="h-5 w-5 shrink-0" />
                     {item.label}
-                    <ChevronRight className={cn('ml-auto h-4 w-4 transition-transform', adminOpen && 'rotate-90')} />
+                    <ChevronRight className={cn('ml-auto h-4 w-4 transition-transform', isOpen && 'rotate-90')} />
                   </button>
-                  {adminOpen && (
+                  {isOpen && (
                     <ul className="mt-1 ml-4 space-y-1 border-l border-slate-700 pl-3">
                       {item.children.map((child) => {
                         const ChildIcon = child.icon;

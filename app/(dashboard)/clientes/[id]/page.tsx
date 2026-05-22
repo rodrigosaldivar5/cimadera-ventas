@@ -19,15 +19,16 @@ const estadoBadgeVariant: Record<
   EstadoPresupuesto,
   'default' | 'info' | 'success' | 'destructive' | 'warning' | 'secondary' | 'outline' | 'purple'
 > = {
+  PENDIENTE: 'warning',
   BORRADOR: 'secondary',
   ENVIADO: 'info',
   APROBADO: 'success',
   RECHAZADO: 'destructive',
-  VENCIDO: 'warning',
+  VENCIDO: 'outline',
 };
 
 const estadoLabel: Record<EstadoPresupuesto, string> = {
-  BORRADOR: 'Borrador', ENVIADO: 'Enviado', APROBADO: 'Aprobado', RECHAZADO: 'Rechazado', VENCIDO: 'Vencido',
+  PENDIENTE: 'Pendiente', BORRADOR: 'Borrador', ENVIADO: 'Enviado', APROBADO: 'Aprobado', RECHAZADO: 'Rechazado', VENCIDO: 'Vencido',
 };
 
 export default async function ClienteDetallePage({ params }: { params: { id: string } }) {

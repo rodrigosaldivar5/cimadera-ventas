@@ -10,6 +10,7 @@ interface SearchParams {
   desde?: string;
   hasta?: string;
   page?: string;
+  tab?: string;
 }
 
 export default async function PresupuestosPage({ searchParams }: { searchParams: SearchParams }) {
@@ -17,7 +18,7 @@ export default async function PresupuestosPage({ searchParams }: { searchParams:
   const perPage = 10;
   const skip = (page - 1) * perPage;
 
-  const where: Record<string, unknown> = {};
+  const where: Record<string, unknown> = { estado: { not: 'PENDIENTE' } };
   if (searchParams.estado && Object.values(EstadoPresupuesto).includes(searchParams.estado as EstadoPresupuesto)) {
     where.estado = searchParams.estado as EstadoPresupuesto;
   }
@@ -28,7 +29,7 @@ export default async function PresupuestosPage({ searchParams }: { searchParams:
     if (searchParams.hasta) (where.fechaCreacion as Record<string, unknown>).lte = new Date(searchParams.hasta);
   }
 
-  const [presupuestos, total, clientes, usuarios, criticos] = await Promise.all([
+  const [presupuestos, total, pendientes, clientes, usuarios, criticos] = await Promise.all([
     prisma.presupuesto.findMany({
       where,
       skip,
@@ -37,6 +38,11 @@ export default async function PresupuestosPage({ searchParams }: { searchParams:
       include: { cliente: true, creadoPor: true, responsable: true },
     }),
     prisma.presupuesto.count({ where }),
+    prisma.presupuesto.findMany({
+      where: { estado: 'PENDIENTE' },
+      orderBy: { fechaCreacion: 'desc' },
+      include: { cliente: true, creadoPor: true, responsable: true },
+    }),
     prisma.cliente.findMany({ where: { activo: true }, orderBy: { razonSocial: 'asc' }, select: { id: true, razonSocial: true } }),
     prisma.user.findMany({ where: { aprobado: true }, select: { id: true, nombre: true }, orderBy: { nombre: 'asc' } }),
     prisma.presupuesto.findMany({
@@ -50,13 +56,14 @@ export default async function PresupuestosPage({ searchParams }: { searchParams:
   return (
     <PresupuestosTable
       presupuestos={presupuestos}
+      pendientes={pendientes}
       total={total}
       page={page}
       perPage={perPage}
       clientes={clientes}
       usuarios={usuarios}
       criticos={criticos}
-      filters={{ estado: searchParams.estado, clienteId: searchParams.clienteId, desde: searchParams.desde, hasta: searchParams.hasta }}
+      filters={{ estado: searchParams.estado, clienteId: searchParams.clienteId, desde: searchParams.desde, hasta: searchParams.hasta, tab: searchParams.tab }}
     />
   );
 }

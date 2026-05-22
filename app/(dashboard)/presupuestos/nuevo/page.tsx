@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -11,10 +11,13 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, Plus, Trash2, ChevronRight, ChevronLeft, Save, Send, AlertTriangle, ExternalLink } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Loader2, Plus, Trash2, ChevronRight, ChevronLeft, Save, Send, AlertTriangle, ExternalLink, Clock, RotateCcw } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
 import { CotizadorDinamico, type ItemProducto } from '@/components/presupuestos/cotizador-dinamico';
-import { TIPO_CLIENTE_LABEL, type TipoCliente } from '@/lib/enums';
+import { TIPO_CLIENTE, TIPO_CLIENTE_LABEL, type TipoCliente } from '@/lib/enums';
+
+const DRAFT_KEY = 'presupuesto-nuevo-draft';
 
 const paso1Schema = z.object({
   clienteId: z.string().min(1, 'Seleccioná un cliente'),
@@ -24,10 +27,17 @@ const paso1Schema = z.object({
   observaciones: z.string().optional(),
   descuento: z.number().min(0).max(100),
   prioridad: z.enum(['ALTA', 'MEDIA', 'BAJA']),
-  indiceCliente: z.number().min(0.01),
+});
+
+const nuevoClienteSchema = z.object({
+  razonSocial: z.string().min(2, 'Razón social requerida'),
+  email: z.string().email('Email inválido').optional().or(z.literal('')),
+  telefono: z.string().optional(),
+  tipoCliente: z.enum(['CONSTRUCTORA', 'DESARROLLADOR', 'PARTICULAR']),
 });
 
 type Paso1Data = z.infer<typeof paso1Schema>;
+type NuevoClienteData = z.infer<typeof nuevoClienteSchema>;
 
 interface ItemCatalogo {
   id: string;
@@ -78,19 +88,37 @@ export default function NuevoPresupuestoPage() {
   const [lineas, setLineas] = useState<LineaAdicional[]>([]);
   const [lineasLibres, setLineasLibres] = useState<LineaLibre[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSavingPendiente, setIsSavingPendiente] = useState(false);
   const [criterios, setCriterios] = useState<Criterio[]>([]);
   const [criteriosBanner, setCriteriosBanner] = useState(false);
+  const [nuevoClienteOpen, setNuevoClienteOpen] = useState(false);
+  const [hasDraft, setHasDraft] = useState(false);
+  const [draftDate, setDraftDate] = useState('');
 
   const { register, handleSubmit, watch, setValue, formState: { errors } } = useForm<Paso1Data>({
     resolver: zodResolver(paso1Schema),
-    defaultValues: { descuento: 0, prioridad: 'MEDIA', indiceCliente: 1.00, clienteId: clienteIdParam },
+    defaultValues: { descuento: 0, prioridad: 'MEDIA', clienteId: clienteIdParam },
+  });
+
+  const { register: regCliente, handleSubmit: handleCliente, reset: resetCliente, setValue: setValueCliente, formState: { errors: errCliente } } = useForm<NuevoClienteData>({
+    resolver: zodResolver(nuevoClienteSchema),
+    defaultValues: { tipoCliente: 'PARTICULAR' },
   });
 
   const descuento = watch('descuento') ?? 0;
-  const indiceCliente = watch('indiceCliente') ?? 1.00;
   const clienteId = watch('clienteId');
 
   useEffect(() => {
+    // Check for saved draft on mount
+    const saved = localStorage.getItem(DRAFT_KEY);
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        setHasDraft(true);
+        setDraftDate(new Date(parsed.savedAt).toLocaleString('es-AR', { dateStyle: 'short', timeStyle: 'short' }));
+      } catch { /* ignore */ }
+    }
+
     Promise.all([
       fetch('/api/clientes?all=true').then((r) => r.json()),
       fetch('/api/materiales/items?all=true').then((r) => r.json()),
@@ -102,11 +130,56 @@ export default function NuevoPresupuestoPage() {
     });
   }, []);
 
-  // Fetch índice y criterios cuando se selecciona cliente
+  // Auto-save to localStorage every 30s
+  const saveDraft = useCallback(() => {
+    const formData = watch();
+    localStorage.setItem(DRAFT_KEY, JSON.stringify({
+      formData,
+      itemsProducto,
+      lineas,
+      lineasLibres,
+      paso,
+      savedAt: new Date().toISOString(),
+    }));
+  }, [watch, itemsProducto, lineas, lineasLibres, paso]);
+
+  useEffect(() => {
+    const interval = setInterval(saveDraft, 30000);
+    return () => clearInterval(interval);
+  }, [saveDraft]);
+
+  // Unsaved changes warning
+  useEffect(() => {
+    const handle = (e: BeforeUnloadEvent) => { e.preventDefault(); };
+    window.addEventListener('beforeunload', handle);
+    return () => window.removeEventListener('beforeunload', handle);
+  }, []);
+
+  const recoverDraft = () => {
+    const saved = localStorage.getItem(DRAFT_KEY);
+    if (!saved) return;
+    try {
+      const parsed = JSON.parse(saved);
+      const fd = parsed.formData ?? {};
+      Object.entries(fd).forEach(([k, v]) => setValue(k as keyof Paso1Data, v as never));
+      setItemsProducto(parsed.itemsProducto ?? []);
+      setLineas(parsed.lineas ?? []);
+      setLineasLibres(parsed.lineasLibres ?? []);
+      setPaso(parsed.paso ?? 1);
+      setHasDraft(false);
+    } catch { /* ignore */ }
+  };
+
+  const discardDraft = () => {
+    localStorage.removeItem(DRAFT_KEY);
+    setHasDraft(false);
+  };
+
+  // Fetch descuento y criterios cuando se selecciona cliente
   useEffect(() => {
     if (!clienteId) return;
     fetch(`/api/clientes/${clienteId}/indice`).then((r) => r.json()).then((data) => {
-      setValue('indiceCliente', Number(data.indiceUtilidad));
+      setValue('descuento', Number(data.descuento));
     });
     fetch(`/api/clientes/${clienteId}/criterios`).then((r) => r.json()).then((data) => {
       const activos = (data.criterios ?? []).filter((c: { activo: boolean }) => c.activo);
@@ -119,6 +192,47 @@ export default function NuevoPresupuestoPage() {
     const c = clientes.find((cl) => cl.id === clienteId);
     if (!c?.tipoCliente) return '';
     return TIPO_CLIENTE_LABEL[(c.tipoCliente as TipoCliente)] ?? '';
+  };
+
+  const crearClienteInline = async (data: NuevoClienteData) => {
+    const res = await fetch('/api/clientes', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) return;
+    const cliente = await res.json();
+    setClientes((prev) => [...prev, { id: cliente.id, razonSocial: cliente.razonSocial, tipoCliente: cliente.tipoCliente }]);
+    setValue('clienteId', cliente.id);
+    setNuevoClienteOpen(false);
+    resetCliente();
+  };
+
+  const guardarPendiente = async () => {
+    const cId = watch('clienteId');
+    if (!cId) return;
+    setIsSavingPendiente(true);
+    const res = await fetch('/api/presupuestos', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        clienteId: cId,
+        nombrePresupuesto: watch('nombrePresupuesto') || null,
+        prioridad: watch('prioridad') ?? 'MEDIA',
+        observaciones: watch('observaciones') || null,
+        estado: 'PENDIENTE',
+        descuento: 0,
+        subtotal: 0,
+        totalFinal: 0,
+        puertas: [],
+        lineas: [],
+      }),
+    });
+    setIsSavingPendiente(false);
+    if (res.ok) {
+      localStorage.removeItem(DRAFT_KEY);
+      router.push('/presupuestos?tab=pendientes');
+    }
   };
 
   // Líneas de catálogo
@@ -198,12 +312,12 @@ export default function NuevoPresupuestoPage() {
         lineas: lineasPayload,
         subtotal,
         totalFinal: total,
-        indiceCliente: data.indiceCliente,
         estado: enviar ? 'ENVIADO' : 'BORRADOR',
       }),
     });
     setIsSubmitting(false);
     if (res.ok) {
+      localStorage.removeItem(DRAFT_KEY);
       const json = await res.json();
       router.push(`/presupuestos/${json.id}`);
     }
@@ -211,6 +325,16 @@ export default function NuevoPresupuestoPage() {
 
   return (
     <div className="max-w-3xl mx-auto space-y-6">
+      {/* Recovery banner */}
+      {hasDraft && (
+        <div className="rounded-lg border border-amber-300 bg-amber-50 p-3 flex items-center gap-3">
+          <RotateCcw className="h-4 w-4 text-amber-600 shrink-0" />
+          <span className="text-sm text-amber-700 flex-1">Hay un borrador guardado automáticamente el {draftDate}.</span>
+          <Button size="sm" variant="outline" onClick={recoverDraft} className="shrink-0">Recuperar</Button>
+          <Button size="sm" variant="ghost" onClick={discardDraft} className="shrink-0 text-amber-600">Descartar</Button>
+        </div>
+      )}
+
       {/* Steps indicator */}
       <div className="flex items-center gap-2">
         {[1, 2, 3].map((s) => (
@@ -240,19 +364,24 @@ export default function NuevoPresupuestoPage() {
 
                 <div className="col-span-2 space-y-2">
                   <Label>Cliente *</Label>
-                  <Select
-                    defaultValue={clienteIdParam || undefined}
-                    onValueChange={(v) => setValue('clienteId', v)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Seleccioná un cliente" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {clientes.map((c) => (
-                        <SelectItem key={c.id} value={c.id}>{c.razonSocial}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <div className="flex gap-2">
+                    <Select
+                      defaultValue={clienteIdParam || undefined}
+                      onValueChange={(v) => setValue('clienteId', v)}
+                    >
+                      <SelectTrigger className="flex-1">
+                        <SelectValue placeholder="Seleccioná un cliente" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {clientes.map((c) => (
+                          <SelectItem key={c.id} value={c.id}>{c.razonSocial}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Button type="button" variant="outline" size="sm" onClick={() => setNuevoClienteOpen(true)} className="shrink-0">
+                      <Plus className="mr-1 h-3.5 w-3.5" /> Nuevo
+                    </Button>
+                  </div>
                   {errors.clienteId && <p className="text-xs text-red-500">{errors.clienteId.message}</p>}
                 </div>
 
@@ -285,24 +414,12 @@ export default function NuevoPresupuestoPage() {
                   </div>
                 )}
 
-                {/* Tipo cliente + índice */}
+                {/* Tipo cliente */}
                 {clienteId && (
-                  <>
-                    <div className="space-y-2">
-                      <Label>Tipo de cliente</Label>
-                      <Input value={tipoClienteLabel()} disabled className="bg-slate-50 text-slate-500" />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Índice de utilidad</Label>
-                      <Input
-                        type="number"
-                        step="0.01"
-                        min="0.01"
-                        {...register('indiceCliente', { valueAsNumber: true })}
-                      />
-                      <p className="text-xs text-slate-400">Pre-completado según tipo de cliente. Editable.</p>
-                    </div>
-                  </>
+                  <div className="space-y-2">
+                    <Label>Tipo de cliente</Label>
+                    <Input value={tipoClienteLabel()} disabled className="bg-slate-50 text-slate-500" />
+                  </div>
                 )}
 
                 <div className="space-y-2">
@@ -320,6 +437,7 @@ export default function NuevoPresupuestoPage() {
                 <div className="space-y-2">
                   <Label>Descuento (%)</Label>
                   <Input type="number" min={0} max={100} step={0.5} {...register('descuento', { valueAsNumber: true })} />
+                  {clienteId && <p className="text-xs text-slate-400">Auto-completado según tipo de cliente. Editable.</p>}
                 </div>
 
                 <div className="space-y-2">
@@ -338,7 +456,16 @@ export default function NuevoPresupuestoPage() {
                 <Textarea {...register('observaciones')} rows={3} placeholder="Notas adicionales..." />
               </div>
 
-              <div className="flex justify-end">
+              <div className="flex justify-between">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={guardarPendiente}
+                  disabled={isSavingPendiente || !watch('clienteId')}
+                >
+                  {isSavingPendiente && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  <Clock className="mr-2 h-4 w-4" /> Guardar como pendiente
+                </Button>
                 <Button type="submit" className="bg-sky-500 hover:bg-sky-600">
                   Siguiente <ChevronRight className="ml-2 h-4 w-4" />
                 </Button>
@@ -490,11 +617,6 @@ export default function NuevoPresupuestoPage() {
                   <span>{formatCurrency(l.subtotal)}</span>
                 </div>
               ))}
-              {indiceCliente !== 1.00 && (
-                <div className="flex justify-between text-xs text-slate-400">
-                  <span>Índice de utilidad aplicado: ×{Number(indiceCliente).toFixed(2)}</span>
-                </div>
-              )}
               <div className="border-t pt-3 space-y-2">
                 <div className="flex justify-between text-sm">
                   <span>Subtotal</span>
@@ -529,6 +651,47 @@ export default function NuevoPresupuestoPage() {
           </div>
         </div>
       )}
+
+      {/* Dialog: Crear nuevo cliente */}
+      <Dialog open={nuevoClienteOpen} onOpenChange={setNuevoClienteOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Nuevo cliente</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleCliente(crearClienteInline)} className="space-y-4">
+            <div className="space-y-1.5">
+              <Label>Razón Social *</Label>
+              <Input {...regCliente('razonSocial')} autoFocus />
+              {errCliente.razonSocial && <p className="text-xs text-red-500">{errCliente.razonSocial.message}</p>}
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label>Email</Label>
+                <Input type="email" {...regCliente('email')} />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Teléfono</Label>
+                <Input {...regCliente('telefono')} />
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Tipo de cliente</Label>
+              <Select defaultValue="PARTICULAR" onValueChange={(v) => setValueCliente('tipoCliente', v as 'CONSTRUCTORA' | 'DESARROLLADOR' | 'PARTICULAR')}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {Object.values(TIPO_CLIENTE).map((t) => (
+                    <SelectItem key={t} value={t}>{TIPO_CLIENTE_LABEL[t]}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => { setNuevoClienteOpen(false); resetCliente(); }}>Cancelar</Button>
+              <Button type="submit" className="bg-sky-500 hover:bg-sky-600">Crear cliente</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

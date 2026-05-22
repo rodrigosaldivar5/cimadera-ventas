@@ -12,9 +12,9 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
   });
   if (!cliente) return NextResponse.json({ error: 'No encontrado' }, { status: 404 });
 
-  const indice = await prisma.indiceCliente.findUnique({
+  const descuento = await prisma.descuentoTipoCliente.findUnique({
     where: { tipoCliente: cliente.tipoCliente },
   });
 
-  return NextResponse.json({ tipoCliente: cliente.tipoCliente, indiceUtilidad: indice?.indiceUtilidad ?? 1.00 });
+  return NextResponse.json({ tipoCliente: cliente.tipoCliente, descuento: Number(descuento?.descuento ?? 0) });
 }

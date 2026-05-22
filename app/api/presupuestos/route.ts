@@ -66,7 +66,6 @@ export async function POST(req: NextRequest) {
         fechaRecepcion: data.fechaRecepcion ? new Date(data.fechaRecepcion) : null,
         responsableId: data.responsableId || null,
         observaciones: data.observaciones ?? null,
-        indiceCliente: data.indiceCliente ?? 1.00,
         descuento: data.descuento ?? 0,
         subtotal: data.subtotal ?? 0,
         totalFinal: data.totalFinal ?? 0,

@@ -116,7 +116,7 @@ async function main() {
 
   for (const cat of categorias) {
     await prisma.categoriaItem.upsert({
-      where: { nombre: cat.nombre },
+      where: { id: cat.id },
       update: {},
       create: { id: cat.id, nombre: cat.nombre },
     });
@@ -183,18 +183,18 @@ async function main() {
     });
   }
 
-  // --- Índices por tipo de cliente ---
-  const indicesCliente = [
-    { id: 'indice-constructora', tipoCliente: 'CONSTRUCTORA' as const, indiceUtilidad: 1.20, descripcion: 'Constructoras (20% utilidad)' },
-    { id: 'indice-desarrollador', tipoCliente: 'DESARROLLADOR' as const, indiceUtilidad: 1.25, descripcion: 'Pequeños desarrolladores (25% utilidad)' },
-    { id: 'indice-particular', tipoCliente: 'PARTICULAR' as const, indiceUtilidad: 1.35, descripcion: 'Particulares (35% utilidad)' },
+  // --- Descuentos por tipo de cliente ---
+  const descuentosCliente = [
+    { id: 'desc-constructora', tipoCliente: 'CONSTRUCTORA' as const, descuento: 15.00, descripcion: 'Constructoras (15% de descuento)' },
+    { id: 'desc-desarrollador', tipoCliente: 'DESARROLLADOR' as const, descuento: 10.00, descripcion: 'Pequeños desarrolladores (10% de descuento)' },
+    { id: 'desc-particular', tipoCliente: 'PARTICULAR' as const, descuento: 0.00, descripcion: 'Particulares (sin descuento automático)' },
   ];
 
-  for (const ic of indicesCliente) {
-    await prisma.indiceCliente.upsert({
-      where: { tipoCliente: ic.tipoCliente },
-      update: { indiceUtilidad: ic.indiceUtilidad, descripcion: ic.descripcion },
-      create: { id: ic.id, tipoCliente: ic.tipoCliente, indiceUtilidad: ic.indiceUtilidad, descripcion: ic.descripcion },
+  for (const dc of descuentosCliente) {
+    await prisma.descuentoTipoCliente.upsert({
+      where: { tipoCliente: dc.tipoCliente },
+      update: { descuento: dc.descuento, descripcion: dc.descripcion },
+      create: { id: dc.id, tipoCliente: dc.tipoCliente, descuento: dc.descuento, descripcion: dc.descripcion },
     });
   }
 

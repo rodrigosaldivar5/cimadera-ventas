@@ -102,7 +102,6 @@ model Presupuesto {
   responsable       User?              @relation("PresupuestoResponsable", fields: [responsableId], references: [id])
   estado            EstadoPresupuesto  @default(BORRADOR)
   prioridad         Prioridad          @default(MEDIA)
-  indiceCliente     Decimal            @db.Decimal(5, 2) @default(1.00)
   fechaCreacion     DateTime           @default(now())
   fechaRecepcion    DateTime?
   fechaEnvio        DateTime?
@@ -116,6 +115,7 @@ model Presupuesto {
 }
 
 enum EstadoPresupuesto {
+  PENDIENTE
   BORRADOR
   ENVIADO
   APROBADO
@@ -229,11 +229,11 @@ enum TipoCliente {
   PARTICULAR
 }
 
-model IndiceCliente {
-  id             String      @id @default(cuid())
-  tipoCliente    TipoCliente @unique
-  indiceUtilidad Decimal     @db.Decimal(5, 2)
-  descripcion    String?
+model DescuentoTipoCliente {
+  id          String      @id @default(cuid())
+  tipoCliente TipoCliente @unique
+  descuento   Decimal     @db.Decimal(5, 2)
+  descripcion String?
 }
 
 model CriterioCliente {

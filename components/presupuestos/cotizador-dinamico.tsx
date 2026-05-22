@@ -73,7 +73,7 @@ export function CotizadorDinamico({ productos, items, onChange }: Props) {
     if (!p) return;
     setProductoSeleccionado(p);
     const sel: Record<string, { opcionId: string; medida: number }> = {};
-    p.atributos.forEach((a) => { sel[a.id] = { opcionId: '', medida: 1 }; });
+    p.atributos.forEach((a) => { sel[a.id] = { opcionId: '__none__', medida: 1 }; });
     setSelecciones(sel);
   };
 
@@ -200,8 +200,8 @@ export function CotizadorDinamico({ productos, items, onChange }: Props) {
             <div className="space-y-1.5">
               <label className="text-sm font-medium text-slate-700">¿Qué producto querés cotizar?</label>
               <Select
-                value={productoSeleccionado?.id ?? ''}
-                onValueChange={elegirProducto}
+                value={productoSeleccionado?.id ?? '__none__'}
+                onValueChange={(v) => { if (v !== '__none__') elegirProducto(v); }}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Seleccioná un producto" />
@@ -242,7 +242,7 @@ export function CotizadorDinamico({ productos, items, onChange }: Props) {
                           {atrib.nombre}
                           {atrib.requerido && <span className="text-red-500 ml-0.5">*</span>}
                         </label>
-                        <Select value={sel?.opcionId ?? ''} onValueChange={(v) => setOpcion(atrib.id, v)}>
+                        <Select value={sel?.opcionId ?? '__none__'} onValueChange={(v) => setOpcion(atrib.id, v)}>
                           <SelectTrigger>
                             <SelectValue placeholder={`Elegir ${atrib.nombre.toLowerCase()}`} />
                           </SelectTrigger>
