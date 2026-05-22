@@ -252,6 +252,17 @@ model DescuentoTipoCliente {
   descripcion String?
 }
 
+model CatalogoPuerta {
+  id          String   @id @default(cuid())
+  nombre      String
+  descripcion String?
+  imageUrl    String
+  categoria   String   @default("Interior")
+  activo      Boolean  @default(true)
+  orden       Int      @default(0)
+  createdAt   DateTime @default(now())
+}
+
 model CriterioCliente {
   id          String   @id @default(cuid())
   clienteId   String

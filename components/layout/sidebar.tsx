@@ -15,6 +15,10 @@ import {
   UserCog,
   Shield,
   Percent,
+  BookOpen,
+  DoorOpen,
+  Sofa,
+  Layers,
 } from 'lucide-react';
 import { Logo } from '@/components/logo';
 import { cn } from '@/lib/utils';
@@ -42,6 +46,16 @@ const navItems: NavItem[] = [
   { href: '/productos', label: 'Productos', icon: ShoppingBag },
   { href: '/materiales', label: 'Materiales', icon: Package },
   {
+    href: '/catalogo',
+    label: 'Catálogo',
+    icon: BookOpen,
+    children: [
+      { href: '/catalogo/puertas', label: 'Puertas', icon: DoorOpen },
+      { href: '/catalogo/amoblamientos', label: 'Amoblamientos', icon: Sofa },
+      { href: '/catalogo/aluminio', label: 'Aluminio', icon: Layers },
+    ],
+  },
+  {
     href: '/admin',
     label: 'Admin',
     icon: Settings,
@@ -63,6 +77,7 @@ export function Sidebar({ userName, userEmail, rolNombre }: SidebarProps) {
   const [openItems, setOpenItems] = useState<Record<string, boolean>>({
     '/admin': pathname.startsWith('/admin'),
     '/clientes': pathname.startsWith('/clientes/descuentos'),
+    '/catalogo': pathname.startsWith('/catalogo'),
   });
 
   const toggleItem = (href: string) =>
