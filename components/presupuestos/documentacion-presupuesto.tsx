@@ -48,7 +48,13 @@ export function DocumentacionPresupuesto({ presupuestoId, precioFinalInicial, ar
   const [archivos, setArchivos] = useState<Archivo[]>(archivosIniciales);
   const [subiendo, setSubiendo] = useState(false);
   const [eliminando, setEliminando] = useState<string | null>(null);
+  const [toast, setToast] = useState<{ msg: string; tipo: 'ok' | 'error' } | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  const showToast = (msg: string, tipo: 'ok' | 'error' = 'ok') => {
+    setToast({ msg, tipo });
+    setTimeout(() => setToast(null), 4000);
+  };
 
   const cargarArchivos = async () => {
     try {
@@ -95,11 +101,11 @@ export function DocumentacionPresupuesto({ presupuestoId, precioFinalInicial, ar
         throw new Error(err.error || 'Error al subir');
       }
       const data = await res.json();
-      if (data.archivos?.length) {
-        await cargarArchivos();
-      }
+      await cargarArchivos();
+      showToast(`${data.archivos?.length ?? 0} archivo(s) subido(s) correctamente`);
     } catch (error) {
       console.error('Error subiendo archivo:', error);
+      showToast('Error al subir el archivo', 'error');
     } finally {
       setSubiendo(false);
       e.target.value = '';
@@ -116,6 +122,7 @@ export function DocumentacionPresupuesto({ presupuestoId, precioFinalInicial, ar
   };
 
   return (
+    <>
     <Card>
       <CardHeader>
         <CardTitle className="text-base">Documentación del presupuesto</CardTitle>
@@ -235,5 +242,12 @@ export function DocumentacionPresupuesto({ presupuestoId, precioFinalInicial, ar
         </div>
       </CardContent>
     </Card>
+
+    {toast && (
+      <div className={`fixed bottom-6 right-6 z-50 text-white text-sm px-4 py-2 rounded-lg shadow-lg animate-in fade-in slide-in-from-bottom-2 ${toast.tipo === 'error' ? 'bg-red-600' : 'bg-green-600'}`}>
+        {toast.msg}
+      </div>
+    )}
+    </>
   );
 }
