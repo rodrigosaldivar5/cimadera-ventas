@@ -49,9 +49,7 @@ export default async function PresupuestoDetallePage({ params }: { params: { id:
           <Link href="/presupuestos"><ArrowLeft className="mr-2 h-4 w-4" /> Volver</Link>
         </Button>
         <div className="flex items-center gap-3">
-          {ESTADOS_ACTUALIZABLES.includes(presupuesto.estado) && (
-            <ActualizarPreciosBtn presupuestoId={presupuesto.id} />
-          )}
+          <ActualizarPreciosBtn presupuestoId={presupuesto.id} />
           <Badge variant="outline" className={`text-sm px-3 py-1 ${estadoBadgeClass[presupuesto.estado]}`}>
             {estadoLabel[presupuesto.estado]}
           </Badge>

@@ -139,6 +139,7 @@ model ArchivoPresupuesto {
   url           String
   tipo          String
   tamanio       Int
+  contenido     Bytes?
   createdAt     DateTime    @default(now())
 }
 
