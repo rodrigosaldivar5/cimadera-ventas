@@ -23,6 +23,7 @@ const paso1Schema = z.object({
   numero: z.number().int().min(1, 'Número inválido').optional(),
   clienteId: z.string().min(1, 'Seleccioná un cliente'),
   obraId: z.string().optional(),
+  responsableId: z.string().optional(),
   nombrePresupuesto: z.string().optional(),
   fechaVencimiento: z.string().optional(),
   fechaRecepcion: z.string().optional(),
@@ -103,6 +104,7 @@ export default function NuevoPresupuestoPage() {
   const [nuevaObraOpen, setNuevaObraOpen] = useState(false);
   const [nuevaObraNombre, setNuevaObraNombre] = useState('');
   const [nuevaObraDireccion, setNuevaObraDireccion] = useState('');
+  const [usuarios, setUsuarios] = useState<{ id: string; nombre: string }[]>([]);
 
   const { register, handleSubmit, watch, setValue, formState: { errors } } = useForm<Paso1Data>({
     resolver: zodResolver(paso1Schema),
@@ -133,11 +135,14 @@ export default function NuevoPresupuestoPage() {
       fetch('/api/materiales/items?all=true').then((r) => r.json()),
       fetch('/api/productos').then((r) => r.json()),
       fetch('/api/presupuestos/siguiente-numero').then((r) => r.json()),
-    ]).then(([cls, items, prods, sig]) => {
+      fetch('/api/usuarios/activos').then((r) => r.json()),
+    ]).then(([cls, items, prods, sig, usrs]) => {
       setClientes(cls.clientes ?? []);
       setTodosItems(items.items ?? []);
       setProductos(prods.productos ?? []);
       setNextNumero(sig.numero ?? 1001);
+      setUsuarios(usrs.usuarios ?? []);
+      if (usrs.currentUserId) setValue('responsableId', usrs.currentUserId);
     });
   }, []);
 
@@ -260,6 +265,7 @@ export default function NuevoPresupuestoPage() {
         clienteId: cId,
         nombrePresupuesto: watch('nombrePresupuesto') || null,
         prioridad: watch('prioridad') ?? 'MEDIA',
+        responsableId: watch('responsableId') || null,
         observaciones: watch('observaciones') || null,
         estado: 'PENDIENTE',
         descuento: 0,
@@ -486,6 +492,25 @@ export default function NuevoPresupuestoPage() {
                     </div>
                   </div>
                 )}
+
+                {/* Responsable */}
+                <div className="col-span-2 space-y-2">
+                  <Label>Responsable</Label>
+                  <Select
+                    value={watch('responsableId') || '__none__'}
+                    onValueChange={(v) => setValue('responsableId', v === '__none__' ? undefined : v)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Sin responsable asignado" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">Sin responsable</SelectItem>
+                      {usuarios.map((u) => (
+                        <SelectItem key={u.id} value={u.id}>{u.nombre}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
 
                 {/* Selector de obra */}
                 {clienteId && (
