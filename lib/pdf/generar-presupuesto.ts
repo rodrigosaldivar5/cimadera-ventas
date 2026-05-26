@@ -46,6 +46,7 @@ const COLORS = {
   negroCimadera: '#1A1A1A',
   grisCorporativo: '#4A4A4A',
   grisClaro: '#F2F2F2',
+  grisSeparador: '#CCCCCC',
 };
 
 function hexToRgb(hex: string): [number, number, number] {
@@ -60,68 +61,104 @@ const fmtDate = (d: Date | string | null | undefined) => {
   return new Date(d).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' });
 };
 
+const W = 210;
+const marginL = 15;
+const marginR = 15;
+const HEADER_H = 25; // mm
+const CONTENT_START_Y = 35; // mm — below header
+
+function drawHeader(doc: jsPDF, numero: number) {
+  const [nR, nG, nB] = hexToRgb(COLORS.negroCimadera);
+  const [grR, grG, grB] = hexToRgb(COLORS.grisCorporativo);
+  const [azR, azG, azB] = hexToRgb(COLORS.azulCimadera);
+  const [sepR, sepG, sepB] = hexToRgb(COLORS.grisSeparador);
+
+  // Fondo blanco explícito (por si acaso)
+  doc.setFillColor(255, 255, 255);
+  doc.rect(0, 0, W, HEADER_H, 'F');
+
+  // ── Izquierda ──────────────────────────────────────────────────────────
+  const baseY = HEADER_H - 8; // ~17mm desde top
+
+  // "CIMAdera" bold 20pt negro
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(20);
+  doc.setTextColor(nR, nG, nB);
+  doc.text('CIMAdera', marginL, baseY);
+
+  // "S.A." normal 12pt negro — mismo renglón, al lado de CIMAdera
+  const cimaderaWidth = doc.getTextWidth('CIMAdera');
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(12);
+  doc.setTextColor(nR, nG, nB);
+  doc.text(' S.A.', marginL + cimaderaWidth, baseY);
+
+  // Línea de contacto debajo
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(7.5);
+  doc.setTextColor(grR, grG, grB);
+  doc.text(
+    'ventas.cimadera.net  ·  coordinacion.general@cimadera.net  ·  261 635-0017',
+    marginL, baseY + 5,
+  );
+
+  // ── Derecha ────────────────────────────────────────────────────────────
+  // "PRESUPUESTO N° XXXX" bold 18pt azul
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(18);
+  doc.setTextColor(azR, azG, azB);
+  doc.text(`PRESUPUESTO N° ${String(numero).padStart(4, '0')}`, W - marginR, baseY, { align: 'right' });
+
+  // "Las Heras, Mendoza, Argentina" normal 7.5pt gris
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(7.5);
+  doc.setTextColor(grR, grG, grB);
+  doc.text('Las Heras, Mendoza, Argentina', W - marginR, baseY + 5, { align: 'right' });
+
+  // ── Línea separadora ───────────────────────────────────────────────────
+  doc.setDrawColor(sepR, sepG, sepB);
+  doc.setLineWidth(0.4);
+  doc.line(marginL, HEADER_H + 2, W - marginR, HEADER_H + 2);
+}
+
 function drawFooter(doc: jsPDF) {
-  const W = 210;
-  const [r, g, b] = hexToRgb(COLORS.azulCimadera);
-  doc.setFillColor(r, g, b);
+  const [azR, azG, azB] = hexToRgb(COLORS.azulCimadera);
+  doc.setFillColor(azR, azG, azB);
   doc.rect(0, 282, W, 15, 'F');
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(7);
   doc.setTextColor(255, 255, 255);
   doc.text(
     'CIMAdera S.A.  ·  Las Heras, Mendoza  ·  coordinacion.general@cimadera.net  ·  261 635-0017',
-    W / 2, 288, { align: 'center' }
+    W / 2, 288, { align: 'center' },
   );
   doc.text('Certificación ISO 9001:2015  ·  Bureau Veritas', W / 2, 293, { align: 'center' });
   doc.setFont('helvetica', 'bold');
   const pageCount = (doc as unknown as { internal: { getNumberOfPages: () => number } }).internal.getNumberOfPages();
-  doc.text(`Página ${pageCount}`, W - 15, 288, { align: 'right' });
+  doc.text(`Página ${pageCount}`, W - marginR, 288, { align: 'right' });
 }
 
 export function generarPresupuestoPDF(p: PresupuestoPDF): void {
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-  const W = 210;
-  const marginL = 15;
-  const marginR = 15;
   const contentW = W - marginL - marginR;
-  let y = 0;
+  let y = CONTENT_START_Y;
 
-  const checkPage = (needed: number) => {
-    if (y + needed > 275) {
-      drawFooter(doc);
-      doc.addPage();
-      y = 20;
-    }
-  };
-
-  const [aR, aG, aB] = hexToRgb(COLORS.azulProfundo);
   const [azR, azG, azB] = hexToRgb(COLORS.azulCimadera);
   const [nR, nG, nB] = hexToRgb(COLORS.negroCimadera);
   const [grR, grG, grB] = hexToRgb(COLORS.grisCorporativo);
   const [gcR, gcG, gcB] = hexToRgb(COLORS.grisClaro);
 
-  // ── HEADER — franja azul 18mm ──────────────────────────────────────────
-  doc.setFillColor(aR, aG, aB);
-  doc.rect(0, 0, W, 18, 'F');
+  // Dibujar encabezado en página 1
+  drawHeader(doc, p.numero);
 
-  doc.setTextColor(255, 255, 255);
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(16);
-  doc.text('CIMAdera S.A.', marginL, 10);
-
-  doc.setFontSize(8);
-  doc.setFont('helvetica', 'normal');
-  doc.text('ventas.cimadera.net', marginL, 15);
-
-  doc.setFontSize(15);
-  doc.setFont('helvetica', 'bold');
-  doc.text(`PRESUPUESTO N° ${String(p.numero).padStart(4, '0')}`, W - marginR, 10, { align: 'right' });
-
-  doc.setFontSize(7.5);
-  doc.setFont('helvetica', 'normal');
-  doc.text(`Emisión: ${fmtDate(p.fechaCreacion)}`, W - marginR, 15, { align: 'right' });
-
-  y = 22;
+  const checkPage = (needed: number) => {
+    if (y + needed > 275) {
+      drawFooter(doc);
+      doc.addPage();
+      drawHeader(doc, p.numero);
+      y = CONTENT_START_Y;
+    }
+  };
 
   // ── DATOS CLIENTE / EMISOR ─────────────────────────────────────────────
   const col1 = marginL;
@@ -165,12 +202,12 @@ export function generarPresupuestoPDF(p: PresupuestoPDF): void {
     doc.text(p.nombrePresupuesto, col2, y + 20);
   }
 
-  // ── SEPARADOR AZUL 0.5pt entre datos cliente e ítems ──────────────────
-  y = 52;
+  // ── SEPARADOR AZUL entre datos cliente e ítems ────────────────────────
+  y += 30;
   doc.setFillColor(azR, azG, azB);
   doc.setLineWidth(0.5);
   doc.rect(marginL, y, contentW, 0.5, 'F');
-  y = 56;
+  y += 4;
 
   // ── BLOQUES DE ÍTEMS ──────────────────────────────────────────────────
   const LINE_H = 4.5;
@@ -185,17 +222,17 @@ export function generarPresupuestoPDF(p: PresupuestoPDF): void {
     precioUnitario: number,
     subtotal: number,
   ) => {
-    const HEADER_H = 8;
-    const FOOTER_H = 7;
-    let bodyH = 4; // top padding inside body
+    const BLOCK_HEADER_H = 8;
+    const BLOCK_FOOTER_H = 7;
+    let bodyH = 4;
     if (medidas) bodyH += LINE_H;
     if (colorMarca) bodyH += LINE_H;
     if (opciones.length > 0) {
-      bodyH += LINE_H; // "Herrajes:" label
+      bodyH += LINE_H;
       bodyH += opciones.length * LINE_H;
     }
-    bodyH += 3; // bottom padding before footer separator
-    const blockH = HEADER_H + bodyH + FOOTER_H;
+    bodyH += 3;
+    const blockH = BLOCK_HEADER_H + bodyH + BLOCK_FOOTER_H;
 
     checkPage(blockH + 1);
 
@@ -209,25 +246,20 @@ export function generarPresupuestoPDF(p: PresupuestoPDF): void {
     doc.setDrawColor(bdrR, bdrG, bdrB);
     doc.setLineWidth(0.3);
     doc.rect(marginL, y, contentW, blockH, 'D');
+    doc.line(marginL, y + BLOCK_HEADER_H, marginL + contentW, y + BLOCK_HEADER_H);
+    doc.line(marginL, y + BLOCK_HEADER_H + bodyH, marginL + contentW, y + BLOCK_HEADER_H + bodyH);
 
-    // Separator after header
-    doc.line(marginL, y + HEADER_H, marginL + contentW, y + HEADER_H);
-    // Separator before footer
-    doc.line(marginL, y + HEADER_H + bodyH, marginL + contentW, y + HEADER_H + bodyH);
-
-    // Title
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(10);
     doc.setTextColor(nR, nG, nB);
     doc.text(title, marginL + 3, y + 5.5);
 
-    // Cantidad (top-right)
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(8);
     doc.setTextColor(grR, grG, grB);
     doc.text(`Cantidad: ${cantidad}`, marginL + contentW - 3, y + 5.5, { align: 'right' });
 
-    let bodyY = y + HEADER_H + 4;
+    let bodyY = y + BLOCK_HEADER_H + 4;
 
     if (medidas) {
       doc.setFont('helvetica', 'normal');
@@ -251,7 +283,6 @@ export function generarPresupuestoPDF(p: PresupuestoPDF): void {
       doc.setTextColor(grR, grG, grB);
       doc.text('Herrajes:', marginL + 3, bodyY);
       bodyY += LINE_H;
-
       doc.setFont('helvetica', 'normal');
       for (const op of opciones) {
         const precioStr = op.precio != null ? `  —  ${fmtCurrency(op.precio)}` : '';
@@ -260,8 +291,7 @@ export function generarPresupuestoPDF(p: PresupuestoPDF): void {
       }
     }
 
-    // Footer
-    const footerY = y + HEADER_H + bodyH + 4;
+    const footerY = y + BLOCK_HEADER_H + bodyH + 4;
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(8.5);
     doc.setTextColor(nR, nG, nB);
@@ -283,7 +313,6 @@ export function generarPresupuestoPDF(p: PresupuestoPDF): void {
     y += 8;
   }
 
-  // Puertas
   if (hasPuertas) {
     for (const pu of p.puertas!) {
       drawBlock(
@@ -298,10 +327,8 @@ export function generarPresupuestoPDF(p: PresupuestoPDF): void {
     }
   }
 
-  // Ítems adicionales (lineas)
   if (hasLineas) {
     if (hasPuertas) {
-      // Section header with blue line above
       checkPage(12);
       y += 4;
       doc.setDrawColor(azR, azG, azB);
@@ -321,19 +348,11 @@ export function generarPresupuestoPDF(p: PresupuestoPDF): void {
         opcion: o.opcionNombre,
         precio: o.precioUnitario,
       }));
-      drawBlock(
-        l.nombre,
-        l.cantidad,
-        null,
-        null,
-        opciones,
-        l.precioUnitario,
-        l.subtotal,
-      );
+      drawBlock(l.nombre, l.cantidad, null, null, opciones, l.precioUnitario, l.subtotal);
     }
   }
 
-  // ── SEPARADOR AZUL 0.8pt entre ítems y totales ─────────────────────────
+  // ── SEPARADOR AZUL entre ítems y totales ──────────────────────────────
   y += 5;
   doc.setFillColor(azR, azG, azB);
   doc.rect(marginL, y, contentW, 0.8, 'F');
@@ -358,7 +377,6 @@ export function generarPresupuestoPDF(p: PresupuestoPDF): void {
     y += 5.5;
   }
 
-  // Total destacado
   doc.setFillColor(azR, azG, azB);
   doc.rect(totLabelX - 35, y - 3.5, totValX - totLabelX + 48, 9, 'F');
   doc.setFont('helvetica', 'bold');
@@ -386,7 +404,7 @@ export function generarPresupuestoPDF(p: PresupuestoPDF): void {
     y += 22;
   }
 
-  // ── SEPARADOR GRIS 0.5pt entre totales y condiciones ──────────────────
+  // ── SEPARADOR GRIS entre totales y condiciones ────────────────────────
   checkPage(42);
   y += 4;
   doc.setDrawColor(204, 204, 204);
