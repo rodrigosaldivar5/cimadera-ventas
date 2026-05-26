@@ -65,9 +65,10 @@ model Cliente {
   tipoCliente  TipoCliente       @default(PARTICULAR)
   activo       Boolean           @default(true)
   createdAt    DateTime          @default(now())
-  presupuestos Presupuesto[]
-  criterios    CriterioCliente[]
-  obras        Obra[]
+  presupuestos      Presupuesto[]
+  criterios         CriterioCliente[]
+  obras             Obra[]
+  cuentasCorrientes CuentaCorriente[]
 }
 
 model CategoriaItem {
@@ -117,18 +118,20 @@ model Presupuesto {
   lineas            LineaPresupuesto[]
   puertas           PuertaPresupuesto[]
   archivos          ArchivoPresupuesto[]
+  cuentaCorriente   CuentaCorriente?
 }
 
 model Obra {
-  id           String        @id @default(cuid())
-  nombre       String
-  direccion    String?
-  descripcion  String?
-  clienteId    String
-  cliente      Cliente       @relation(fields: [clienteId], references: [id])
-  activo       Boolean       @default(true)
-  createdAt    DateTime      @default(now())
-  presupuestos Presupuesto[]
+  id                String            @id @default(cuid())
+  nombre            String
+  direccion         String?
+  descripcion       String?
+  clienteId         String
+  cliente           Cliente           @relation(fields: [clienteId], references: [id])
+  activo            Boolean           @default(true)
+  createdAt         DateTime          @default(now())
+  presupuestos      Presupuesto[]
+  cuentasCorrientes CuentaCorriente[]
 }
 
 model ArchivoPresupuesto {
@@ -259,6 +262,19 @@ enum TipoCliente {
   PARTICULAR
 }
 
+enum TipoMovimiento {
+  CARGO_INICIAL
+  ANTICIPO
+  PAGO_PARCIAL
+  ACTUALIZACION
+}
+
+enum EstadoCuenta {
+  PENDIENTE
+  SALDO_PENDIENTE
+  CANCELADO
+}
+
 model DescuentoTipoCliente {
   id          String      @id @default(cuid())
   tipoCliente TipoCliente @unique
@@ -285,4 +301,39 @@ model CriterioCliente {
   descripcion String?
   activo      Boolean  @default(true)
   createdAt   DateTime @default(now())
+}
+
+model CuentaCorriente {
+  id               String             @id @default(cuid())
+  clienteId        String
+  cliente          Cliente            @relation(fields: [clienteId], references: [id])
+  obraId           String?
+  obra             Obra?              @relation(fields: [obraId], references: [id])
+  presupuestoId    String?            @unique
+  presupuesto      Presupuesto?       @relation(fields: [presupuestoId], references: [id])
+  montoOriginal    Decimal            @db.Decimal(12, 2)
+  indiceInicio     Decimal            @db.Decimal(10, 4)
+  indiceActual     Decimal            @db.Decimal(10, 4)
+  nombreIndice     String             @default("ICC")
+  saldoActualizado Decimal            @db.Decimal(12, 2) @default(0)
+  estado           EstadoCuenta       @default(SALDO_PENDIENTE)
+  fechaInicio      DateTime           @default(now())
+  observaciones    String?
+  movimientos      MovimientoCuenta[]
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+}
+
+model MovimientoCuenta {
+  id              String          @id @default(cuid())
+  cuentaId        String
+  cuenta          CuentaCorriente @relation(fields: [cuentaId], references: [id], onDelete: Cascade)
+  tipo            TipoMovimiento
+  descripcion     String
+  monto           Decimal         @db.Decimal(12, 2)
+  saldoResultante Decimal         @db.Decimal(12, 2)
+  numeroFactura   String?
+  fecha           DateTime        @default(now())
+  indiceValor     Decimal?        @db.Decimal(10, 4)
+  createdAt       DateTime        @default(now())
 }

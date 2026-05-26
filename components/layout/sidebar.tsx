@@ -19,6 +19,7 @@ import {
   DoorOpen,
   Sofa,
   Layers,
+  Wallet,
 } from 'lucide-react';
 import { Logo } from '@/components/logo';
 import { cn } from '@/lib/utils';
@@ -43,6 +44,7 @@ const navItems: NavItem[] = [
     ],
   },
   { href: '/presupuestos', label: 'Presupuestos', icon: FileText },
+  { href: '/cuentas-corrientes', label: 'Cuentas corrientes', icon: Wallet },
   { href: '/productos', label: 'Productos', icon: ShoppingBag },
   { href: '/materiales', label: 'Materiales', icon: Package },
   {
