@@ -5,26 +5,39 @@ import { notFound } from 'next/navigation';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { PresupuestoAcciones } from '@/components/presupuestos/presupuesto-acciones';
 import { DocumentacionPresupuesto } from '@/components/presupuestos/documentacion-presupuesto';
+import { EditarResponsable } from '@/components/presupuestos/editar-responsable';
+import { ActualizarPreciosBtn } from '@/components/presupuestos/actualizar-precios-btn';
 import type { EstadoPresupuesto } from '@prisma/client';
 import Link from 'next/link';
 import { ArrowLeft, Building2, User2, Calendar } from 'lucide-react';
 import { estadoBadgeClass, estadoLabel } from '@/lib/enums';
 
+const ESTADOS_ACTUALIZABLES: EstadoPresupuesto[] = ['PENDIENTE', 'EN_PROCESO'];
+
 export default async function PresupuestoDetallePage({ params }: { params: { id: string } }) {
-  const presupuesto = await prisma.presupuesto.findUnique({
-    where: { id: params.id },
-    include: {
-      cliente: true,
-      creadoPor: true,
-      lineas: { include: { item: true, opciones: true } },
-      puertas: { include: { tipoPuerta: true } },
-    },
-  });
+  const [presupuesto, usuarios] = await Promise.all([
+    prisma.presupuesto.findUnique({
+      where: { id: params.id },
+      include: {
+        cliente: true,
+        creadoPor: true,
+        responsable: true,
+        lineas: { include: { item: true, opciones: true } },
+        puertas: { include: { tipoPuerta: true } },
+        archivos: { orderBy: { createdAt: 'desc' } },
+      },
+    }),
+    prisma.user.findMany({
+      where: { aprobado: true },
+      select: { id: true, nombre: true },
+      orderBy: { nombre: 'asc' },
+    }),
+  ]);
 
   if (!presupuesto) notFound();
 
@@ -36,6 +49,9 @@ export default async function PresupuestoDetallePage({ params }: { params: { id:
           <Link href="/presupuestos"><ArrowLeft className="mr-2 h-4 w-4" /> Volver</Link>
         </Button>
         <div className="flex items-center gap-3">
+          {ESTADOS_ACTUALIZABLES.includes(presupuesto.estado) && (
+            <ActualizarPreciosBtn presupuestoId={presupuesto.id} />
+          )}
           <Badge variant="outline" className={`text-sm px-3 py-1 ${estadoBadgeClass[presupuesto.estado]}`}>
             {estadoLabel[presupuesto.estado]}
           </Badge>
@@ -105,8 +121,8 @@ export default async function PresupuestoDetallePage({ params }: { params: { id:
 
           <Separator />
 
-          {/* Info cliente */}
-          <div className="grid grid-cols-2 gap-8">
+          {/* Info cliente + elaborado por + responsable */}
+          <div className="grid grid-cols-3 gap-6">
             <div className="space-y-2">
               <div className="flex items-center gap-2 text-sm font-semibold text-slate-500 uppercase tracking-wide">
                 <Building2 className="h-4 w-4" /> Cliente
@@ -126,6 +142,11 @@ export default async function PresupuestoDetallePage({ params }: { params: { id:
               <p className="font-semibold text-slate-800">{presupuesto.creadoPor.nombre}</p>
               <p className="text-sm text-slate-500">{presupuesto.creadoPor.email}</p>
             </div>
+            <EditarResponsable
+              presupuestoId={presupuesto.id}
+              responsableInicial={presupuesto.responsable ? { id: presupuesto.responsable.id, nombre: presupuesto.responsable.nombre } : null}
+              usuarios={usuarios}
+            />
           </div>
 
           <Separator />
@@ -224,8 +245,13 @@ export default async function PresupuestoDetallePage({ params }: { params: { id:
       <DocumentacionPresupuesto
         presupuestoId={presupuesto.id}
         precioFinalInicial={presupuesto.precioFinal != null ? Number(presupuesto.precioFinal) : null}
-        archivoAdjuntoInicial={presupuesto.archivoAdjunto ?? null}
-        archivoNombreInicial={presupuesto.archivoNombre ?? null}
+        archivosIniciales={presupuesto.archivos.map((a) => ({
+          id: a.id,
+          nombre: a.nombre,
+          url: a.url,
+          tipo: a.tipo,
+          tamanio: a.tamanio,
+        }))}
       />
     </div>
   );

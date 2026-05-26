@@ -6,12 +6,17 @@ import { EditarPresupuestoForm } from '@/components/presupuestos/editar-presupue
 import type { ItemProducto, OpcionSeleccionada } from '@/components/presupuestos/cotizador-dinamico';
 
 export default async function EditarPresupuestoPage({ params }: { params: { id: string } }) {
-  const presupuesto = await prisma.presupuesto.findUnique({
-    where: { id: params.id },
-    include: {
-      lineas: { include: { item: true, opciones: true } },
-    },
-  });
+  let presupuesto;
+  try {
+    presupuesto = await prisma.presupuesto.findUnique({
+      where: { id: params.id },
+      include: {
+        lineas: { include: { item: true, opciones: true } },
+      },
+    });
+  } catch {
+    notFound();
+  }
 
   if (!presupuesto) notFound();
 
@@ -21,7 +26,7 @@ export default async function EditarPresupuestoPage({ params }: { params: { id: 
       productoId: l.productoId!,
       productoNombre: l.productoNombre ?? '',
       cantidad: Number(l.cantidad),
-      opciones: l.opciones.map((o): OpcionSeleccionada => ({
+      opciones: (l.opciones ?? []).map((o): OpcionSeleccionada => ({
         atributoNombre: o.atributoNombre,
         opcionId: '',
         opcionNombre: o.opcionNombre,

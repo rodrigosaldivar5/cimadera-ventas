@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Trash2, ShoppingCart, ChevronDown, ChevronUp } from 'lucide-react';
+import { Plus, Trash2, ShoppingCart, ChevronDown, ChevronUp, Pencil } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
 
 export interface OpcionSeleccionada {
@@ -66,6 +66,7 @@ const UNIDADES_CON_MEDIDA = ['m2', 'ml'];
 
 export function CotizadorDinamico({ productos, items, onChange }: Props) {
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [editandoIdx, setEditandoIdx] = useState<number | null>(null);
   const [productoSeleccionado, setProductoSeleccionado] = useState<Producto | null>(null);
   const [cantidad, setCantidad] = useState(1);
   const [nombreItem, setNombreItem] = useState('');
@@ -80,6 +81,7 @@ export function CotizadorDinamico({ productos, items, onChange }: Props) {
     setSelecciones({});
     setItemsLibres([]);
     setLibresOpen(false);
+    setEditandoIdx(null);
   };
 
   const agregarItemLibre = () =>
@@ -97,15 +99,43 @@ export function CotizadorDinamico({ productos, items, onChange }: Props) {
   const removeItemLibre = (idx: number) =>
     setItemsLibres((prev) => prev.filter((_, i) => i !== idx));
 
-  const elegirProducto = async (productoId: string) => {
-    console.log('[CotizadorDinamico] elegirProducto:', productoId);
+  const elegirProducto = async (productoId: string, opcionesPreseleccionadas?: OpcionSeleccionada[]) => {
     const res = await fetch(`/api/productos/${productoId}`);
     const p: Producto = await res.json();
-    console.log('[CotizadorDinamico] cargado:', p.nombre, '| atributos:', p.atributos?.length, '| opciones:', p.atributos?.map((a) => a.opciones.length));
     setProductoSeleccionado(p);
     const sel: Record<string, { opcionId: string; medida: number }> = {};
-    p.atributos.forEach((a) => { sel[a.id] = { opcionId: '__none__', medida: 1 }; });
+    p.atributos?.forEach((a) => { sel[a.id] = { opcionId: '__none__', medida: 1 }; });
+
+    if (opcionesPreseleccionadas?.length) {
+      for (const op of opcionesPreseleccionadas) {
+        const atrib = p.atributos?.find((a) => a.nombre === op.atributoNombre);
+        if (atrib) {
+          const opcion = atrib.opciones?.find((o) => o.nombre === op.opcionNombre);
+          if (opcion) {
+            sel[atrib.id] = {
+              opcionId: opcion.id,
+              medida: UNIDADES_CON_MEDIDA.includes(opcion.unidad) ? op.cantidad : 1,
+            };
+          }
+        }
+      }
+    }
     setSelecciones(sel);
+  };
+
+  const editarItem = async (idx: number) => {
+    try {
+      const item = items[idx];
+      setEditandoIdx(idx);
+      setNombreItem(item.productoNombre);
+      setCantidad(item.cantidad);
+      setItemsLibres(item.itemsLibres ?? []);
+      setLibresOpen((item.itemsLibres?.length ?? 0) > 0);
+      await elegirProducto(item.productoId, item.opciones);
+      setDialogOpen(true);
+    } catch {
+      resetDialog();
+    }
   };
 
   const setOpcion = (atributoId: string, opcionId: string) => {
@@ -118,10 +148,10 @@ export function CotizadorDinamico({ productos, items, onChange }: Props) {
 
   const calcularSubtotalAtributos = (): number => {
     if (!productoSeleccionado) return 0;
-    return productoSeleccionado.atributos.reduce((sum, atrib) => {
+    return (productoSeleccionado.atributos ?? []).reduce((sum, atrib) => {
       const sel = selecciones[atrib.id];
       if (!sel?.opcionId || sel.opcionId === '__none__') return sum;
-      const opcion = atrib.opciones.find((o) => o.id === sel.opcionId);
+      const opcion = atrib.opciones?.find((o) => o.id === sel.opcionId);
       if (!opcion) return sum;
       const medida = UNIDADES_CON_MEDIDA.includes(opcion.unidad) ? (sel.medida || 1) : 1;
       return sum + parseFloat(String(opcion.precioVenta)) * medida;
@@ -136,7 +166,7 @@ export function CotizadorDinamico({ productos, items, onChange }: Props) {
   const agregarAlPresupuesto = () => {
     if (!productoSeleccionado) return;
 
-    const opciones: OpcionSeleccionada[] = productoSeleccionado.atributos
+    const opciones: OpcionSeleccionada[] = (productoSeleccionado.atributos ?? [])
       .filter((a) => selecciones[a.id]?.opcionId && selecciones[a.id].opcionId !== '__none__')
       .map((atrib) => {
         const sel = selecciones[atrib.id];
@@ -166,7 +196,13 @@ export function CotizadorDinamico({ productos, items, onChange }: Props) {
       subtotal,
     };
 
-    onChange([...items, nuevoItem]);
+    if (editandoIdx !== null) {
+      const updated = [...items];
+      updated[editandoIdx] = nuevoItem;
+      onChange(updated);
+    } else {
+      onChange([...items, nuevoItem]);
+    }
     setDialogOpen(false);
     resetDialog();
   };
@@ -197,9 +233,24 @@ export function CotizadorDinamico({ productos, items, onChange }: Props) {
                   <span className="font-semibold text-slate-800">{item.productoNombre}</span>
                   <span className="ml-2 text-sm text-slate-500">× {item.cantidad}</span>
                 </div>
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2">
                   <span className="font-semibold text-sky-600">{formatCurrency(item.subtotal)}</span>
-                  <Button variant="ghost" size="icon" className="h-7 w-7 text-red-400 hover:text-red-600" onClick={() => eliminarItem(idx)}>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 text-slate-400 hover:text-sky-600"
+                    onClick={() => editarItem(idx)}
+                    title="Editar"
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 text-red-400 hover:text-red-600"
+                    onClick={() => eliminarItem(idx)}
+                    title="Eliminar"
+                  >
                     <Trash2 className="h-3.5 w-3.5" />
                   </Button>
                 </div>
@@ -236,7 +287,7 @@ export function CotizadorDinamico({ productos, items, onChange }: Props) {
       <Dialog open={dialogOpen} onOpenChange={(v) => { setDialogOpen(v); if (!v) resetDialog(); }}>
         <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Cotizar producto</DialogTitle>
+            <DialogTitle>{editandoIdx !== null ? 'Editar ítem' : 'Cotizar producto'}</DialogTitle>
           </DialogHeader>
 
           <div className="space-y-5 pt-2">
@@ -288,9 +339,9 @@ export function CotizadorDinamico({ productos, items, onChange }: Props) {
 
                 {/* Atributos */}
                 <div className="space-y-4">
-                  {productoSeleccionado.atributos.map((atrib) => {
+                  {(productoSeleccionado.atributos ?? []).map((atrib) => {
                     const sel = selecciones[atrib.id];
-                    const opcionElegida = atrib.opciones.find((o) => o.id === sel?.opcionId);
+                    const opcionElegida = atrib.opciones?.find((o) => o.id === sel?.opcionId);
                     const necesitaMedida = opcionElegida && UNIDADES_CON_MEDIDA.includes(opcionElegida.unidad);
                     return (
                       <div key={atrib.id} className="space-y-1.5">
@@ -303,7 +354,7 @@ export function CotizadorDinamico({ productos, items, onChange }: Props) {
                             <SelectValue placeholder={`Elegir ${atrib.nombre.toLowerCase()}`} />
                           </SelectTrigger>
                           <SelectContent>
-                            {atrib.opciones.map((op) => (
+                            {(atrib.opciones ?? []).map((op) => (
                               <SelectItem key={op.id} value={op.id}>
                                 {op.nombre} — {formatCurrency(parseFloat(String(op.precioVenta)))}
                               </SelectItem>
@@ -389,7 +440,7 @@ export function CotizadorDinamico({ productos, items, onChange }: Props) {
                   </Button>
                   <Button className="bg-sky-500 hover:bg-sky-600" onClick={agregarAlPresupuesto}>
                     <Plus className="mr-1.5 h-4 w-4" />
-                    Agregar al presupuesto
+                    {editandoIdx !== null ? 'Guardar cambios' : 'Agregar al presupuesto'}
                   </Button>
                 </div>
               </>

@@ -112,12 +112,11 @@ model Presupuesto {
   subtotal          Decimal            @db.Decimal(10, 2) @default(0)
   totalFinal        Decimal            @db.Decimal(10, 2) @default(0)
   precioFinal       Decimal?           @db.Decimal(10, 2)
-  archivoAdjunto    String?
-  archivoNombre     String?
   obraId            String?
   obra              Obra?              @relation(fields: [obraId], references: [id])
   lineas            LineaPresupuesto[]
   puertas           PuertaPresupuesto[]
+  archivos          ArchivoPresupuesto[]
 }
 
 model Obra {
@@ -130,6 +129,17 @@ model Obra {
   activo       Boolean       @default(true)
   createdAt    DateTime      @default(now())
   presupuestos Presupuesto[]
+}
+
+model ArchivoPresupuesto {
+  id            String      @id @default(cuid())
+  presupuestoId String
+  presupuesto   Presupuesto @relation(fields: [presupuestoId], references: [id], onDelete: Cascade)
+  nombre        String
+  url           String
+  tipo          String
+  tamanio       Int
+  createdAt     DateTime    @default(now())
 }
 
 enum EstadoPresupuesto {

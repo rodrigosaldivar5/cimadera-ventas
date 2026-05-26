@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -16,11 +16,22 @@ import {
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Plus, Edit, Trash2, ChevronDown, ChevronRight, Loader2, FolderPlus } from 'lucide-react';
+import { Plus, Edit, Trash2, ChevronDown, ChevronRight, Loader2, FolderPlus, Upload, Download, AlertCircle } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
 import type { CategoriaItem, Item } from '@prisma/client';
+import * as XLSX from 'xlsx';
 
 type CategoriaConItems = CategoriaItem & { items: Item[] };
+
+type FilaImport = {
+  nombre: string;
+  categoria: string;
+  descripcion?: string;
+  costoBase: number;
+  indiceUtilidad: number;
+  unidad: string;
+  error?: string;
+};
 
 const itemSchema = z.object({
   nombre: z.string().min(2, 'Nombre requerido'),
@@ -46,6 +57,13 @@ export function MateriaisContent({ categorias: iniciales }: { categorias: Catego
   const [editingCat, setEditingCat] = useState<CategoriaItem | null>(null);
   const [catNombre, setCatNombre] = useState('');
   const [catSaving, setCatSaving] = useState(false);
+
+  // Import state
+  const [importOpen, setImportOpen] = useState(false);
+  const [importFilas, setImportFilas] = useState<FilaImport[]>([]);
+  const [importando, setImportando] = useState(false);
+  const [importResultado, setImportResultado] = useState<{ creados: number; actualizados: number } | null>(null);
+  const importInputRef = useRef<HTMLInputElement>(null);
 
   const { register, handleSubmit, watch, reset, setValue, formState: { errors } } = useForm<ItemFormData>({
     resolver: zodResolver(itemSchema),
@@ -153,6 +171,65 @@ export function MateriaisContent({ categorias: iniciales }: { categorias: Catego
     router.refresh();
   };
 
+  const descargarPlantilla = () => {
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.aoa_to_sheet([
+      ['nombre', 'categoria', 'descripcion', 'costoBase', 'indiceUtilidad', 'unidad'],
+      ['Bisagra 3"', 'Bisagras', 'Bisagra de acero inoxidable', 150, 1.3, 'unidad'],
+      ['Marco MDF 90mm', 'Marcos', '', 2500, 1.4, 'ml'],
+    ]);
+    XLSX.utils.book_append_sheet(wb, ws, 'Materiales');
+    XLSX.writeFile(wb, 'plantilla_materiales.xlsx');
+  };
+
+  const parsearArchivo = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const data = ev.target?.result;
+      const wb = XLSX.read(data, { type: 'binary' });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows: Record<string, unknown>[] = XLSX.utils.sheet_to_json(ws, { defval: '' });
+      const filas: FilaImport[] = rows.map((row) => {
+        const nombre = String(row['nombre'] ?? '').trim();
+        const categoria = String(row['categoria'] ?? '').trim();
+        const costoBase = Number(row['costoBase'] ?? row['costo_base'] ?? 0);
+        const indiceUtilidad = Number(row['indiceUtilidad'] ?? row['indice_utilidad'] ?? 1.3);
+        const unidad = String(row['unidad'] ?? 'unidad').trim() || 'unidad';
+        const descripcion = String(row['descripcion'] ?? '').trim() || undefined;
+        const errores: string[] = [];
+        if (!nombre) errores.push('nombre requerido');
+        if (!categoria) errores.push('categoría requerida');
+        if (isNaN(costoBase) || costoBase < 0) errores.push('costoBase inválido');
+        if (isNaN(indiceUtilidad) || indiceUtilidad < 1) errores.push('indiceUtilidad mínimo 1');
+        return { nombre, categoria, descripcion, costoBase, indiceUtilidad, unidad, error: errores.join('; ') || undefined };
+      });
+      setImportFilas(filas);
+      setImportResultado(null);
+    };
+    reader.readAsBinaryString(file);
+    e.target.value = '';
+  };
+
+  const ejecutarImport = async () => {
+    const validas = importFilas.filter((f) => !f.error);
+    if (!validas.length) return;
+    setImportando(true);
+    const res = await fetch('/api/materiales/importar', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ filas: validas }),
+    });
+    if (res.ok) {
+      const resultado = await res.json();
+      setImportResultado(resultado);
+      setImportFilas([]);
+      router.refresh();
+    }
+    setImportando(false);
+  };
+
   return (
     <div className="space-y-4">
       {/* Tab switcher */}
@@ -173,9 +250,14 @@ export function MateriaisContent({ categorias: iniciales }: { categorias: Catego
         </div>
 
         {tab === 'items' ? (
-          <Button onClick={openNew} className="bg-sky-500 hover:bg-sky-600">
-            <Plus className="mr-2 h-4 w-4" /> Nuevo Ítem
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => { setImportResultado(null); setImportFilas([]); setImportOpen(true); }} className="gap-1.5">
+              <Upload className="h-4 w-4" /> Importar materiales
+            </Button>
+            <Button onClick={openNew} className="bg-sky-500 hover:bg-sky-600">
+              <Plus className="mr-2 h-4 w-4" /> Nuevo Ítem
+            </Button>
+          </div>
         ) : (
           <Button onClick={openNewCat} className="bg-sky-500 hover:bg-sky-600">
             <FolderPlus className="mr-2 h-4 w-4" /> Nueva Categoría
@@ -372,6 +454,99 @@ export function MateriaisContent({ categorias: iniciales }: { categorias: Catego
             >
               {catSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {editingCat ? 'Guardar' : 'Crear'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog Importar */}
+      <Dialog open={importOpen} onOpenChange={(v) => { setImportOpen(v); if (!v) { setImportFilas([]); setImportResultado(null); } }}>
+        <DialogContent className="max-w-3xl max-h-[85vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle>Importar materiales desde Excel / CSV</DialogTitle>
+          </DialogHeader>
+          <div className="flex-1 overflow-y-auto space-y-4 py-2">
+            <div className="flex items-center gap-3">
+              <Button variant="outline" size="sm" onClick={descargarPlantilla} className="gap-1.5 shrink-0">
+                <Download className="h-4 w-4" /> Descargar plantilla
+              </Button>
+              <label className="cursor-pointer">
+                <span className="inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-md border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 transition-colors">
+                  <Upload className="h-4 w-4" /> Seleccionar archivo (.xlsx, .xls, .csv)
+                </span>
+                <input ref={importInputRef} type="file" accept=".xlsx,.xls,.csv" className="sr-only" onChange={parsearArchivo} />
+              </label>
+            </div>
+
+            {importResultado && (
+              <div className="rounded-lg bg-green-50 border border-green-200 p-3 text-sm text-green-700">
+                Importación exitosa: <strong>{importResultado.creados}</strong> creados, <strong>{importResultado.actualizados}</strong> actualizados.
+              </div>
+            )}
+
+            {importFilas.length > 0 && (
+              <>
+                <div className="text-sm text-slate-600">
+                  <strong>{importFilas.filter((f) => !f.error).length}</strong> válidas de <strong>{importFilas.length}</strong> filas
+                  {importFilas.some((f) => f.error) && (
+                    <span className="ml-2 text-red-500 flex items-center gap-1 inline-flex">
+                      <AlertCircle className="h-3.5 w-3.5" />
+                      Las filas con errores no serán importadas
+                    </span>
+                  )}
+                </div>
+                <div className="rounded-lg border overflow-auto max-h-64">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Nombre</TableHead>
+                        <TableHead>Categoría</TableHead>
+                        <TableHead className="text-right">Costo</TableHead>
+                        <TableHead className="text-right">Índice</TableHead>
+                        <TableHead>Unidad</TableHead>
+                        <TableHead>Estado</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {importFilas.map((fila, idx) => (
+                        <TableRow key={idx} className={fila.error ? 'bg-red-50' : ''}>
+                          <TableCell className="font-medium">{fila.nombre || '—'}</TableCell>
+                          <TableCell>{fila.categoria || '—'}</TableCell>
+                          <TableCell className="text-right">{formatCurrency(fila.costoBase)}</TableCell>
+                          <TableCell className="text-right">{fila.indiceUtilidad}</TableCell>
+                          <TableCell>{fila.unidad}</TableCell>
+                          <TableCell>
+                            {fila.error ? (
+                              <span className="text-xs text-red-500 flex items-center gap-1">
+                                <AlertCircle className="h-3 w-3" /> {fila.error}
+                              </span>
+                            ) : (
+                              <span className="text-xs text-green-600">OK</span>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </>
+            )}
+
+            {importFilas.length === 0 && !importResultado && (
+              <p className="text-sm text-slate-400 text-center py-6">
+                Descargá la plantilla, completala y subila para previsualizar los datos.
+              </p>
+            )}
+          </div>
+          <DialogFooter className="pt-2 border-t">
+            <Button variant="outline" onClick={() => setImportOpen(false)}>Cerrar</Button>
+            <Button
+              className="bg-sky-500 hover:bg-sky-600 gap-1.5"
+              disabled={importFilas.filter((f) => !f.error).length === 0 || importando}
+              onClick={ejecutarImport}
+            >
+              {importando && <Loader2 className="h-4 w-4 animate-spin" />}
+              Importar {importFilas.filter((f) => !f.error).length > 0 ? `(${importFilas.filter((f) => !f.error).length})` : ''}
             </Button>
           </DialogFooter>
         </DialogContent>
