@@ -3,21 +3,44 @@ export const dynamic = 'force-dynamic';
 import { prisma } from '@/lib/prisma';
 import { notFound } from 'next/navigation';
 import { EditarPresupuestoForm } from '@/components/presupuestos/editar-presupuesto-form';
+import type { ItemProducto, OpcionSeleccionada } from '@/components/presupuestos/cotizador-dinamico';
 
-export default async function EditarPresupuestoPage({
-  params,
-}: {
-  params: { id: string };
-}) {
+export default async function EditarPresupuestoPage({ params }: { params: { id: string } }) {
   const presupuesto = await prisma.presupuesto.findUnique({
     where: { id: params.id },
     include: {
-      lineas: { include: { item: true } },
-      puertas: { include: { tipoPuerta: true } },
+      lineas: { include: { item: true, opciones: true } },
     },
   });
 
   if (!presupuesto) notFound();
+
+  const itemsProducto: ItemProducto[] = presupuesto.lineas
+    .filter((l) => l.productoId != null)
+    .map((l) => ({
+      productoId: l.productoId!,
+      productoNombre: l.productoNombre ?? '',
+      cantidad: Number(l.cantidad),
+      opciones: l.opciones.map((o): OpcionSeleccionada => ({
+        atributoNombre: o.atributoNombre,
+        opcionId: '',
+        opcionNombre: o.opcionNombre,
+        precioUnitario: parseFloat(String(o.precioUnitario)),
+        cantidad: parseFloat(String(o.cantidad)),
+        unidad: '',
+        subtotal: parseFloat(String(o.subtotal)),
+      })),
+      subtotal: Number(l.subtotal),
+    }));
+
+  const catalogLineas = presupuesto.lineas
+    .filter((l) => l.itemId != null)
+    .map((l) => ({
+      itemId: l.itemId!,
+      cantidad: Number(l.cantidad),
+      precioUnitario: Number(l.precioUnitario),
+      subtotal: Number(l.subtotal),
+    }));
 
   return (
     <EditarPresupuestoForm
@@ -31,27 +54,8 @@ export default async function EditarPresupuestoPage({
         observaciones: presupuesto.observaciones ?? '',
         descuento: Number(presupuesto.descuento),
         estado: presupuesto.estado,
-        puertas: presupuesto.puertas.map((p) => ({
-          tipoPuertaId: p.tipoPuertaId,
-          cantidad: p.cantidad,
-          ancho: Number(p.ancho),
-          alto: Number(p.alto),
-          bisagraId: p.bisagraId ?? '',
-          cerraduraId: p.cerraduraId ?? '',
-          chapaId: p.chapaId ?? '',
-          marcoId: p.marcoId ?? '',
-          hojaId: p.hojaId ?? '',
-          colorMarca: p.colorMarca ?? '',
-          observaciones: p.observaciones ?? '',
-          precioUnitario: Number(p.precioUnitario),
-          subtotal: Number(p.subtotal),
-        })),
-        lineas: presupuesto.lineas.map((l) => ({
-          itemId: l.itemId ?? '',
-          cantidad: Number(l.cantidad),
-          precioUnitario: Number(l.precioUnitario),
-          subtotal: Number(l.subtotal),
-        })),
+        itemsProducto,
+        lineas: catalogLineas,
       }}
     />
   );

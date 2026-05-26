@@ -26,6 +26,16 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
     await prisma.puertaPresupuesto.deleteMany({ where: { presupuestoId: params.id } });
     await prisma.lineaPresupuesto.deleteMany({ where: { presupuestoId: params.id } });
 
+    type LineaInput = {
+      itemId?: string;
+      productoId?: string;
+      productoNombre?: string;
+      cantidad: number;
+      precioUnitario: number;
+      subtotal: number;
+      opciones?: { atributoNombre: string; opcionNombre: string; precioUnitario: number; cantidad: number; subtotal: number }[];
+    };
+
     const presupuesto = await prisma.presupuesto.update({
       where: { id: params.id },
       data: {
@@ -39,7 +49,26 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
         subtotal: data.subtotal ?? 0,
         totalFinal: data.totalFinal ?? 0,
         puertas: { create: data.puertas ?? [] },
-        lineas: { create: (data.lineas ?? []).filter((l: { itemId: string }) => l.itemId) },
+        lineas: {
+          create: (data.lineas ?? []).map((l: LineaInput) => ({
+            itemId: l.itemId || null,
+            productoId: l.productoId || null,
+            productoNombre: l.productoNombre || null,
+            cantidad: l.cantidad,
+            precioUnitario: l.precioUnitario,
+            subtotal: l.subtotal,
+            opciones: l.opciones?.length ? {
+              create: l.opciones.map((o) => ({
+                atributoNombre: o.atributoNombre,
+                opcionNombre: o.opcionNombre,
+                precioUnitario: o.precioUnitario,
+                cantidad: o.cantidad,
+                subtotal: o.subtotal,
+                productoId: l.productoId || null,
+              })),
+            } : undefined,
+          })),
+        },
       },
     });
 

@@ -124,7 +124,7 @@ export function CotizadorDinamico({ productos, items, onChange }: Props) {
       const opcion = atrib.opciones.find((o) => o.id === sel.opcionId);
       if (!opcion) return sum;
       const medida = UNIDADES_CON_MEDIDA.includes(opcion.unidad) ? (sel.medida || 1) : 1;
-      return sum + opcion.precioVenta * medida;
+      return sum + parseFloat(String(opcion.precioVenta)) * medida;
     }, 0) * cantidad;
   };
 
@@ -146,10 +146,10 @@ export function CotizadorDinamico({ productos, items, onChange }: Props) {
           atributoNombre: atrib.nombre,
           opcionId: opcion.id,
           opcionNombre: opcion.nombre,
-          precioUnitario: opcion.precioVenta,
+          precioUnitario: parseFloat(String(opcion.precioVenta)),
           cantidad: medida,
           unidad: opcion.unidad,
-          subtotal: opcion.precioVenta * medida,
+          subtotal: parseFloat(String(opcion.precioVenta)) * medida,
         };
       });
 
@@ -305,7 +305,7 @@ export function CotizadorDinamico({ productos, items, onChange }: Props) {
                           <SelectContent>
                             {atrib.opciones.map((op) => (
                               <SelectItem key={op.id} value={op.id}>
-                                {op.nombre} — {formatCurrency(op.precioVenta)}
+                                {op.nombre} — {formatCurrency(parseFloat(String(op.precioVenta)))}
                               </SelectItem>
                             ))}
                           </SelectContent>
