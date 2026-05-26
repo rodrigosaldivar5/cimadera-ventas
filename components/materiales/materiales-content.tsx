@@ -62,7 +62,7 @@ export function MateriaisContent({ categorias: iniciales }: { categorias: Catego
   const [importOpen, setImportOpen] = useState(false);
   const [importFilas, setImportFilas] = useState<FilaImport[]>([]);
   const [importando, setImportando] = useState(false);
-  const [importResultado, setImportResultado] = useState<{ creados: number; actualizados: number } | null>(null);
+  const [importResultado, setImportResultado] = useState<{ creados: number; actualizados: number; errores: string[] } | null>(null);
   const importInputRef = useRef<HTMLInputElement>(null);
 
   const { register, handleSubmit, watch, reset, setValue, formState: { errors } } = useForm<ItemFormData>({
@@ -174,9 +174,10 @@ export function MateriaisContent({ categorias: iniciales }: { categorias: Catego
   const descargarPlantilla = () => {
     const wb = XLSX.utils.book_new();
     const ws = XLSX.utils.aoa_to_sheet([
-      ['nombre', 'categoria', 'descripcion', 'costoBase', 'indiceUtilidad', 'unidad'],
-      ['Bisagra 3"', 'Bisagras', 'Bisagra de acero inoxidable', 150, 1.3, 'unidad'],
-      ['Marco MDF 90mm', 'Marcos', '', 2500, 1.4, 'ml'],
+      ['nombre', 'descripcion', 'categoria', 'costoBase', 'indiceUtilidad', 'unidad'],
+      ['Bisagra 3"', 'Bisagra de acero inoxidable', 'Bisagras', 150, 1.3, 'unidad'],
+      ['Marco MDF 90mm', '', 'Marcos', 2500, 1.4, 'ml'],
+      ['Cerradura embutir', 'Con manija incluida', 'Cerraduras', 3200, 1.35, 'unidad'],
     ]);
     XLSX.utils.book_append_sheet(wb, ws, 'Materiales');
     XLSX.writeFile(wb, 'plantilla_materiales.xlsx');
@@ -226,6 +227,8 @@ export function MateriaisContent({ categorias: iniciales }: { categorias: Catego
       setImportResultado(resultado);
       setImportFilas([]);
       router.refresh();
+    } else {
+      setImportResultado(null);
     }
     setImportando(false);
   };
@@ -479,8 +482,11 @@ export function MateriaisContent({ categorias: iniciales }: { categorias: Catego
             </div>
 
             {importResultado && (
-              <div className="rounded-lg bg-green-50 border border-green-200 p-3 text-sm text-green-700">
-                Importación exitosa: <strong>{importResultado.creados}</strong> creados, <strong>{importResultado.actualizados}</strong> actualizados.
+              <div className={`rounded-lg border p-3 text-sm space-y-1 ${importResultado.errores?.length ? 'bg-amber-50 border-amber-200 text-amber-800' : 'bg-green-50 border-green-200 text-green-700'}`}>
+                <p>Importación completada: <strong>{importResultado.creados}</strong> creados, <strong>{importResultado.actualizados}</strong> actualizados.</p>
+                {importResultado.errores?.map((e, i) => (
+                  <p key={i} className="text-red-500 text-xs flex items-center gap-1"><AlertCircle className="h-3 w-3 shrink-0" />{e}</p>
+                ))}
               </div>
             )}
 
@@ -501,9 +507,9 @@ export function MateriaisContent({ categorias: iniciales }: { categorias: Catego
                       <TableRow>
                         <TableHead>Nombre</TableHead>
                         <TableHead>Categoría</TableHead>
-                        <TableHead className="text-right">Costo</TableHead>
+                        <TableHead className="text-right">Costo base</TableHead>
                         <TableHead className="text-right">Índice</TableHead>
-                        <TableHead>Unidad</TableHead>
+                        <TableHead className="text-right">Precio venta</TableHead>
                         <TableHead>Estado</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -514,7 +520,9 @@ export function MateriaisContent({ categorias: iniciales }: { categorias: Catego
                           <TableCell>{fila.categoria || '—'}</TableCell>
                           <TableCell className="text-right">{formatCurrency(fila.costoBase)}</TableCell>
                           <TableCell className="text-right">{fila.indiceUtilidad}</TableCell>
-                          <TableCell>{fila.unidad}</TableCell>
+                          <TableCell className="text-right font-medium text-sky-600">
+                            {formatCurrency(fila.costoBase * fila.indiceUtilidad)}
+                          </TableCell>
                           <TableCell>
                             {fila.error ? (
                               <span className="text-xs text-red-500 flex items-center gap-1">
