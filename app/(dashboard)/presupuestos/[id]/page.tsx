@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { PresupuestoAcciones } from '@/components/presupuestos/presupuesto-acciones';
+import { DocumentacionPresupuesto } from '@/components/presupuestos/documentacion-presupuesto';
 import type { EstadoPresupuesto } from '@prisma/client';
 import Link from 'next/link';
 import { ArrowLeft, Building2, User2, Calendar } from 'lucide-react';
@@ -65,7 +66,7 @@ export default async function PresupuestoDetallePage({ params }: { params: { id:
                 precioUnitario: Number(l.precioUnitario),
                 subtotal: Number(l.subtotal),
                 unidad: l.item?.unidad,
-                opciones: l.opciones.map((o) => ({ atributoNombre: o.atributoNombre, opcionNombre: o.opcionNombre })),
+                opciones: l.opciones.map((o) => ({ atributoNombre: o.atributoNombre, opcionNombre: o.opcionNombre, precioUnitario: Number(o.precioUnitario) })),
               })),
               puertas: presupuesto.puertas.map((pu) => ({
                 tipoPuerta: { nombre: pu.tipoPuerta.nombre },
@@ -219,6 +220,13 @@ export default async function PresupuestoDetallePage({ params }: { params: { id:
           )}
         </CardContent>
       </Card>
+
+      <DocumentacionPresupuesto
+        presupuestoId={presupuesto.id}
+        precioFinalInicial={presupuesto.precioFinal != null ? Number(presupuesto.precioFinal) : null}
+        archivoAdjuntoInicial={presupuesto.archivoAdjunto ?? null}
+        archivoNombreInicial={presupuesto.archivoNombre ?? null}
+      />
     </div>
   );
 }

@@ -68,6 +68,7 @@ export function CotizadorDinamico({ productos, items, onChange }: Props) {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [productoSeleccionado, setProductoSeleccionado] = useState<Producto | null>(null);
   const [cantidad, setCantidad] = useState(1);
+  const [nombreItem, setNombreItem] = useState('');
   const [selecciones, setSelecciones] = useState<Record<string, { opcionId: string; medida: number }>>({});
   const [itemsLibres, setItemsLibres] = useState<ItemLibre[]>([]);
   const [libresOpen, setLibresOpen] = useState(false);
@@ -75,6 +76,7 @@ export function CotizadorDinamico({ productos, items, onChange }: Props) {
   const resetDialog = () => {
     setProductoSeleccionado(null);
     setCantidad(1);
+    setNombreItem('');
     setSelecciones({});
     setItemsLibres([]);
     setLibresOpen(false);
@@ -157,7 +159,7 @@ export function CotizadorDinamico({ productos, items, onChange }: Props) {
 
     const nuevoItem: ItemProducto = {
       productoId: productoSeleccionado.id,
-      productoNombre: productoSeleccionado.nombre,
+      productoNombre: nombreItem.trim() || productoSeleccionado.nombre,
       cantidad,
       opciones,
       itemsLibres: itemsLibres.filter((l) => l.descripcion.trim()),
@@ -238,6 +240,18 @@ export function CotizadorDinamico({ productos, items, onChange }: Props) {
           </DialogHeader>
 
           <div className="space-y-5 pt-2">
+            {/* Nombre personalizado */}
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium text-slate-700">
+                Nombre del ítem <span className="text-slate-400 font-normal">(opcional)</span>
+              </label>
+              <Input
+                value={nombreItem}
+                onChange={(e) => setNombreItem(e.target.value)}
+                placeholder="Ej: Puerta P1, Puerta principal, Puerta habitación 1"
+              />
+            </div>
+
             {/* Selección de producto */}
             <div className="space-y-1.5">
               <label className="text-sm font-medium text-slate-700">¿Qué producto querés cotizar?</label>

@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Plus, Eye, ChevronLeft, ChevronRight, Filter, AlertTriangle, ChevronDown, ChevronUp } from 'lucide-react';
+import { Plus, Eye, ChevronLeft, ChevronRight, Filter, AlertTriangle, ChevronDown, ChevronUp, Check } from 'lucide-react';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { ESTADO_PRESUPUESTO, PRIORIDAD, estadoBadgeClass, estadoLabel, type EstadoPresupuesto, type Prioridad } from '@/lib/enums';
 
@@ -28,6 +28,7 @@ type PresupuestoRow = {
   fechaRecepcion: Date | null;
   fechaVencimiento: Date | null;
   totalFinal: unknown;
+  precioFinal: unknown;
   cliente: { razonSocial: string };
   creadoPor: { nombre: string };
   responsable: { nombre: string } | null;
@@ -63,6 +64,8 @@ export function PresupuestosTable({ presupuestos, total, page, perPage, clientes
   const router = useRouter();
   const totalPages = Math.ceil(total / perPage);
   const [criticosOpen, setCriticosOpen] = useState(true);
+  const [editingPrecio, setEditingPrecio] = useState<{ id: string; value: string } | null>(null);
+  const [savingPrecio, setSavingPrecio] = useState(false);
 
   const [estado, setEstado] = useState(filters.estado ?? '');
   const [clienteId, setClienteId] = useState(filters.clienteId ?? '');
@@ -75,6 +78,20 @@ export function PresupuestosTable({ presupuestos, total, page, perPage, clientes
     if (!clienteId) { setObrasCliente([]); setObraId(''); return; }
     fetch(`/api/clientes/${clienteId}/obras`).then((r) => r.json()).then((d) => setObrasCliente(d.obras ?? []));
   }, [clienteId]);
+
+  const savePrecioFinal = async () => {
+    if (!editingPrecio) return;
+    setSavingPrecio(true);
+    const valor = editingPrecio.value.trim() === '' ? null : Number(editingPrecio.value);
+    await fetch(`/api/presupuestos/${editingPrecio.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ precioFinal: valor }),
+    });
+    setSavingPrecio(false);
+    setEditingPrecio(null);
+    router.refresh();
+  };
 
   const applyFilters = () => {
     const params = new URLSearchParams();
@@ -206,6 +223,7 @@ export function PresupuestosTable({ presupuestos, total, page, perPage, clientes
               <TableHead>Estado</TableHead>
               <TableHead>Recepción</TableHead>
               <TableHead className="text-right">Total</TableHead>
+              <TableHead className="text-right">P. Final</TableHead>
               <TableHead className="w-16"></TableHead>
             </TableRow>
           </TableHeader>
@@ -231,6 +249,33 @@ export function PresupuestosTable({ presupuestos, total, page, perPage, clientes
                   {p.fechaRecepcion ? formatDate(p.fechaRecepcion) : '—'}
                 </TableCell>
                 <TableCell className="text-right font-medium">{formatCurrency(Number(p.totalFinal))}</TableCell>
+                <TableCell className="text-right">
+                  {editingPrecio?.id === p.id ? (
+                    <div className="flex items-center gap-1 justify-end">
+                      <Input
+                        type="number"
+                        value={editingPrecio.value}
+                        onChange={(e) => setEditingPrecio({ id: p.id, value: e.target.value })}
+                        className="w-28 h-7 text-xs"
+                        autoFocus
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') savePrecioFinal();
+                          if (e.key === 'Escape') setEditingPrecio(null);
+                        }}
+                      />
+                      <Button size="icon" variant="ghost" className="h-6 w-6" onClick={savePrecioFinal} disabled={savingPrecio}>
+                        <Check className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  ) : (
+                    <button
+                      className="text-right w-full text-sm font-medium hover:text-sky-600 transition-colors"
+                      onClick={() => setEditingPrecio({ id: p.id, value: p.precioFinal != null ? String(Number(p.precioFinal)) : '' })}
+                    >
+                      {p.precioFinal != null ? formatCurrency(Number(p.precioFinal)) : <span className="text-slate-300 text-xs">—</span>}
+                    </button>
+                  )}
+                </TableCell>
                 <TableCell>
                   <Button variant="ghost" size="icon" asChild>
                     <Link href={`/presupuestos/${p.id}`}><Eye className="h-4 w-4" /></Link>
@@ -240,7 +285,7 @@ export function PresupuestosTable({ presupuestos, total, page, perPage, clientes
             ))}
             {presupuestos.length === 0 && (
               <TableRow>
-                <TableCell colSpan={10} className="text-center text-slate-400 py-10">
+                <TableCell colSpan={11} className="text-center text-slate-400 py-10">
                   No hay presupuestos con los filtros aplicados
                 </TableCell>
               </TableRow>

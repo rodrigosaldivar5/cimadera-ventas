@@ -111,6 +111,9 @@ model Presupuesto {
   descuento         Decimal            @db.Decimal(5, 2) @default(0)
   subtotal          Decimal            @db.Decimal(10, 2) @default(0)
   totalFinal        Decimal            @db.Decimal(10, 2) @default(0)
+  precioFinal       Decimal?           @db.Decimal(10, 2)
+  archivoAdjunto    String?
+  archivoNombre     String?
   obraId            String?
   obra              Obra?              @relation(fields: [obraId], references: [id])
   lineas            LineaPresupuesto[]

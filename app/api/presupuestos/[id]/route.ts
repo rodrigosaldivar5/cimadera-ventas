@@ -49,6 +49,24 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
   }
 }
 
+export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
+  const session = await auth();
+  if (!session?.user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+
+  try {
+    const data = await req.json();
+    const updateData: Record<string, unknown> = {};
+    if ('precioFinal' in data) updateData.precioFinal = data.precioFinal != null && data.precioFinal !== '' ? Number(data.precioFinal) : null;
+    if ('archivoAdjunto' in data) updateData.archivoAdjunto = data.archivoAdjunto ?? null;
+    if ('archivoNombre' in data) updateData.archivoNombre = data.archivoNombre ?? null;
+
+    const presupuesto = await prisma.presupuesto.update({ where: { id: params.id }, data: updateData });
+    return NextResponse.json(presupuesto);
+  } catch {
+    return NextResponse.json({ error: 'Error al actualizar' }, { status: 500 });
+  }
+}
+
 export async function DELETE(_req: NextRequest, { params }: { params: { id: string } }) {
   const session = await auth();
   if (!session?.user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
