@@ -83,17 +83,20 @@ export function DocumentacionPresupuesto({ presupuestoId, precioFinalInicial, ar
     if (!files || files.length === 0) return;
     setSubiendo(true);
     const formData = new FormData();
+    // NO se setea Content-Type — el browser lo agrega automáticamente con boundary
     Array.from(files).forEach((file) => formData.append('files', file));
     try {
       const res = await fetch(`/api/presupuestos/${presupuestoId}/archivos`, {
         method: 'POST',
         body: formData,
       });
-      if (res.ok) {
-        const data = await res.json();
-        if (data.archivos?.length) {
-          await cargarArchivos();
-        }
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || 'Error al subir');
+      }
+      const data = await res.json();
+      if (data.archivos?.length) {
+        await cargarArchivos();
       }
     } catch (error) {
       console.error('Error subiendo archivo:', error);
