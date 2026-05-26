@@ -12,15 +12,17 @@ import { PresupuestoAcciones } from '@/components/presupuestos/presupuesto-accio
 import { DocumentacionPresupuesto } from '@/components/presupuestos/documentacion-presupuesto';
 import { EditarResponsable } from '@/components/presupuestos/editar-responsable';
 import { ActualizarPreciosBtn } from '@/components/presupuestos/actualizar-precios-btn';
+import { EliminarPresupuestoBtn } from '@/components/presupuestos/eliminar-presupuesto-btn';
+import { auth } from '@/lib/auth';
 import type { EstadoPresupuesto } from '@prisma/client';
 import Link from 'next/link';
 import { ArrowLeft, Building2, User2, Calendar } from 'lucide-react';
 import { estadoBadgeClass, estadoLabel } from '@/lib/enums';
 
-const ESTADOS_ACTUALIZABLES: EstadoPresupuesto[] = ['PENDIENTE', 'EN_PROCESO'];
+const EMAILS_AUTORIZADOS_BORRAR = ['coordinacion.general@cimadera.net', 'admin@cimadera.net'];
 
 export default async function PresupuestoDetallePage({ params }: { params: { id: string } }) {
-  const [presupuesto, usuarios] = await Promise.all([
+  const [presupuesto, usuarios, session] = await Promise.all([
     prisma.presupuesto.findUnique({
       where: { id: params.id },
       include: {
@@ -37,6 +39,7 @@ export default async function PresupuestoDetallePage({ params }: { params: { id:
       select: { id: true, nombre: true },
       orderBy: { nombre: 'asc' },
     }),
+    auth(),
   ]);
 
   if (!presupuesto) notFound();
@@ -50,6 +53,14 @@ export default async function PresupuestoDetallePage({ params }: { params: { id:
         </Button>
         <div className="flex items-center gap-3">
           <ActualizarPreciosBtn presupuestoId={presupuesto.id} />
+          {EMAILS_AUTORIZADOS_BORRAR.includes(session?.user?.email ?? '') && (
+            <EliminarPresupuestoBtn
+              presupuestoId={presupuesto.id}
+              numero={presupuesto.numero}
+              clienteNombre={presupuesto.cliente.razonSocial}
+              redirectOnDelete
+            />
+          )}
           <Badge variant="outline" className={`text-sm px-3 py-1 ${estadoBadgeClass[presupuesto.estado]}`}>
             {estadoLabel[presupuesto.estado]}
           </Badge>

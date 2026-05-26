@@ -95,10 +95,15 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   }
 }
 
+const EMAILS_AUTORIZADOS_BORRAR = ['coordinacion.general@cimadera.net', 'admin@cimadera.net'];
+
 export async function DELETE(_req: NextRequest, { params }: { params: { id: string } }) {
   const session = await auth();
   if (!session?.user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
 
+  if (!EMAILS_AUTORIZADOS_BORRAR.includes(session.user.email ?? ''))
+    return NextResponse.json({ error: 'No tenés permiso para eliminar presupuestos' }, { status: 403 });
+
   await prisma.presupuesto.delete({ where: { id: params.id } });
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({ success: true });
 }

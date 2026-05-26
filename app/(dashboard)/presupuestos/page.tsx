@@ -1,6 +1,7 @@
 export const dynamic = 'force-dynamic';
 
 import { prisma } from '@/lib/prisma';
+import { auth } from '@/lib/auth';
 import { PresupuestosTable } from '@/components/presupuestos/presupuestos-table';
 import { EstadoPresupuesto } from '@prisma/client';
 
@@ -30,7 +31,7 @@ export default async function PresupuestosPage({ searchParams }: { searchParams:
     if (searchParams.hasta) (where.fechaCreacion as Record<string, unknown>).lte = new Date(searchParams.hasta);
   }
 
-  const [presupuestos, total, clientes, usuarios, criticos] = await Promise.all([
+  const [presupuestos, total, clientes, usuarios, criticos, session] = await Promise.all([
     prisma.presupuesto.findMany({
       where,
       skip,
@@ -47,6 +48,7 @@ export default async function PresupuestosPage({ searchParams }: { searchParams:
       include: { cliente: true, responsable: true },
       take: 10,
     }),
+    auth(),
   ]);
 
   return (
@@ -58,6 +60,7 @@ export default async function PresupuestosPage({ searchParams }: { searchParams:
       clientes={clientes}
       usuarios={usuarios}
       criticos={criticos}
+      userEmail={session?.user?.email ?? ''}
       filters={{ estado: searchParams.estado, clienteId: searchParams.clienteId, obraId: searchParams.obraId, desde: searchParams.desde, hasta: searchParams.hasta }}
     />
   );

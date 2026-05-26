@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Plus, Eye, ChevronLeft, ChevronRight, Filter, AlertTriangle, ChevronDown, ChevronUp, Check } from 'lucide-react';
+import { EliminarPresupuestoBtn } from '@/components/presupuestos/eliminar-presupuesto-btn';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { ESTADO_PRESUPUESTO, PRIORIDAD, estadoBadgeClass, estadoLabel, type EstadoPresupuesto, type Prioridad } from '@/lib/enums';
 
@@ -44,6 +45,8 @@ type PresupuestoCritico = {
   responsable: { nombre: string } | null;
 };
 
+const EMAILS_AUTORIZADOS_BORRAR = ['coordinacion.general@cimadera.net', 'admin@cimadera.net'];
+
 interface Props {
   presupuestos: PresupuestoRow[];
   total: number;
@@ -52,6 +55,7 @@ interface Props {
   clientes: { id: string; razonSocial: string }[];
   usuarios: { id: string; nombre: string }[];
   criticos: PresupuestoCritico[];
+  userEmail: string;
   filters: { estado?: string; clienteId?: string; obraId?: string; desde?: string; hasta?: string };
 }
 
@@ -60,7 +64,8 @@ function diasDesde(fecha: Date | null): number {
   return Math.floor((Date.now() - new Date(fecha).getTime()) / 86_400_000);
 }
 
-export function PresupuestosTable({ presupuestos, total, page, perPage, clientes, criticos, filters }: Props) {
+export function PresupuestosTable({ presupuestos, total, page, perPage, clientes, criticos, userEmail, filters }: Props) {
+  const puedeEliminar = EMAILS_AUTORIZADOS_BORRAR.includes(userEmail);
   const router = useRouter();
   const totalPages = Math.ceil(total / perPage);
   const [criticosOpen, setCriticosOpen] = useState(true);
@@ -277,9 +282,18 @@ export function PresupuestosTable({ presupuestos, total, page, perPage, clientes
                   )}
                 </TableCell>
                 <TableCell>
-                  <Button variant="ghost" size="icon" asChild>
-                    <Link href={`/presupuestos/${p.id}`}><Eye className="h-4 w-4" /></Link>
-                  </Button>
+                  <div className="flex items-center gap-1">
+                    <Button variant="ghost" size="icon" asChild>
+                      <Link href={`/presupuestos/${p.id}`}><Eye className="h-4 w-4" /></Link>
+                    </Button>
+                    {puedeEliminar && (
+                      <EliminarPresupuestoBtn
+                        presupuestoId={p.id}
+                        numero={p.numero}
+                        clienteNombre={p.cliente.razonSocial}
+                      />
+                    )}
+                  </div>
                 </TableCell>
               </TableRow>
             ))}
