@@ -322,10 +322,32 @@ model CuentaCorriente {
   saldoActualizado Decimal            @db.Decimal(12, 2) @default(0)
   estado           EstadoCuenta       @default(SALDO_PENDIENTE)
   fechaInicio      DateTime           @default(now())
-  observaciones    String?
-  movimientos      MovimientoCuenta[]
-  createdAt        DateTime           @default(now())
-  updatedAt        DateTime           @updatedAt
+  observaciones     String?
+  proximoCobro      DateTime?
+  probabilidadCobro String             @default("MEDIA")
+  movimientos       MovimientoCuenta[]
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+}
+
+model CostoFijo {
+  id            String   @id @default(cuid())
+  nombre        String
+  categoria     String   // NOMINA | INFRAESTRUCTURA | SERVICIOS | OTROS
+  monto         Float
+  activo        Boolean  @default(true)
+  observacion   String?
+  creadoEn      DateTime @default(now())
+  actualizadoEn DateTime @updatedAt
+}
+
+model SaldoCaja {
+  id        String   @id @default(cuid())
+  fecha     DateTime
+  saldo     Float
+  nota      String?
+  creadoPor String
+  creadoEn  DateTime @default(now())
 }
 
 model MovimientoCuenta {
