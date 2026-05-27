@@ -33,6 +33,7 @@ export async function PUT(req: NextRequest, { params }: RouteContext) {
 
     const cuentaActual = await prisma.cuentaCorriente.findUnique({
       where: { id: params.id },
+      include: { movimientos: true },
     });
     if (!cuentaActual) return NextResponse.json({ error: 'Cuenta no encontrada' }, { status: 404 });
 
@@ -42,11 +43,16 @@ export async function PUT(req: NextRequest, { params }: RouteContext) {
     if (estado && Object.values(EstadoCuenta).includes(estado)) updateData.estado = estado;
 
     if (indiceActual !== undefined) {
-      const idxNuevo = Number(indiceActual);
-      const saldoActualizado =
-        Number(cuentaActual.montoOriginal) * (idxNuevo / Number(cuentaActual.indiceInicio));
+      const idxNuevo    = Number(indiceActual);
+      const idxInicio   = Number(cuentaActual.indiceInicio);
+      const montoOriginal = Number(cuentaActual.montoOriginal);
+      const totalPagado = cuentaActual.movimientos
+        .filter((m) => m.tipo === 'ANTICIPO' || m.tipo === 'PAGO_PARCIAL')
+        .reduce((sum, m) => sum + Number(m.monto), 0);
+      const saldoActualizado = (montoOriginal * idxNuevo / idxInicio) - totalPagado;
       updateData.indiceActual = idxNuevo;
       updateData.saldoActualizado = saldoActualizado;
+      updateData.estado = saldoActualizado <= 0 ? EstadoCuenta.CANCELADO : EstadoCuenta.SALDO_PENDIENTE;
     }
 
     const cuenta = await prisma.cuentaCorriente.update({
