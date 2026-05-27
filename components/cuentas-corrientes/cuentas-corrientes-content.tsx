@@ -97,7 +97,7 @@ export function CuentasCorrientesContent({ cuentasIniciales, clientes }: Props) 
   const router = useRouter();
   const [cuentas, setCuentas] = useState<CuentaConRelaciones[]>(cuentasIniciales);
   const [search, setSearch] = useState('');
-  const [estadoFiltro, setEstadoFiltro] = useState<string>('');
+  const [estadoFiltro, setEstadoFiltro] = useState<string>('all');
   const [expanded, setExpanded] = useState<Set<string>>(() => {
     const first = cuentasIniciales.find((c) => c.estado === 'SALDO_PENDIENTE');
     return first ? new Set([first.id]) : new Set();
@@ -133,7 +133,7 @@ export function CuentasCorrientesContent({ cuentasIniciales, clientes }: Props) 
     const matchSearch = search
       ? c.cliente.razonSocial.toLowerCase().includes(search.toLowerCase())
       : true;
-    const matchEstado = estadoFiltro ? c.estado === estadoFiltro : true;
+    const matchEstado = estadoFiltro === 'all' ? true : c.estado === estadoFiltro;
     return matchSearch && matchEstado;
   });
 
@@ -188,11 +188,10 @@ export function CuentasCorrientesContent({ cuentasIniciales, clientes }: Props) 
   };
 
   const handlePresupuestoSelect = (presId: string) => {
+    if (presId === 'none') { setNfPresupuestoId(''); return; }
     setNfPresupuestoId(presId);
     const pres = nfPresupuestos.find((p) => p.id === presId);
-    if (pres) {
-      setNfMonto(Number(pres.totalFinal).toFixed(2));
-    }
+    if (pres) setNfMonto(Number(pres.totalFinal).toFixed(2));
   };
 
   const handleNuevaCuenta = async () => {
@@ -555,7 +554,7 @@ export function CuentasCorrientesContent({ cuentasIniciales, clientes }: Props) 
             <SelectValue placeholder="Todos los estados" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="">Todos los estados</SelectItem>
+            <SelectItem value="all">Todos los estados</SelectItem>
             <SelectItem value="SALDO_PENDIENTE">Saldo pendiente</SelectItem>
             <SelectItem value="CANCELADO">Cancelado</SelectItem>
             <SelectItem value="PENDIENTE">Pendiente</SelectItem>
@@ -824,12 +823,12 @@ export function CuentasCorrientesContent({ cuentasIniciales, clientes }: Props) 
             {nfObras.length > 0 && (
               <div>
                 <Label>Obra</Label>
-                <Select value={nfObraId} onValueChange={setNfObraId}>
+                <Select value={nfObraId || 'none'} onValueChange={(v) => setNfObraId(v === 'none' ? '' : v)}>
                   <SelectTrigger>
                     <SelectValue placeholder="Seleccionar obra (opcional)" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Sin obra</SelectItem>
+                    <SelectItem value="none">Sin obra</SelectItem>
                     {nfObras.map((o) => (
                       <SelectItem key={o.id} value={o.id}>{o.nombre}</SelectItem>
                     ))}
@@ -840,12 +839,12 @@ export function CuentasCorrientesContent({ cuentasIniciales, clientes }: Props) 
             {nfPresupuestos.length > 0 && (
               <div>
                 <Label>Presupuesto vinculado</Label>
-                <Select value={nfPresupuestoId} onValueChange={handlePresupuestoSelect}>
+                <Select value={nfPresupuestoId || 'none'} onValueChange={handlePresupuestoSelect}>
                   <SelectTrigger>
                     <SelectValue placeholder="Vincular presupuesto (opcional)" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Sin presupuesto</SelectItem>
+                    <SelectItem value="none">Sin presupuesto</SelectItem>
                     {nfPresupuestos.map((p) => (
                       <SelectItem key={p.id} value={p.id}>
                         N° {String(p.numero).padStart(4, '0')} — {formatCurrency(Number(p.totalFinal))}
