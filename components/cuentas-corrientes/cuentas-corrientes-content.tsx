@@ -34,6 +34,7 @@ type Presupuesto = {
   id: string;
   numero: number;
   totalFinal: unknown;
+  precioFinal?: number | null;
   nombrePresupuesto?: string | null;
 };
 
@@ -191,7 +192,10 @@ export function CuentasCorrientesContent({ cuentasIniciales, clientes }: Props) 
     if (presId === 'none') { setNfPresupuestoId(''); return; }
     setNfPresupuestoId(presId);
     const pres = nfPresupuestos.find((p) => p.id === presId);
-    if (pres) setNfMonto(Number(pres.totalFinal).toFixed(2));
+    if (pres) {
+      const monto = pres.precioFinal ?? pres.totalFinal ?? 0;
+      setNfMonto(Number(monto).toFixed(2));
+    }
   };
 
   const handleNuevaCuenta = async () => {
@@ -847,7 +851,7 @@ export function CuentasCorrientesContent({ cuentasIniciales, clientes }: Props) 
                     <SelectItem value="none">Sin presupuesto</SelectItem>
                     {nfPresupuestos.map((p) => (
                       <SelectItem key={p.id} value={p.id}>
-                        N° {String(p.numero).padStart(4, '0')} — {formatCurrency(Number(p.totalFinal))}
+                        N° {String(p.numero).padStart(4, '0')} — {formatCurrency(Number(p.precioFinal ?? p.totalFinal ?? 0))}
                       </SelectItem>
                     ))}
                   </SelectContent>

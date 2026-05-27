@@ -29,6 +29,8 @@ export default async function PresupuestoDetallePage({ params }: { params: { id:
         cliente: true,
         creadoPor: true,
         responsable: true,
+        obra: { select: { id: true, nombre: true } },
+        cuentaCorriente: { select: { id: true } },
         lineas: { include: { item: true, opciones: true } },
         puertas: { include: { tipoPuerta: true } },
         archivos: { orderBy: { createdAt: 'desc' } },
@@ -66,6 +68,15 @@ export default async function PresupuestoDetallePage({ params }: { params: { id:
           </Badge>
           <PresupuestoAcciones
             presupuesto={{ id: presupuesto.id, estado: presupuesto.estado, numero: presupuesto.numero }}
+            presupuestoDatos={{
+              clienteId: presupuesto.clienteId,
+              clienteNombre: presupuesto.cliente.razonSocial,
+              obraId: presupuesto.obraId,
+              obraNombre: presupuesto.obra?.nombre ?? null,
+              precioFinal: presupuesto.precioFinal != null ? Number(presupuesto.precioFinal) : null,
+              totalFinal: Number(presupuesto.totalFinal),
+              cuentaCorrienteId: presupuesto.cuentaCorriente?.id ?? null,
+            }}
             presupuestoPDF={{
               numero: presupuesto.numero,
               nombrePresupuesto: presupuesto.nombrePresupuesto,
