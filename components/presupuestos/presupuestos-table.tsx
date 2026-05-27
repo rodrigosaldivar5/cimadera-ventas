@@ -258,7 +258,11 @@ export function PresupuestosTable({ presupuestos, total, page, perPage, clientes
                 <TableCell className="text-right">
                   <div className="flex flex-col items-end gap-0.5">
                     <span className="font-medium">
-                      {formatCurrency(Number(p.tasaIva) > 0 ? Number(p.totalConIva) : Number(p.totalFinal))}
+                      {formatCurrency(
+                        Number(p.totalConIva) > 0 ? Number(p.totalConIva) :
+                        Number(p.precioFinal) > 0 ? Number(p.precioFinal) :
+                        Number(p.totalFinal)
+                      )}
                     </span>
                     <Badge variant="outline" className="text-xs px-1 py-0 font-normal">
                       {Number(p.tasaIva) === 0 ? 'Exento' : `${Number(p.tasaIva)}%`}

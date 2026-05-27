@@ -34,11 +34,10 @@ export default async function DashboardPage({ searchParams }: { searchParams: { 
     prisma.presupuesto.count({ where: { ...whereBase, fechaCreacion: { gte: inicioMes, lte: finMes } } }),
     // Enviados pendientes
     prisma.presupuesto.count({ where: { ...whereBase, estado: 'ENVIADO' } }),
-    // Aprobados este mes con monto
-    prisma.presupuesto.aggregate({
+    // Aprobados este mes con monto (usa precioFinal ?? totalFinal por fila)
+    prisma.presupuesto.findMany({
       where: { ...whereBase, estado: 'APROBADO', fechaCreacion: { gte: inicioMes, lte: finMes } },
-      _count: true,
-      _sum: { totalFinal: true },
+      select: { precioFinal: true, totalFinal: true },
     }),
     // Rechazados este mes
     prisma.presupuesto.count({ where: { ...whereBase, estado: 'RECHAZADO', fechaCreacion: { gte: inicioMes, lte: finMes } } }),
@@ -102,7 +101,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: { 
     },
     {
       title: 'Aprobados este mes',
-      value: `${aprobados._count} · ${formatCurrency(Number(aprobados._sum.totalFinal ?? 0))}`,
+      value: `${aprobados.length} · ${formatCurrency(aprobados.reduce((s, p) => s + Number(p.precioFinal ?? p.totalFinal ?? 0), 0))}`,
       icon: CheckCircle,
       color: 'text-green-500',
       bg: 'bg-green-50',

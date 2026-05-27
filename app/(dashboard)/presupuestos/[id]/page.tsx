@@ -9,6 +9,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { PresupuestoAcciones } from '@/components/presupuestos/presupuesto-acciones';
+import { TotalesPresupuesto } from '@/components/presupuestos/totales-presupuesto';
 import { DocumentacionPresupuesto } from '@/components/presupuestos/documentacion-presupuesto';
 import { EditarResponsable } from '@/components/presupuestos/editar-responsable';
 import { ActualizarPreciosBtn } from '@/components/presupuestos/actualizar-precios-btn';
@@ -235,40 +236,12 @@ export default async function PresupuestoDetallePage({ params }: { params: { id:
           <Separator />
 
           {/* Totales */}
-          <div className="flex justify-end">
-            <div className="w-80 space-y-2">
-              <div className="flex justify-between text-sm">
-                <span className="text-slate-500">Subtotal</span>
-                <span>{formatCurrency(Number(presupuesto.subtotal))}</span>
-              </div>
-              {Number(presupuesto.descuento) > 0 && (
-                <div className="flex justify-between text-sm text-red-600">
-                  <span>Descuento ({Number(presupuesto.descuento)}%)</span>
-                  <span>-{formatCurrency(Number(presupuesto.subtotal) * Number(presupuesto.descuento) / 100)}</span>
-                </div>
-              )}
-              <div className="flex justify-between text-sm font-medium text-slate-700">
-                <span>Neto</span>
-                <span>{formatCurrency(Number(presupuesto.totalFinal))}</span>
-              </div>
-              {Number(presupuesto.tasaIva) > 0 && (
-                <div className="flex justify-between text-sm text-slate-500">
-                  <span>IVA ({Number(presupuesto.tasaIva)}%)</span>
-                  <span>{formatCurrency(Number(presupuesto.montoIva))}</span>
-                </div>
-              )}
-              <Separator />
-              <div className="flex items-center justify-between font-bold text-lg text-[#00ADEF]">
-                <div className="flex items-center gap-2">
-                  <span>{Number(presupuesto.tasaIva) === 0 ? 'Total (exento)' : 'Total c/IVA'}</span>
-                  <Badge variant="outline" className="text-xs px-1.5 py-0 font-medium text-[#00ADEF] border-[#00ADEF]">
-                    {Number(presupuesto.tasaIva) === 0 ? 'Exento' : `IVA ${Number(presupuesto.tasaIva)}%`}
-                  </Badge>
-                </div>
-                <span>{formatCurrency(Number(presupuesto.totalConIva))}</span>
-              </div>
-            </div>
-          </div>
+          <TotalesPresupuesto
+            presupuestoId={presupuesto.id}
+            totalFinal={Number(presupuesto.totalFinal)}
+            precioFinal={presupuesto.precioFinal != null ? Number(presupuesto.precioFinal) : null}
+            tasaIvaInicial={Number(presupuesto.tasaIva)}
+          />
 
           {/* Observaciones */}
           {presupuesto.observaciones && (

@@ -89,8 +89,24 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   try {
     const data = await req.json();
     const updateData: Record<string, unknown> = {};
-    if ('precioFinal' in data) updateData.precioFinal = data.precioFinal != null && data.precioFinal !== '' ? Number(data.precioFinal) : null;
     if ('responsableId' in data) updateData.responsableId = data.responsableId ?? null;
+    if ('precioFinal' in data) updateData.precioFinal = data.precioFinal != null && data.precioFinal !== '' ? Number(data.precioFinal) : null;
+
+    if ('precioFinal' in data || 'tasaIva' in data) {
+      const current = await prisma.presupuesto.findUnique({
+        where: { id: params.id },
+        select: { precioFinal: true, totalFinal: true, tasaIva: true },
+      });
+      const base = data.precioFinal != null
+        ? Number(data.precioFinal)
+        : (current?.precioFinal != null ? Number(current.precioFinal) : Number(current?.totalFinal ?? 0));
+      const tasa = data.tasaIva != null ? Number(data.tasaIva) : Number(current?.tasaIva ?? 21);
+      const montoIva = base * (tasa / 100);
+      const totalConIva = tasa === 0 ? base : base + montoIva;
+      updateData.tasaIva = tasa;
+      updateData.montoIva = montoIva;
+      updateData.totalConIva = totalConIva;
+    }
 
     const presupuesto = await prisma.presupuesto.update({ where: { id: params.id }, data: updateData });
     return NextResponse.json(presupuesto);

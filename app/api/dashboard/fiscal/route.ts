@@ -38,6 +38,7 @@ export async function GET(req: NextRequest) {
       fechaCreacion: true,
       tasaIva: true,
       totalFinal: true,
+      precioFinal: true,
       montoIva: true,
       totalConIva: true,
     },
@@ -56,9 +57,9 @@ export async function GET(req: NextRequest) {
     if (!grouped[key]) grouped[key] = { neto0: 0, neto105: 0, neto21: 0, iva105: 0, iva21: 0, totalConIva: 0 };
 
     const tasa = Number(r.tasaIva);
-    const neto = Number(r.totalFinal);
-    const iva = Number(r.montoIva);
-    const total = Number(r.totalConIva);
+    const neto = Number(r.precioFinal ?? r.totalFinal);
+    const iva = Number(r.montoIva) > 0 ? Number(r.montoIva) : neto * (tasa / 100);
+    const total = Number(r.totalConIva) > 0 ? Number(r.totalConIva) : (tasa === 0 ? neto : neto + iva);
 
     if (tasa === 0) {
       grouped[key].neto0 += neto;
