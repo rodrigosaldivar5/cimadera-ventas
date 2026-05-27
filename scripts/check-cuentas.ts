@@ -20,9 +20,14 @@ async function main() {
     const montoOriginal = parseFloat(c.montoOriginal.toString());
     const saldoAlmacenado = parseFloat(c.saldoActualizado.toString());
 
-    const totalPagado = c.movimientos
-      .filter((m) => m.tipo === 'ANTICIPO' || m.tipo === 'PAGO_PARCIAL')
-      .reduce((sum, m) => sum + parseFloat(m.monto.toString()), 0);
+    // Calcular total pagado
+    const movimientosPago = c.movimientos.filter(
+      (m) => m.tipo === 'ANTICIPO' || m.tipo === 'PAGO_PARCIAL',
+    );
+    const totalPagado = movimientosPago.reduce(
+      (sum, m) => sum + parseFloat(m.monto.toString()),
+      0,
+    );
 
     const saldoEsperado = (montoOriginal * idxActual / idxInicio) - totalPagado;
     const diferencia = Math.abs(saldoAlmacenado - saldoEsperado);
@@ -36,7 +41,11 @@ async function main() {
     console.log(`  montoOriginal:  ${montoOriginal.toFixed(2)}`);
     console.log(`  indiceInicio:   ${idxInicio}`);
     console.log(`  indiceActual:   ${idxActual}`);
-    console.log(`  totalPagado:    ${totalPagado.toFixed(2)}`);
+    console.log(`  totalPagado:    ${totalPagado.toFixed(2)} (${movimientosPago.length} movimiento/s)`);
+    for (const p of movimientosPago) {
+      const fecha = new Date(p.fecha).toLocaleDateString('es-AR');
+      console.log(`    [${p.tipo}] ${fecha}  $${parseFloat(p.monto.toString()).toFixed(2)}`);
+    }
     console.log(`  saldoAlmacenado:${saldoAlmacenado.toFixed(2)}`);
     console.log(`  saldoEsperado:  ${saldoEsperado.toFixed(2)}`);
     console.log(`  diferencia:     ${diferencia.toFixed(2)}`);
