@@ -388,29 +388,22 @@ export function CuentasCorrientesContent({ cuentasIniciales, clientes, presupues
     setActualizacionOpen(true);
   };
 
-  const calcAjuste = () => {
-    if (!activeCuentaId || !afIndiceNuevo) return null;
-    const cuenta = cuentas.find((c) => c.id === activeCuentaId);
-    if (!cuenta) return null;
-    const movs = [...cuenta.movimientos].sort(
-      (a, b) => new Date(a.fecha).getTime() - new Date(b.fecha).getTime(),
-    );
-    const last = movs[movs.length - 1];
-    const lastSaldo = last ? Number(last.saldoResultante) : Number(cuenta.montoOriginal);
-    const idxNuevo = parseFloat(afIndiceNuevo);
-    const idxActual = Number(cuenta.indiceActual);
-    if (!idxActual) return null;
-    return lastSaldo * (idxNuevo / idxActual - 1);
-  };
-
-  const calcVariacion = () => {
+  const calcActualizacion = () => {
     if (!activeCuentaId || !afIndiceNuevo) return null;
     const cuenta = cuentas.find((c) => c.id === activeCuentaId);
     if (!cuenta) return null;
     const idxNuevo = parseFloat(afIndiceNuevo);
-    const idxActual = Number(cuenta.indiceActual);
-    if (!idxActual) return null;
-    return ((idxNuevo / idxActual - 1) * 100).toFixed(2);
+    const idxInicio = Number(cuenta.indiceInicio);
+    const idxAnterior = Number(cuenta.indiceActual);
+    if (!idxInicio || !idxAnterior) return null;
+    const totalPagado = cuenta.movimientos
+      .filter((m) => m.tipo === 'ANTICIPO' || m.tipo === 'PAGO_PARCIAL')
+      .reduce((sum, m) => sum + Number(m.monto), 0);
+    const montoOriginal = Number(cuenta.montoOriginal);
+    const montoAjustado = montoOriginal * (idxNuevo / idxInicio);
+    const saldoResultante = montoAjustado - totalPagado;
+    const variacion = ((idxNuevo / idxAnterior - 1) * 100).toFixed(2);
+    return { montoAjustado, saldoResultante, variacion };
   };
 
   const handleAplicarActualizacion = async () => {
@@ -1175,24 +1168,30 @@ export function CuentasCorrientesContent({ cuentasIniciales, clientes, presupues
                 />
               </div>
             </div>
-            {afIndiceNuevo && (
-              <div className="bg-gray-50 rounded-md p-3 space-y-1 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-gray-500">Variación:</span>
-                  <span className={`font-semibold ${Number(calcVariacion()) >= 0 ? 'text-green-700' : 'text-red-600'}`}>
-                    {calcVariacion() !== null ? `${Number(calcVariacion()) >= 0 ? '+' : ''}${calcVariacion()}%` : '—'}
-                  </span>
+            {afIndiceNuevo && (() => {
+              const calc = calcActualizacion();
+              if (!calc) return null;
+              return (
+                <div className="bg-gray-50 rounded-md p-3 space-y-1 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Variación:</span>
+                    <span className={`font-semibold ${Number(calc.variacion) >= 0 ? 'text-green-700' : 'text-red-600'}`}>
+                      {Number(calc.variacion) >= 0 ? '+' : ''}{calc.variacion}%
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Monto ajustado:</span>
+                    <span className="font-semibold text-slate-700">{formatCurrency(calc.montoAjustado)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Saldo resultante:</span>
+                    <span className={`font-semibold ${calc.saldoResultante >= 0 ? 'text-green-700' : 'text-red-600'}`}>
+                      {formatCurrency(calc.saldoResultante)}
+                    </span>
+                  </div>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-500">Ajuste al saldo:</span>
-                  <span className={`font-semibold ${(calcAjuste() ?? 0) >= 0 ? 'text-green-700' : 'text-red-600'}`}>
-                    {calcAjuste() !== null
-                      ? `${(calcAjuste()! >= 0 ? '+' : '')}${formatCurrency(calcAjuste()!)}`
-                      : '—'}
-                  </span>
-                </div>
-              </div>
-            )}
+              );
+            })()}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setActualizacionOpen(false)}>Cancelar</Button>

@@ -19,32 +19,36 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
 
     const cuenta = await prisma.cuentaCorriente.findUnique({
       where: { id: params.id },
-      include: { movimientos: { orderBy: { fecha: 'desc' }, take: 1 } },
+      include: { movimientos: true },
     });
     if (!cuenta) return NextResponse.json({ error: 'Cuenta no encontrada' }, { status: 404 });
 
-    const lastMovimiento = cuenta.movimientos[0];
-    const lastSaldo = lastMovimiento ? Number(lastMovimiento.saldoResultante) : Number(cuenta.montoOriginal);
     const montoNum = Number(monto);
 
     let saldoResultante: number;
     const updateCuenta: Record<string, unknown> = {};
 
     if (tipo === TipoMovimiento.ANTICIPO || tipo === TipoMovimiento.PAGO_PARCIAL) {
-      saldoResultante = lastSaldo - montoNum;
+      const totalPagado = cuenta.movimientos
+        .filter((m) => m.tipo === 'ANTICIPO' || m.tipo === 'PAGO_PARCIAL')
+        .reduce((sum, m) => sum + Number(m.monto), 0);
+      const montoAjustado = Number(cuenta.montoOriginal) * (Number(cuenta.indiceActual) / Number(cuenta.indiceInicio));
+      saldoResultante = montoAjustado - (totalPagado + montoNum);
+      updateCuenta.saldoActualizado = Math.max(0, saldoResultante);
+      if (saldoResultante <= 0) updateCuenta.estado = EstadoCuenta.CANCELADO;
     } else if (tipo === TipoMovimiento.ACTUALIZACION) {
-      saldoResultante = lastSaldo + montoNum;
+      const lastMovimiento = [...cuenta.movimientos].sort(
+        (a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime(),
+      )[0];
+      saldoResultante = lastMovimiento ? Number(lastMovimiento.saldoResultante) + montoNum : Number(cuenta.montoOriginal) + montoNum;
       if (indiceValor) {
         updateCuenta.indiceActual = Number(indiceValor);
         updateCuenta.saldoActualizado =
           Number(cuenta.montoOriginal) * (Number(indiceValor) / Number(cuenta.indiceInicio));
       }
+      if (saldoResultante <= 0) updateCuenta.estado = EstadoCuenta.CANCELADO;
     } else {
       return NextResponse.json({ error: 'Tipo de movimiento inválido' }, { status: 400 });
-    }
-
-    if (saldoResultante <= 0) {
-      updateCuenta.estado = EstadoCuenta.CANCELADO;
     }
 
     const [movimiento] = await prisma.$transaction([
@@ -62,10 +66,7 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
       }),
       prisma.cuentaCorriente.update({
         where: { id: params.id },
-        data: {
-          saldoActualizado: saldoResultante > 0 ? saldoResultante : 0,
-          ...updateCuenta,
-        },
+        data: updateCuenta,
       }),
     ]);
 

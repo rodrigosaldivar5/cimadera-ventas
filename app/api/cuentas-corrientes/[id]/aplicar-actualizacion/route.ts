@@ -19,29 +19,26 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
 
     const cuenta = await prisma.cuentaCorriente.findUnique({
       where: { id: params.id },
-      include: { movimientos: { orderBy: [{ fecha: 'desc' }, { createdAt: 'desc' }], take: 1 } },
+      include: { movimientos: true },
     });
     if (!cuenta) return NextResponse.json({ error: 'Cuenta no encontrada' }, { status: 404 });
 
-    const lastMovimiento = cuenta.movimientos[0];
-    const lastSaldo = lastMovimiento
-      ? Number(lastMovimiento.saldoResultante)
-      : Number(cuenta.montoOriginal);
-
     const idxNuevo = Number(indiceNuevo);
-    const idxActual = Number(cuenta.indiceActual);
+    const idxInicio = Number(cuenta.indiceInicio);
+    const montoOriginal = Number(cuenta.montoOriginal);
 
-    // ajuste = lastSaldo × (indiceNuevo / indiceActual - 1)
-    const ajuste = lastSaldo * (idxNuevo / idxActual - 1);
-    const saldoResultante = lastSaldo + ajuste;
+    const totalPagado = cuenta.movimientos
+      .filter((m) => m.tipo === 'ANTICIPO' || m.tipo === 'PAGO_PARCIAL')
+      .reduce((sum, m) => sum + Number(m.monto), 0);
 
-    const saldoActualizado =
-      Number(cuenta.montoOriginal) * (idxNuevo / Number(cuenta.indiceInicio));
+    const montoAjustado = montoOriginal * (idxNuevo / idxInicio);
+    const saldoActualizado = montoAjustado - totalPagado;
 
-    const estadoNuevo = saldoResultante <= 0 ? EstadoCuenta.CANCELADO : undefined;
+    // Delta vs the current saldo (used as the movement amount)
+    const saldoAjusteAnterior = Number(cuenta.saldoActualizado);
+    const montoMovimiento = saldoActualizado - saldoAjusteAnterior;
 
-    const descripcionFinal =
-      descripcion?.trim() || `Actualización por ${cuenta.nombreIndice}`;
+    const descripcionFinal = descripcion?.trim() || `Actualización por ${cuenta.nombreIndice}`;
 
     const [movimiento] = await prisma.$transaction([
       prisma.movimientoCuenta.create({
@@ -49,8 +46,8 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
           cuentaId: params.id,
           tipo: TipoMovimiento.ACTUALIZACION,
           descripcion: descripcionFinal,
-          monto: ajuste,
-          saldoResultante,
+          monto: Math.abs(montoMovimiento),
+          saldoResultante: saldoActualizado,
           fecha: new Date(),
           indiceValor: idxNuevo,
         },
@@ -60,7 +57,7 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
         data: {
           indiceActual: idxNuevo,
           saldoActualizado: Math.max(0, saldoActualizado),
-          ...(estadoNuevo ? { estado: estadoNuevo } : {}),
+          estado: saldoActualizado <= 0 ? EstadoCuenta.CANCELADO : EstadoCuenta.SALDO_PENDIENTE,
         },
       }),
     ]);
