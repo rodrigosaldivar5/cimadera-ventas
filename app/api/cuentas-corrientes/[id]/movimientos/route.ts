@@ -29,13 +29,17 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
     const updateCuenta: Record<string, unknown> = {};
 
     if (tipo === TipoMovimiento.ANTICIPO || tipo === TipoMovimiento.PAGO_PARCIAL) {
-      const totalPagado = cuenta.movimientos
+      const idxInicio   = parseFloat(cuenta.indiceInicio.toString());
+      const idxActual   = parseFloat(cuenta.indiceActual.toString());
+      const montoOriginal = parseFloat(cuenta.montoOriginal.toString());
+      const totalPagadoAnterior = cuenta.movimientos
         .filter((m) => m.tipo === 'ANTICIPO' || m.tipo === 'PAGO_PARCIAL')
-        .reduce((sum, m) => sum + Number(m.monto), 0);
-      const montoAjustado = Number(cuenta.montoOriginal) * (Number(cuenta.indiceActual) / Number(cuenta.indiceInicio));
-      saldoResultante = montoAjustado - (totalPagado + montoNum);
-      updateCuenta.saldoActualizado = Math.max(0, saldoResultante);
-      if (saldoResultante <= 0) updateCuenta.estado = EstadoCuenta.CANCELADO;
+        .reduce((sum, m) => sum + parseFloat(m.monto.toString()), 0);
+      const totalPagadoNuevo = totalPagadoAnterior + montoNum;
+      const nuevoSaldo = (montoOriginal * idxActual / idxInicio) - totalPagadoNuevo;
+      saldoResultante = nuevoSaldo;
+      updateCuenta.saldoActualizado = nuevoSaldo;
+      updateCuenta.estado = nuevoSaldo <= 0 ? EstadoCuenta.CANCELADO : EstadoCuenta.SALDO_PENDIENTE;
     } else if (tipo === TipoMovimiento.ACTUALIZACION) {
       const lastMovimiento = [...cuenta.movimientos].sort(
         (a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime(),
