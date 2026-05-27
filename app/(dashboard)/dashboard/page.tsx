@@ -15,6 +15,8 @@ import Link from 'next/link';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { estadoBadgeClass, estadoLabel } from '@/lib/enums';
 
+const PESOS_PROB: Record<string, number> = { ALTA: 1.0, MEDIA: 0.6, BAJA: 0.3 };
+
 export default async function DashboardPage({ searchParams }: { searchParams: { userId?: string } }) {
   const userId = searchParams.userId;
   const now = new Date();
@@ -28,6 +30,27 @@ export default async function DashboardPage({ searchParams }: { searchParams: { 
   });
 
   const whereBase = userId ? { creadoPorId: userId } : {};
+
+  const [ultimoSaldoCaja, costosFijosDB, cuentasPendientes] = await Promise.all([
+    prisma.saldoCaja.findFirst({ orderBy: { fecha: 'desc' } }),
+    prisma.costoFijo.findMany({ where: { activo: true } }),
+    prisma.cuentaCorriente.findMany({
+      where: { estado: 'SALDO_PENDIENTE' },
+      select: { saldoActualizado: true, proximoCobro: true, probabilidadCobro: true },
+    }),
+  ]);
+
+  const saldoCaja = ultimoSaldoCaja?.saldo ?? 0;
+  const egresosMensuales = costosFijosDB.reduce((s, c) => s + c.monto, 0);
+  const egresosSemanal = egresosMensuales / 4.33;
+  const hoy = new Date();
+  const limite30 = new Date(hoy); limite30.setDate(hoy.getDate() + 30);
+  const ingresos30 = cuentasPendientes
+    .filter((c) => c.proximoCobro && c.proximoCobro >= hoy && c.proximoCobro <= limite30)
+    .reduce((s, c) => s + Number(c.saldoActualizado) * (PESOS_PROB[c.probabilidadCobro] ?? 0.6), 0);
+  const runwaySemanas = egresosSemanal > 0 ? (saldoCaja + ingresos30) / egresosSemanal : 99;
+  const semaforoColor = runwaySemanas >= 12 ? '#28A745' : runwaySemanas >= 6 ? '#FFC107' : '#DC3545';
+  const semaforoLabel = runwaySemanas >= 12 ? 'Saludable' : runwaySemanas >= 6 ? 'Atención' : 'Alerta';
 
   const [totalMes, enviados, aprobados, rechazados, pendientes, ultimos, chartData] = await Promise.all([
     // Total presupuestos este mes
@@ -226,6 +249,28 @@ export default async function DashboardPage({ searchParams }: { searchParams: { 
         </div>
 
         <TabsContent value="general" className="space-y-6 mt-4">
+          {/* Tarjeta resumen Tesorería */}
+          <Link href="/tesoreria">
+            <Card className={`hover:shadow-md transition-shadow cursor-pointer border-2 ${runwaySemanas < 6 ? 'border-red-400 animate-pulse' : 'border-transparent'}`}>
+              <CardContent className="p-5">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <div className="h-10 w-10 rounded-full flex-shrink-0" style={{ background: semaforoColor }} />
+                    <div>
+                      <p className="text-xs font-medium text-slate-500">Estado de Tesorería</p>
+                      <p className="text-lg font-bold text-slate-800">{semaforoLabel}</p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-xs text-slate-400">Runway</p>
+                    <p className="text-2xl font-bold" style={{ color: semaforoColor }}>
+                      {Math.min(Math.round(runwaySemanas * 10) / 10, 99)} sem.
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </Link>
           {kpiGrid}
           {chartsGrid}
         </TabsContent>

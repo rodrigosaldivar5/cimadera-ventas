@@ -20,6 +20,9 @@ import {
   Sofa,
   Layers,
   Wallet,
+  TrendingUp,
+  DollarSign,
+  CalendarDays,
 } from 'lucide-react';
 import { Logo } from '@/components/logo';
 import { cn } from '@/lib/utils';
@@ -45,6 +48,15 @@ const navItems: NavItem[] = [
   },
   { href: '/presupuestos', label: 'Presupuestos', icon: FileText },
   { href: '/cuentas-corrientes', label: 'Cuentas corrientes', icon: Wallet },
+  {
+    href: '/tesoreria',
+    label: 'Tesorería',
+    icon: TrendingUp,
+    children: [
+      { href: '/tesoreria/costos', label: 'Costos fijos', icon: DollarSign },
+      { href: '/tesoreria/saldo', label: 'Registro de saldo', icon: CalendarDays },
+    ],
+  },
   { href: '/productos', label: 'Productos', icon: ShoppingBag },
   { href: '/materiales', label: 'Materiales', icon: Package },
   {
@@ -80,6 +92,7 @@ export function Sidebar({ userName, userEmail, rolNombre }: SidebarProps) {
     '/admin': pathname.startsWith('/admin'),
     '/clientes': pathname.startsWith('/clientes/descuentos'),
     '/catalogo': pathname.startsWith('/catalogo'),
+    '/tesoreria': pathname.startsWith('/tesoreria'),
   });
 
   const toggleItem = (href: string) =>
