@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuCheckboxItem, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { Plus, Eye, ChevronLeft, ChevronRight, Filter, AlertTriangle, ChevronDown, ChevronUp, Check } from 'lucide-react';
 import { EliminarPresupuestoBtn } from '@/components/presupuestos/eliminar-presupuesto-btn';
 import { formatCurrency, formatDate } from '@/lib/utils';
@@ -17,6 +18,15 @@ const prioridadVariant: Record<Prioridad, 'destructive' | 'warning' | 'success'>
   ALTA: 'destructive',
   MEDIA: 'warning',
   BAJA: 'success',
+};
+
+const prioridadBadgeClass: Record<string, string> = {
+  ALTA:  'bg-red-100 text-red-700 border-red-300',
+  MEDIA: 'bg-yellow-100 text-yellow-700 border-yellow-300',
+  BAJA:  'bg-green-100 text-green-700 border-green-300',
+};
+const prioridadLabel: Record<string, string> = {
+  ALTA: 'Alta', MEDIA: 'Media', BAJA: 'Baja',
 };
 
 type PresupuestoRow = {
@@ -58,7 +68,7 @@ interface Props {
   usuarios: { id: string; nombre: string }[];
   criticos: PresupuestoCritico[];
   userEmail: string;
-  filters: { estado?: string; clienteId?: string; obraId?: string; desde?: string; hasta?: string };
+  filters: { estados?: string; prioridades?: string; clienteId?: string; obraId?: string; desde?: string; hasta?: string };
 }
 
 function diasDesde(fecha: Date | null): number {
@@ -74,7 +84,10 @@ export function PresupuestosTable({ presupuestos, total, page, perPage, clientes
   const [editingPrecio, setEditingPrecio] = useState<{ id: string; value: string } | null>(null);
   const [savingPrecio, setSavingPrecio] = useState(false);
 
-  const [estado, setEstado] = useState(filters.estado ?? '');
+  const [estados, setEstados] = useState<string[]>(filters.estados?.split(',').filter(Boolean) ?? []);
+  const [prioridades, setPrioridades] = useState<string[]>(filters.prioridades?.split(',').filter(Boolean) ?? []);
+  const [estadosOpen, setEstadosOpen] = useState(false);
+  const [prioridadesOpen, setPrioridadesOpen] = useState(false);
   const [clienteId, setClienteId] = useState(filters.clienteId ?? '');
   const [obraId, setObraId] = useState(filters.obraId ?? '');
   const [obrasCliente, setObrasCliente] = useState<{ id: string; nombre: string }[]>([]);
@@ -102,7 +115,8 @@ export function PresupuestosTable({ presupuestos, total, page, perPage, clientes
 
   const applyFilters = () => {
     const params = new URLSearchParams();
-    if (estado) params.set('estado', estado);
+    if (estados.length > 0) params.set('estados', estados.join(','));
+    if (prioridades.length > 0) params.set('prioridades', prioridades.join(','));
     if (clienteId) params.set('clienteId', clienteId);
     if (obraId) params.set('obraId', obraId);
     if (desde) params.set('desde', desde);
@@ -168,17 +182,95 @@ export function PresupuestosTable({ presupuestos, total, page, perPage, clientes
 
         {/* Filtros */}
         <div className="flex flex-wrap gap-3 p-4 bg-white rounded-lg border">
-          <Select value={estado || '__all__'} onValueChange={(v) => setEstado(v === '__all__' ? '' : v)}>
-            <SelectTrigger className="w-40">
-              <SelectValue placeholder="Estado" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="__all__">Todos</SelectItem>
+          {/* Filtro multi-select: Estado */}
+          <DropdownMenu open={estadosOpen} onOpenChange={setEstadosOpen}>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" className="w-44 justify-between font-normal">
+                <span className="truncate">
+                  {estados.length === 0
+                    ? 'Todos los estados'
+                    : estados.length === 1
+                      ? estadoLabel[estados[0]]
+                      : `${estados.length} estados`}
+                </span>
+                <ChevronDown className="ml-2 h-4 w-4 opacity-50 shrink-0" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent className="w-52">
               {Object.values(ESTADO_PRESUPUESTO).map((e) => (
-                <SelectItem key={e} value={e}>{estadoLabel[e]}</SelectItem>
+                <DropdownMenuCheckboxItem
+                  key={e}
+                  checked={estados.includes(e)}
+                  onCheckedChange={(checked) =>
+                    setEstados((prev) => checked ? [...prev, e] : prev.filter((x) => x !== e))
+                  }
+                  onSelect={(ev) => ev.preventDefault()}
+                >
+                  <Badge variant="outline" className={`${estadoBadgeClass[e]} ml-1`}>
+                    {estadoLabel[e]}
+                  </Badge>
+                </DropdownMenuCheckboxItem>
               ))}
-            </SelectContent>
-          </Select>
+              <DropdownMenuSeparator />
+              <div className="flex gap-2 p-2">
+                <Button variant="ghost" size="sm" className="flex-1 h-7 text-xs" onClick={() => setEstados([])}>
+                  Limpiar
+                </Button>
+                <Button
+                  size="sm"
+                  className="flex-1 h-7 text-xs bg-sky-500 hover:bg-sky-600"
+                  onClick={() => { setEstadosOpen(false); applyFilters(); }}
+                >
+                  Aplicar
+                </Button>
+              </div>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          {/* Filtro multi-select: Prioridad */}
+          <DropdownMenu open={prioridadesOpen} onOpenChange={setPrioridadesOpen}>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" className="w-44 justify-between font-normal">
+                <span className="truncate">
+                  {prioridades.length === 0
+                    ? 'Todas las prioridades'
+                    : prioridades.length === 1
+                      ? prioridadLabel[prioridades[0]]
+                      : `${prioridades.length} prioridades`}
+                </span>
+                <ChevronDown className="ml-2 h-4 w-4 opacity-50 shrink-0" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent className="w-48">
+              {Object.values(PRIORIDAD).map((p) => (
+                <DropdownMenuCheckboxItem
+                  key={p}
+                  checked={prioridades.includes(p)}
+                  onCheckedChange={(checked) =>
+                    setPrioridades((prev) => checked ? [...prev, p] : prev.filter((x) => x !== p))
+                  }
+                  onSelect={(ev) => ev.preventDefault()}
+                >
+                  <Badge variant="outline" className={`${prioridadBadgeClass[p]} ml-1`}>
+                    {prioridadLabel[p]}
+                  </Badge>
+                </DropdownMenuCheckboxItem>
+              ))}
+              <DropdownMenuSeparator />
+              <div className="flex gap-2 p-2">
+                <Button variant="ghost" size="sm" className="flex-1 h-7 text-xs" onClick={() => setPrioridades([])}>
+                  Limpiar
+                </Button>
+                <Button
+                  size="sm"
+                  className="flex-1 h-7 text-xs bg-sky-500 hover:bg-sky-600"
+                  onClick={() => { setPrioridadesOpen(false); applyFilters(); }}
+                >
+                  Aplicar
+                </Button>
+              </div>
+            </DropdownMenuContent>
+          </DropdownMenu>
 
           <Select value={clienteId || '__all__'} onValueChange={(v) => setClienteId(v === '__all__' ? '' : v)}>
             <SelectTrigger className="w-48">

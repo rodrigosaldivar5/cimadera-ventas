@@ -6,7 +6,8 @@ import { PresupuestosTable } from '@/components/presupuestos/presupuestos-table'
 import { EstadoPresupuesto } from '@prisma/client';
 
 interface SearchParams {
-  estado?: string;
+  estados?: string;
+  prioridades?: string;
   clienteId?: string;
   obraId?: string;
   desde?: string;
@@ -20,9 +21,10 @@ export default async function PresupuestosPage({ searchParams }: { searchParams:
   const skip = (page - 1) * perPage;
 
   const where: Record<string, unknown> = {};
-  if (searchParams.estado && Object.values(EstadoPresupuesto).includes(searchParams.estado as EstadoPresupuesto)) {
-    where.estado = searchParams.estado as EstadoPresupuesto;
-  }
+  const estadosArr = searchParams.estados?.split(',').filter((e) => Object.values(EstadoPresupuesto).includes(e as EstadoPresupuesto)) ?? [];
+  if (estadosArr.length > 0) where.estado = { in: estadosArr };
+  const prioridadesArr = searchParams.prioridades?.split(',').filter(Boolean) ?? [];
+  if (prioridadesArr.length > 0) where.prioridad = { in: prioridadesArr };
   if (searchParams.clienteId) where.clienteId = searchParams.clienteId;
   if (searchParams.obraId) where.obraId = searchParams.obraId;
   if (searchParams.desde || searchParams.hasta) {
@@ -61,7 +63,7 @@ export default async function PresupuestosPage({ searchParams }: { searchParams:
       usuarios={usuarios}
       criticos={criticos}
       userEmail={session?.user?.email ?? ''}
-      filters={{ estado: searchParams.estado, clienteId: searchParams.clienteId, obraId: searchParams.obraId, desde: searchParams.desde, hasta: searchParams.hasta }}
+      filters={{ estados: searchParams.estados, prioridades: searchParams.prioridades, clienteId: searchParams.clienteId, obraId: searchParams.obraId, desde: searchParams.desde, hasta: searchParams.hasta }}
     />
   );
 }

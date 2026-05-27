@@ -11,13 +11,15 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const page = Math.max(1, Number(searchParams.get('page') ?? 1));
   const perPage = 10;
-  const estado = searchParams.get('estado') as EstadoPresupuesto | null;
   const clienteId = searchParams.get('clienteId');
   const desde = searchParams.get('desde');
   const hasta = searchParams.get('hasta');
 
   const where: Record<string, unknown> = {};
-  if (estado && Object.values(EstadoPresupuesto).includes(estado)) where.estado = estado;
+  const estadosArr = searchParams.get('estados')?.split(',').filter((e) => Object.values(EstadoPresupuesto).includes(e as EstadoPresupuesto)) ?? [];
+  if (estadosArr.length > 0) where.estado = { in: estadosArr };
+  const prioridadesArr = searchParams.get('prioridades')?.split(',').filter(Boolean) ?? [];
+  if (prioridadesArr.length > 0) where.prioridad = { in: prioridadesArr };
   if (clienteId) where.clienteId = clienteId;
   if (desde || hasta) {
     where.fechaCreacion = {};
