@@ -22,7 +22,6 @@ import {
   FileText, DollarSign,
 } from 'lucide-react';
 import { formatCurrency, formatDate } from '@/lib/utils';
-import { generarCuentaCorrientePDF } from '@/lib/pdf/generar-cuenta-corriente';
 import type { CuentaCorriente, MovimientoCuenta, TipoMovimiento, EstadoCuenta } from '@prisma/client';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -441,7 +440,8 @@ export function CuentasCorrientesContent({ cuentasIniciales, clientes }: Props) 
   };
 
   // ── Exportar PDF ──────────────────────────────────────────────────────────
-  const handleExportarPDF = (cuenta: CuentaConRelaciones) => {
+  const handleExportarPDF = async (cuenta: CuentaConRelaciones) => {
+    const { generarCuentaCorrientePDF } = await import('@/lib/pdf/generar-cuenta-corriente');
     generarCuentaCorrientePDF({
       id: cuenta.id,
       fechaInicio: cuenta.fechaInicio,
