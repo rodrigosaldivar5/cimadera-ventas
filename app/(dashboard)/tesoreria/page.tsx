@@ -9,8 +9,6 @@ import { CashflowChart } from '@/components/tesoreria/cashflow-chart';
 import { CobrosTable } from '@/components/tesoreria/cobros-table';
 import { ExternalLink } from 'lucide-react';
 
-const ROLES_PERMITIDOS = ['ADMIN', 'COORDINACION_ADMIN', 'COORDINACION_GENERAL'];
-
 function dentroDeXDias(fecha: Date | null, dias: number) {
   if (!fecha) return false;
   const hoy = new Date();
@@ -28,7 +26,7 @@ function fmt(n: number) {
 export default async function TesoreriaPage() {
   const session = await auth();
   if (!session?.user) redirect('/login');
-  if (!ROLES_PERMITIDOS.includes(session.user.rolNombre ?? '')) redirect('/dashboard');
+  if (!session.user) redirect('/login');
 
   const [ultimoSaldo, costosFijos, cuentas] = await Promise.all([
     prisma.saldoCaja.findFirst({ orderBy: { fecha: 'desc' } }),

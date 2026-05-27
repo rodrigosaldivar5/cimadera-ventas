@@ -7,7 +7,7 @@ import Link from 'next/link';
 import { ChevronLeft } from 'lucide-react';
 import { SaldoForm } from '@/components/tesoreria/saldo-form';
 
-const ROLES_EDICION = ['ADMIN', 'COORDINACION_ADMIN'];
+const ROLES_EDICION = ['Administrador'];
 
 export default async function SaldoCajaPage() {
   const session = await auth();

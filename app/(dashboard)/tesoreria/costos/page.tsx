@@ -7,7 +7,7 @@ import Link from 'next/link';
 import { ChevronLeft } from 'lucide-react';
 import { CostosFijosTable } from '@/components/tesoreria/costos-fijos-table';
 
-const ROLES_EDICION = ['ADMIN', 'COORDINACION_ADMIN'];
+const ROLES_EDICION = ['Administrador'];
 
 export default async function CostosFijosPage() {
   const session = await auth();
