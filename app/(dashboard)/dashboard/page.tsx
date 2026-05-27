@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { DashboardChart } from '@/components/dashboard/dashboard-chart';
+import { DashboardFiscal } from '@/components/dashboard/dashboard-fiscal';
 import { FileText, Send, CheckCircle, XCircle, TrendingUp, Clock } from 'lucide-react';
 import { startOfMonth, endOfMonth, subMonths, format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -214,6 +215,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: { 
               <Link href="/dashboard">General</Link>
             </TabsTrigger>
             <TabsTrigger value="vendedor">Por vendedor</TabsTrigger>
+            <TabsTrigger value="fiscal">Resumen fiscal</TabsTrigger>
           </TabsList>
 
           {/* Selector de vendedor visible solo en tab vendedor */}
@@ -227,6 +229,10 @@ export default async function DashboardPage({ searchParams }: { searchParams: { 
         <TabsContent value="general" className="space-y-6 mt-4">
           {kpiGrid}
           {chartsGrid}
+        </TabsContent>
+
+        <TabsContent value="fiscal" className="mt-4">
+          <DashboardFiscal />
         </TabsContent>
 
         <TabsContent value="vendedor" className="space-y-6 mt-4">

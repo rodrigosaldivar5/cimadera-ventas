@@ -74,6 +74,10 @@ export async function POST(req: NextRequest) {
         descuento: data.descuento ?? 0,
         subtotal: data.subtotal ?? 0,
         totalFinal: data.totalFinal ?? 0,
+        tasaIva: data.tasaIva ?? 21,
+        montoIva: data.montoIva ?? 0,
+        totalConIva: data.totalConIva ?? 0,
+        preciosNetos: data.preciosNetos ?? true,
         fechaEnvio: data.estado === 'ENVIADO' ? new Date() : null,
         puertas: {
           create: (data.puertas ?? []).map((p: {

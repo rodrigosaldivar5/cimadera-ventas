@@ -86,6 +86,9 @@ export default async function PresupuestoDetallePage({ params }: { params: { id:
               subtotal: Number(presupuesto.subtotal),
               descuento: Number(presupuesto.descuento),
               totalFinal: Number(presupuesto.totalFinal),
+              tasaIva: Number(presupuesto.tasaIva),
+              montoIva: Number(presupuesto.montoIva),
+              totalConIva: Number(presupuesto.totalConIva),
               cliente: {
                 razonSocial: presupuesto.cliente.razonSocial,
                 cuit: presupuesto.cliente.cuit,
@@ -233,7 +236,7 @@ export default async function PresupuestoDetallePage({ params }: { params: { id:
 
           {/* Totales */}
           <div className="flex justify-end">
-            <div className="w-72 space-y-2">
+            <div className="w-80 space-y-2">
               <div className="flex justify-between text-sm">
                 <span className="text-slate-500">Subtotal</span>
                 <span>{formatCurrency(Number(presupuesto.subtotal))}</span>
@@ -244,10 +247,25 @@ export default async function PresupuestoDetallePage({ params }: { params: { id:
                   <span>-{formatCurrency(Number(presupuesto.subtotal) * Number(presupuesto.descuento) / 100)}</span>
                 </div>
               )}
-              <Separator />
-              <div className="flex justify-between font-bold text-lg text-sky-600">
-                <span>Total Final</span>
+              <div className="flex justify-between text-sm font-medium text-slate-700">
+                <span>Neto</span>
                 <span>{formatCurrency(Number(presupuesto.totalFinal))}</span>
+              </div>
+              {Number(presupuesto.tasaIva) > 0 && (
+                <div className="flex justify-between text-sm text-slate-500">
+                  <span>IVA ({Number(presupuesto.tasaIva)}%)</span>
+                  <span>{formatCurrency(Number(presupuesto.montoIva))}</span>
+                </div>
+              )}
+              <Separator />
+              <div className="flex items-center justify-between font-bold text-lg text-[#00ADEF]">
+                <div className="flex items-center gap-2">
+                  <span>{Number(presupuesto.tasaIva) === 0 ? 'Total (exento)' : 'Total c/IVA'}</span>
+                  <Badge variant="outline" className="text-xs px-1.5 py-0 font-medium text-[#00ADEF] border-[#00ADEF]">
+                    {Number(presupuesto.tasaIva) === 0 ? 'Exento' : `IVA ${Number(presupuesto.tasaIva)}%`}
+                  </Badge>
+                </div>
+                <span>{formatCurrency(Number(presupuesto.totalConIva))}</span>
               </div>
             </div>
           </div>

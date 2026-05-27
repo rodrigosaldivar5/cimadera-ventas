@@ -29,6 +29,8 @@ type PresupuestoRow = {
   fechaRecepcion: Date | null;
   fechaVencimiento: Date | null;
   totalFinal: unknown;
+  tasaIva: unknown;
+  totalConIva: unknown;
   precioFinal: unknown;
   cliente: { razonSocial: string };
   creadoPor: { nombre: string };
@@ -253,7 +255,16 @@ export function PresupuestosTable({ presupuestos, total, page, perPage, clientes
                 <TableCell className="text-slate-500 text-sm">
                   {p.fechaRecepcion ? formatDate(p.fechaRecepcion) : '—'}
                 </TableCell>
-                <TableCell className="text-right font-medium">{formatCurrency(Number(p.totalFinal))}</TableCell>
+                <TableCell className="text-right">
+                  <div className="flex flex-col items-end gap-0.5">
+                    <span className="font-medium">
+                      {formatCurrency(Number(p.tasaIva) > 0 ? Number(p.totalConIva) : Number(p.totalFinal))}
+                    </span>
+                    <Badge variant="outline" className="text-xs px-1 py-0 font-normal">
+                      {Number(p.tasaIva) === 0 ? 'Exento' : `${Number(p.tasaIva)}%`}
+                    </Badge>
+                  </div>
+                </TableCell>
                 <TableCell className="text-right">
                   {editingPrecio?.id === p.id ? (
                     <div className="flex items-center gap-1 justify-end">

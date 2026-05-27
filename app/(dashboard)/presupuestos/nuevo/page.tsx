@@ -13,7 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Loader2, Plus, Trash2, ChevronRight, ChevronLeft, Save, Send, AlertTriangle, ExternalLink, Clock, RotateCcw } from 'lucide-react';
-import { formatCurrency } from '@/lib/utils';
+import { formatCurrency, calcularIva } from '@/lib/utils';
 import { CotizadorDinamico, type ItemProducto } from '@/components/presupuestos/cotizador-dinamico';
 import { TIPO_CLIENTE, TIPO_CLIENTE_LABEL, type TipoCliente } from '@/lib/enums';
 
@@ -94,6 +94,8 @@ export default function NuevoPresupuestoPage() {
   const [isSavingPendiente, setIsSavingPendiente] = useState(false);
   const [criterios, setCriterios] = useState<Criterio[]>([]);
   const [criteriosBanner, setCriteriosBanner] = useState(false);
+  const [tasaIva, setTasaIva] = useState<number>(21);
+  const [preciosNetos, setPreciosNetos] = useState(true);
   const [nuevoClienteOpen, setNuevoClienteOpen] = useState(false);
   const [hasDraft, setHasDraft] = useState(false);
   const [draftDate, setDraftDate] = useState('');
@@ -323,6 +325,7 @@ export default function NuevoPresupuestoPage() {
   const subtotal = subtotalProductos + subtotalLineas + subtotalLibres;
   const descuentoMonto = subtotal * (Number(descuento) / 100);
   const total = subtotal - descuentoMonto;
+  const ivaResult = calcularIva(total, tasaIva);
 
   const guardar = async (data: Paso1Data, enviar: boolean) => {
     setIsSubmitting(true);
@@ -361,6 +364,10 @@ export default function NuevoPresupuestoPage() {
         lineas: lineasPayload,
         subtotal,
         totalFinal: total,
+        tasaIva,
+        montoIva: ivaResult.montoIva,
+        totalConIva: ivaResult.totalConIva,
+        preciosNetos,
         estado: enviar ? 'ENVIADO' : 'EN_PROCESO',
         obraId: data.obraId || null,
       }),
@@ -746,13 +753,50 @@ export default function NuevoPresupuestoPage() {
                   <span>Subtotal</span>
                   <span>{formatCurrency(subtotal)}</span>
                 </div>
-                <div className="flex justify-between text-sm text-red-600">
-                  <span>Descuento ({descuento}%)</span>
-                  <span>-{formatCurrency(descuentoMonto)}</span>
-                </div>
-                <div className="flex justify-between font-bold text-lg text-sky-600">
-                  <span>Total Final</span>
+                {Number(descuento) > 0 && (
+                  <div className="flex justify-between text-sm text-red-600">
+                    <span>Descuento ({descuento}%)</span>
+                    <span>-{formatCurrency(descuentoMonto)}</span>
+                  </div>
+                )}
+                <div className="flex justify-between text-sm font-medium">
+                  <span className="text-slate-600">Neto</span>
                   <span>{formatCurrency(total)}</span>
+                </div>
+                <div className="flex items-center justify-between gap-3">
+                  <Label className="text-sm text-slate-600 shrink-0">Tasa IVA</Label>
+                  <Select value={String(tasaIva)} onValueChange={(v) => setTasaIva(Number(v))}>
+                    <SelectTrigger className="h-8 text-sm w-36">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="0">0% — Exento</SelectItem>
+                      <SelectItem value="10.5">10,5%</SelectItem>
+                      <SelectItem value="21">21%</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                {tasaIva > 0 && (
+                  <div className="flex justify-between text-sm text-slate-500">
+                    <span>IVA ({tasaIva}%)</span>
+                    <span>{formatCurrency(ivaResult.montoIva)}</span>
+                  </div>
+                )}
+                <div className="border-t pt-2 flex justify-between font-bold text-lg text-[#00ADEF]">
+                  <span>{tasaIva === 0 ? 'Total (exento)' : 'Total c/IVA'}</span>
+                  <span>{formatCurrency(ivaResult.totalConIva)}</span>
+                </div>
+                <div className="flex items-center justify-between text-sm pt-1">
+                  <span className="text-slate-500" title="Si los precios de los ítems ya incluyen IVA, desactivá esta opción">
+                    Precios cargados son netos
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setPreciosNetos(!preciosNetos)}
+                    className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${preciosNetos ? 'bg-[#00ADEF]' : 'bg-slate-200'}`}
+                  >
+                    <span className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${preciosNetos ? 'translate-x-5' : 'translate-x-1'}`} />
+                  </button>
                 </div>
               </div>
             </CardContent>

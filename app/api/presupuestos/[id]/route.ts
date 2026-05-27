@@ -48,6 +48,10 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
         descuento: data.descuento ?? 0,
         subtotal: data.subtotal ?? 0,
         totalFinal: data.totalFinal ?? 0,
+        tasaIva: data.tasaIva ?? 21,
+        montoIva: data.montoIva ?? 0,
+        totalConIva: data.totalConIva ?? 0,
+        preciosNetos: data.preciosNetos ?? true,
         puertas: { create: data.puertas ?? [] },
         lineas: {
           create: (data.lineas ?? []).map((l: LineaInput) => ({

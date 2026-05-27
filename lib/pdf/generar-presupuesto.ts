@@ -18,6 +18,9 @@ type PresupuestoPDF = {
   subtotal: number;
   descuento: number;
   totalFinal: number;
+  tasaIva?: number;
+  montoIva?: number;
+  totalConIva?: number;
   cliente: {
     razonSocial: string;
     cuit?: string | null;
@@ -377,13 +380,29 @@ export function generarPresupuestoPDF(p: PresupuestoPDF): void {
     y += 5.5;
   }
 
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(9);
+  doc.setTextColor(grR, grG, grB);
+  doc.text('Neto:', totLabelX, y, { align: 'right' });
+  doc.text(fmtCurrency(Number(p.totalFinal)), totValX, y, { align: 'right' });
+  y += 5.5;
+
+  if (p.tasaIva && p.tasaIva > 0) {
+    doc.text(`IVA (${p.tasaIva}%):`, totLabelX, y, { align: 'right' });
+    doc.text(fmtCurrency(Number(p.montoIva ?? 0)), totValX, y, { align: 'right' });
+    y += 5.5;
+  }
+
+  const totalLabel = p.tasaIva === 0 ? 'TOTAL (EXENTO):' : (p.tasaIva ? 'TOTAL c/IVA:' : 'PRECIO TOTAL:');
+  const totalValue = p.tasaIva != null ? fmtCurrency(Number(p.totalConIva ?? p.totalFinal)) : fmtCurrency(Number(p.totalFinal));
+
   doc.setFillColor(azR, azG, azB);
   doc.rect(totLabelX - 35, y - 3.5, totValX - totLabelX + 48, 9, 'F');
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(13);
   doc.setTextColor(255, 255, 255);
-  doc.text('PRECIO TOTAL:', totLabelX, y + 2, { align: 'right' });
-  doc.text(fmtCurrency(Number(p.totalFinal)), totValX, y + 2, { align: 'right' });
+  doc.text(totalLabel, totLabelX, y + 2, { align: 'right' });
+  doc.text(totalValue, totValX, y + 2, { align: 'right' });
   y += 14;
 
   // ── OBSERVACIONES ──────────────────────────────────────────────────────
