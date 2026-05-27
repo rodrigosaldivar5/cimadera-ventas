@@ -37,11 +37,21 @@ type Presupuesto = {
   nombrePresupuesto?: string | null;
 };
 
-type CuentaConRelaciones = CuentaCorriente & {
+type MovimientoSerializado = Omit<MovimientoCuenta, 'monto' | 'saldoResultante' | 'indiceValor'> & {
+  monto: number;
+  saldoResultante: number;
+  indiceValor: number | null;
+};
+
+type CuentaConRelaciones = Omit<CuentaCorriente, 'montoOriginal' | 'indiceInicio' | 'indiceActual' | 'saldoActualizado'> & {
+  montoOriginal: number;
+  indiceInicio: number;
+  indiceActual: number;
+  saldoActualizado: number;
   cliente: { id: string; razonSocial: string; cuit?: string | null; email?: string | null; telefono?: string | null };
   obra?: { id: string; nombre: string; direccion?: string | null } | null;
-  presupuesto?: { id: string; numero: number; totalFinal: unknown; nombrePresupuesto?: string | null } | null;
-  movimientos: MovimientoCuenta[];
+  presupuesto?: { id: string; numero: number; totalFinal: number; nombrePresupuesto?: string | null } | null;
+  movimientos: MovimientoSerializado[];
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -107,7 +117,7 @@ export function CuentasCorrientesContent({ cuentasIniciales, clientes }: Props) 
   const [editMovOpen, setEditMovOpen] = useState(false);
 
   const [activeCuentaId, setActiveCuentaId] = useState<string | null>(null);
-  const [activeMovimiento, setActiveMovimiento] = useState<MovimientoCuenta | null>(null);
+  const [activeMovimiento, setActiveMovimiento] = useState<MovimientoSerializado | null>(null);
 
   // ── Helper: refresh a single cuenta ──────────────────────────────────────
   const refreshCuenta = useCallback(async (id: string) => {
@@ -374,7 +384,7 @@ export function CuentasCorrientesContent({ cuentasIniciales, clientes }: Props) 
   const [emFecha, setEmFecha] = useState('');
   const [emSaving, setEmSaving] = useState(false);
 
-  const openEditMovDialog = (cuentaId: string, mov: MovimientoCuenta) => {
+  const openEditMovDialog = (cuentaId: string, mov: MovimientoSerializado) => {
     setActiveCuentaId(cuentaId);
     setActiveMovimiento(mov);
     setEmDescripcion(mov.descripcion);
