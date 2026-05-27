@@ -7,7 +7,7 @@ import { CuentasCorrientesContent } from '@/components/cuentas-corrientes/cuenta
 export default async function CuentasCorrientesPage() {
   await auth();
 
-  const [rawCuentas, clientes] = await Promise.all([
+  const [rawCuentas, clientes, rawSinCuenta] = await Promise.all([
     prisma.cuentaCorriente.findMany({
       orderBy: { createdAt: 'desc' },
       include: {
@@ -21,6 +21,22 @@ export default async function CuentasCorrientesPage() {
       where: { activo: true },
       orderBy: { razonSocial: 'asc' },
       select: { id: true, razonSocial: true },
+    }),
+    prisma.presupuesto.findMany({
+      where: { estado: 'APROBADO', cuentaCorriente: null },
+      select: {
+        id: true,
+        numero: true,
+        nombrePresupuesto: true,
+        precioFinal: true,
+        totalFinal: true,
+        fechaCreacion: true,
+        clienteId: true,
+        cliente: { select: { razonSocial: true } },
+        obraId: true,
+        obra: { select: { nombre: true } },
+      },
+      orderBy: { fechaCreacion: 'desc' },
     }),
   ]);
 
@@ -42,5 +58,17 @@ export default async function CuentasCorrientesPage() {
     })),
   }));
 
-  return <CuentasCorrientesContent cuentasIniciales={cuentas} clientes={clientes} />;
+  const presupuestosSinCuenta = rawSinCuenta.map((p) => ({
+    ...p,
+    precioFinal: p.precioFinal != null ? Number(p.precioFinal) : null,
+    totalFinal: Number(p.totalFinal),
+  }));
+
+  return (
+    <CuentasCorrientesContent
+      cuentasIniciales={cuentas}
+      clientes={clientes}
+      presupuestosSinCuenta={presupuestosSinCuenta}
+    />
+  );
 }

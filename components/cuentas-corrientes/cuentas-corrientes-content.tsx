@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -19,7 +19,7 @@ import {
 } from '@/components/ui/table';
 import {
   ChevronDown, ChevronUp, Plus, Edit, Trash2, TrendingUp, CreditCard, Loader2,
-  FileText, DollarSign,
+  FileText, DollarSign, AlertTriangle, X,
 } from 'lucide-react';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import type { CuentaCorriente, MovimientoCuenta, TipoMovimiento, EstadoCuenta } from '@prisma/client';
@@ -36,6 +36,19 @@ type Presupuesto = {
   totalFinal: unknown;
   precioFinal?: number | null;
   nombrePresupuesto?: string | null;
+};
+
+type PresupuestoSinCuenta = {
+  id: string;
+  numero: number;
+  nombrePresupuesto?: string | null;
+  precioFinal?: number | null;
+  totalFinal: number;
+  fechaCreacion: Date | string;
+  clienteId: string;
+  cliente: { razonSocial: string };
+  obraId?: string | null;
+  obra?: { nombre: string } | null;
 };
 
 type MovimientoSerializado = Omit<MovimientoCuenta, 'monto' | 'saldoResultante' | 'indiceValor'> & {
@@ -92,9 +105,10 @@ function fmtIndice(n: unknown) {
 interface Props {
   cuentasIniciales: CuentaConRelaciones[];
   clientes: Cliente[];
+  presupuestosSinCuenta: PresupuestoSinCuenta[];
 }
 
-export function CuentasCorrientesContent({ cuentasIniciales, clientes }: Props) {
+export function CuentasCorrientesContent({ cuentasIniciales, clientes, presupuestosSinCuenta }: Props) {
   const router = useRouter();
   const [cuentas, setCuentas] = useState<CuentaConRelaciones[]>(cuentasIniciales);
   const [search, setSearch] = useState('');
@@ -110,6 +124,26 @@ export function CuentasCorrientesContent({ cuentasIniciales, clientes }: Props) 
     setToast({ msg, error });
     setTimeout(() => setToast(null), 4000);
   }, []);
+
+  // ── Banner presupuestos sin cuenta ────────────────────────────────────────
+  const [dismissedIds, setDismissedIds] = useState<string[]>([]);
+  const [showAllBanner, setShowAllBanner] = useState(false);
+  const [bannerLoadingId, setBannerLoadingId] = useState<string | null>(null);
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('cc-banner-dismissed-ids');
+      if (saved) setDismissedIds(JSON.parse(saved));
+    } catch {}
+  }, []);
+
+  const bannerVisible = presupuestosSinCuenta.some((p) => !dismissedIds.includes(p.id));
+
+  const handleDismissBanner = () => {
+    const allIds = presupuestosSinCuenta.map((p) => p.id);
+    setDismissedIds(allIds);
+    try { localStorage.setItem('cc-banner-dismissed-ids', JSON.stringify(allIds)); } catch {}
+  };
 
   // Dialogs
   const [nuevaOpen, setNuevaOpen] = useState(false);
@@ -249,6 +283,34 @@ export function CuentasCorrientesContent({ cuentasIniciales, clientes }: Props) 
     setNfIndiceActual('');
     setNfFechaInicio('');
     setNfObservaciones('');
+  };
+
+  const handleAbrirDesdeBanner = async (ps: PresupuestoSinCuenta) => {
+    setBannerLoadingId(ps.id);
+    resetNuevaForm();
+    setNfClienteId(ps.clienteId);
+    const monto = ps.precioFinal ?? ps.totalFinal ?? 0;
+    setNfMonto(Number(monto).toFixed(2));
+    const [obrasRes, presRes] = await Promise.all([
+      fetch(`/api/clientes/${ps.clienteId}/obras`),
+      fetch(`/api/presupuestos?clienteId=${ps.clienteId}&page=1`),
+    ]);
+    if (obrasRes.ok) {
+      const d = await obrasRes.json();
+      setNfObras(d.obras ?? []);
+      if (ps.obraId) setNfObraId(ps.obraId);
+    }
+    if (presRes.ok) {
+      const d = await presRes.json();
+      const list: Presupuesto[] = d.presupuestos ?? [];
+      if (!list.find((p) => p.id === ps.id)) {
+        list.unshift({ id: ps.id, numero: ps.numero, totalFinal: ps.totalFinal, precioFinal: ps.precioFinal, nombrePresupuesto: ps.nombrePresupuesto });
+      }
+      setNfPresupuestos(list);
+      setNfPresupuestoId(ps.id);
+    }
+    setBannerLoadingId(null);
+    setNuevaOpen(true);
   };
 
   // ── Registrar pago ────────────────────────────────────────────────────────
@@ -512,6 +574,62 @@ export function CuentasCorrientesContent({ cuentasIniciales, clientes }: Props) 
           Nueva cuenta
         </Button>
       </div>
+
+      {/* Banner: presupuestos aprobados sin cuenta corriente */}
+      {bannerVisible && presupuestosSinCuenta.length > 0 && (
+        <div className="bg-[#FAEEDA] border border-[#F5C075] rounded-lg p-4">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="w-5 h-5 text-[#633806] shrink-0" />
+              <span className="font-semibold text-[#633806]">Presupuestos aprobados sin cuenta corriente</span>
+              <Badge className="bg-[#F5C075] text-[#633806] border-0 ml-1">
+                {presupuestosSinCuenta.length} pendiente{presupuestosSinCuenta.length !== 1 ? 's' : ''}
+              </Badge>
+            </div>
+            <button onClick={handleDismissBanner} className="text-[#633806] hover:text-[#3a2003] p-1">
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+          <div className="space-y-2">
+            {presupuestosSinCuenta.slice(0, showAllBanner ? undefined : 3).map((ps) => (
+              <div key={ps.id} className="flex items-center justify-between bg-white/60 rounded px-3 py-2 gap-3">
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm text-[#633806] truncate">
+                    N° {String(ps.numero).padStart(4, '0')} — {ps.cliente.razonSocial} — {ps.obra?.nombre ?? 'Sin obra'}
+                  </p>
+                  <div className="flex items-center gap-3 mt-0.5">
+                    <span className="text-sm font-bold text-[#633806]">
+                      {formatCurrency(Number(ps.precioFinal ?? ps.totalFinal))}
+                    </span>
+                    <span className="text-xs text-[#8a6030]">
+                      Aprobado el {formatDate(new Date(ps.fechaCreacion))}
+                    </span>
+                  </div>
+                </div>
+                <Button
+                  size="sm"
+                  className="bg-[#00ADEF] hover:bg-[#0089C7] text-white shrink-0"
+                  onClick={() => handleAbrirDesdeBanner(ps)}
+                  disabled={bannerLoadingId === ps.id}
+                >
+                  {bannerLoadingId === ps.id
+                    ? <Loader2 className="w-3 h-3 animate-spin" />
+                    : <><Plus className="w-3 h-3 mr-1" />Añadir</>
+                  }
+                </Button>
+              </div>
+            ))}
+          </div>
+          {presupuestosSinCuenta.length > 3 && (
+            <button
+              className="mt-2 text-xs text-[#633806] underline hover:no-underline"
+              onClick={() => setShowAllBanner((v) => !v)}
+            >
+              {showAllBanner ? 'Ver menos' : `Ver todos (${presupuestosSinCuenta.length})`}
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Metrics */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
