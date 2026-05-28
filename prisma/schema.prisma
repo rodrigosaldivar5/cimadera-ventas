@@ -378,6 +378,8 @@ model MovimientoCuenta {
   fecha           DateTime        @default(now())
   indiceValor     Decimal?        @db.Decimal(10, 4)
   caja            String?
+  tipoCambio      Decimal?        @db.Decimal(12, 4)
+  montoEnARS      Decimal?        @db.Decimal(14, 2)
   createdAt       DateTime        @default(now())
 }
 

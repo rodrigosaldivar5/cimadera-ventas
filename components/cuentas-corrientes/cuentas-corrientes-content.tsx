@@ -51,10 +51,12 @@ type PresupuestoSinCuenta = {
   obra?: { nombre: string } | null;
 };
 
-type MovimientoSerializado = Omit<MovimientoCuenta, 'monto' | 'saldoResultante' | 'indiceValor'> & {
+type MovimientoSerializado = Omit<MovimientoCuenta, 'monto' | 'saldoResultante' | 'indiceValor' | 'tipoCambio' | 'montoEnARS'> & {
   monto: number;
   saldoResultante: number;
   indiceValor: number | null;
+  tipoCambio: number | null;
+  montoEnARS: number | null;
 };
 
 type CuentaConRelaciones = Omit<CuentaCorriente, 'montoOriginal' | 'indiceInicio' | 'indiceActual' | 'saldoActualizado'> & {
@@ -118,6 +120,8 @@ function serializeCuenta(c: any): CuentaConRelaciones {
       monto:           Number(m.monto),
       saldoResultante: Number(m.saldoResultante),
       indiceValor:     m.indiceValor != null ? Number(m.indiceValor) : null,
+      tipoCambio:      m.tipoCambio != null ? Number(m.tipoCambio) : null,
+      montoEnARS:      m.montoEnARS != null ? Number(m.montoEnARS) : null,
     })),
   };
 }
@@ -382,33 +386,50 @@ export function CuentasCorrientesContent({ cuentasIniciales, clientes, presupues
   // ── Registrar pago ────────────────────────────────────────────────────────
   const [pfTipo, setPfTipo] = useState<'ANTICIPO' | 'PAGO_PARCIAL'>('ANTICIPO');
   const [pfCaja, setPfCaja] = useState<'ARS' | 'USD'>('ARS');
+  const [pfTipoCambio, setPfTipoCambio] = useState('');
   const [pfDescripcion, setPfDescripcion] = useState('');
   const [pfMonto, setPfMonto] = useState('');
   const [pfFactura, setPfFactura] = useState('');
   const [pfFecha, setPfFecha] = useState(() => new Date().toISOString().slice(0, 10));
   const [pfSaving, setPfSaving] = useState(false);
 
-  const openPagoDialog = (cuentaId: string) => {
+  const openPagoDialog = async (cuentaId: string) => {
     setActiveCuentaId(cuentaId);
     setPfTipo('ANTICIPO');
     setPfCaja('ARS');
+    setPfTipoCambio('');
     setPfDescripcion('');
     setPfMonto('');
     setPfFactura('');
     setPfFecha(new Date().toISOString().slice(0, 10));
     setPagoOpen(true);
+    // Pre-cargar tipo de cambio actual
+    fetch('/api/tesoreria/tipo-cambio')
+      .then((r) => r.json())
+      .then((tc) => { if (tc?.valor) setPfTipoCambio(String(tc.valor)); })
+      .catch(() => {});
   };
 
   const calcSaldoPago = () => {
     if (!activeCuentaId || !pfMonto) return null;
     const cuenta = cuentas.find((c) => c.id === activeCuentaId);
     if (!cuenta) return null;
-    const movs = [...cuenta.movimientos].sort(
-      (a, b) => new Date(a.fecha).getTime() - new Date(b.fecha).getTime(),
-    );
-    const last = movs[movs.length - 1];
-    const lastSaldo = last ? Number(last.saldoResultante) : Number(cuenta.montoOriginal);
-    return lastSaldo - parseFloat(pfMonto || '0');
+    let montoEnARS: number;
+    if (pfCaja === 'USD') {
+      const tc = parseFloat(pfTipoCambio || '0');
+      if (!tc) return null;
+      montoEnARS = parseFloat(pfMonto) * tc;
+    } else {
+      montoEnARS = parseFloat(pfMonto);
+    }
+    const idxActual    = Number(cuenta.indiceActual);
+    const idxInicio    = Number(cuenta.indiceInicio);
+    const montoOriginal = Number(cuenta.montoOriginal);
+    const totalPagadoHasta = cuenta.movimientos
+      .filter((m) => m.tipo === 'ANTICIPO' || m.tipo === 'PAGO_PARCIAL')
+      .reduce((sum, m) => sum + Number(m.montoEnARS ?? m.monto), 0);
+    const saldoActualReal = (montoOriginal * idxActual / idxInicio) - totalPagadoHasta;
+    return { saldoResultante: saldoActualReal - montoEnARS, montoEnARS };
   };
 
   const handleRegistrarPago = async () => {
@@ -416,7 +437,14 @@ export function CuentasCorrientesContent({ cuentasIniciales, clientes, presupues
       showToast('Completá los campos requeridos', true);
       return;
     }
+    if (pfCaja === 'USD' && !pfTipoCambio) {
+      showToast('Ingresá el tipo de cambio para pagos en USD', true);
+      return;
+    }
     setPfSaving(true);
+    const tcNum = pfCaja === 'USD' && pfTipoCambio ? parseFloat(pfTipoCambio) : null;
+    const montoNum = parseFloat(pfMonto);
+    const montoEnARSNum = tcNum ? montoNum * tcNum : montoNum;
     try {
       const res = await fetch(`/api/cuentas-corrientes/${activeCuentaId}/movimientos`, {
         method: 'POST',
@@ -424,10 +452,12 @@ export function CuentasCorrientesContent({ cuentasIniciales, clientes, presupues
         body: JSON.stringify({
           tipo: pfTipo,
           descripcion: pfDescripcion,
-          monto: parseFloat(pfMonto),
+          monto: montoNum,
           numeroFactura: pfFactura || null,
           fecha: pfFecha,
           caja: pfCaja,
+          tipoCambio: tcNum,
+          montoEnARS: montoEnARSNum,
         }),
       });
       if (!res.ok) {
@@ -967,7 +997,14 @@ export function CuentasCorrientesContent({ cuentasIniciales, clientes, presupues
                                 {TIPO_LABELS[mov.tipo] ?? mov.tipo}
                               </Badge>
                             </TableCell>
-                            <TableCell className="text-sm">{mov.descripcion}</TableCell>
+                            <TableCell className="text-sm">
+                              <div>{mov.descripcion}</div>
+                              {mov.tipoCambio != null && mov.caja === 'USD' && (
+                                <div className="text-xs text-gray-400 mt-0.5">
+                                  U$D {Number(mov.monto).toLocaleString('es-AR', { minimumFractionDigits: 2 })} × ${Number(mov.tipoCambio).toLocaleString('es-AR')}
+                                </div>
+                              )}
+                            </TableCell>
                             <TableCell className="text-sm text-gray-500">
                               {mov.numeroFactura ?? '—'}
                             </TableCell>
@@ -1268,10 +1305,35 @@ export function CuentasCorrientesContent({ cuentasIniciales, clientes, presupues
               />
               {pfMonto && (
                 <p className="text-xs text-gray-500 mt-1">
-                  {pfCaja === 'ARS' ? `$ ${parseFloat(pfMonto || '0').toLocaleString('es-AR', { minimumFractionDigits: 2 })}` : `U$D ${parseFloat(pfMonto || '0').toLocaleString('es-AR', { minimumFractionDigits: 2 })}`}
+                  {pfCaja === 'ARS'
+                    ? `$ ${parseFloat(pfMonto || '0').toLocaleString('es-AR', { minimumFractionDigits: 2 })}`
+                    : `U$D ${parseFloat(pfMonto || '0').toLocaleString('es-AR', { minimumFractionDigits: 2 })}`}
                 </p>
               )}
             </div>
+            {pfCaja === 'USD' && (
+              <div>
+                <Label>Tipo de cambio *</Label>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '6px' }}>
+                  <span style={{ fontSize: '13px', color: '#4A4A4A', whiteSpace: 'nowrap' }}>$ 1 U$D =</span>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    placeholder="Ej: 1145.00"
+                    value={pfTipoCambio}
+                    onChange={(e) => setPfTipoCambio(e.target.value)}
+                    style={{ flex: 1 }}
+                  />
+                  <span style={{ fontSize: '13px', color: '#4A4A4A' }}>ARS</span>
+                </div>
+                {pfMonto && pfTipoCambio && (
+                  <p className="text-xs text-gray-500 mt-1">
+                    Equivalente: ${' '}
+                    {(parseFloat(pfMonto) * parseFloat(pfTipoCambio)).toLocaleString('es-AR', { minimumFractionDigits: 2 })} ARS
+                  </p>
+                )}
+              </div>
+            )}
             <div>
               <Label>N° Factura</Label>
               <Input
@@ -1288,14 +1350,25 @@ export function CuentasCorrientesContent({ cuentasIniciales, clientes, presupues
                 onChange={(e) => setPfFecha(e.target.value)}
               />
             </div>
-            {pfMonto && (
-              <div className="bg-gray-50 rounded-md p-3 text-sm">
-                <span className="text-gray-500">Saldo resultante: </span>
-                <span className={`font-semibold ${(calcSaldoPago() ?? 0) < 0 ? 'text-red-600' : 'text-[#1A1A1A]'}`}>
-                  {calcSaldoPago() !== null ? formatCurrency(calcSaldoPago()!) : '—'}
-                </span>
-              </div>
-            )}
+            {pfMonto && (() => {
+              const calc = calcSaldoPago();
+              if (!calc) return null;
+              return (
+                <div className="bg-gray-50 rounded-md p-3 text-sm space-y-1">
+                  {pfCaja === 'USD' && pfTipoCambio && (
+                    <div className="text-xs text-gray-500">
+                      Monto: U$D {parseFloat(pfMonto).toLocaleString('es-AR', { minimumFractionDigits: 2 })} × ${parseFloat(pfTipoCambio).toLocaleString('es-AR')} = {formatCurrency(calc.montoEnARS)} ARS
+                    </div>
+                  )}
+                  <div>
+                    <span className="text-gray-500">Saldo resultante: </span>
+                    <span className={`font-semibold ${calc.saldoResultante < 0 ? 'text-red-600' : 'text-[#1A1A1A]'}`}>
+                      {formatCurrency(calc.saldoResultante)}
+                    </span>
+                  </div>
+                </div>
+              );
+            })()}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setPagoOpen(false)}>Cancelar</Button>

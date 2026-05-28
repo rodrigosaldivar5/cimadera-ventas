@@ -11,7 +11,7 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
 
   try {
     const data = await req.json();
-    const { tipo, descripcion, monto, numeroFactura, fecha, indiceValor, caja } = data;
+    const { tipo, descripcion, monto, numeroFactura, fecha, indiceValor, caja, tipoCambio, montoEnARS } = data;
 
     if (!tipo || !descripcion || monto === undefined || !fecha) {
       return NextResponse.json({ error: 'Faltan campos requeridos' }, { status: 400 });
@@ -24,6 +24,8 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
     if (!cuenta) return NextResponse.json({ error: 'Cuenta no encontrada' }, { status: 404 });
 
     const montoNum = Number(monto);
+    // Para cuenta corriente siempre operamos en ARS
+    const montoParaRestar = montoEnARS != null ? Number(montoEnARS) : montoNum;
 
     let saldoResultante: number;
     const updateCuenta: Record<string, unknown> = {};
@@ -34,8 +36,8 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
       const montoOriginal = parseFloat(cuenta.montoOriginal.toString());
       const totalPagadoAnterior = cuenta.movimientos
         .filter((m) => m.tipo === 'ANTICIPO' || m.tipo === 'PAGO_PARCIAL')
-        .reduce((sum, m) => sum + parseFloat(m.monto.toString()), 0);
-      const totalPagadoNuevo = totalPagadoAnterior + montoNum;
+        .reduce((sum, m) => sum + parseFloat((m.montoEnARS ?? m.monto).toString()), 0);
+      const totalPagadoNuevo = totalPagadoAnterior + montoParaRestar;
       const nuevoSaldo = (montoOriginal * idxActual / idxInicio) - totalPagadoNuevo;
       saldoResultante = nuevoSaldo;
       updateCuenta.saldoActualizado = nuevoSaldo;
@@ -67,6 +69,8 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
           fecha: new Date(fecha),
           indiceValor: indiceValor ? Number(indiceValor) : null,
           caja: caja ?? null,
+          tipoCambio: tipoCambio ? Number(tipoCambio) : null,
+          montoEnARS: montoEnARS ? Number(montoEnARS) : null,
         },
       }),
       prisma.cuentaCorriente.update({
@@ -88,6 +92,7 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
         }
         return sum - parseFloat(m.monto.toString());
       }, 0);
+      // Para tesorería se usa el monto en la moneda original de la caja
       const nuevoSaldoCaja = saldoCajaActual + montoNum;
       const cuentaInfo = await prisma.cuentaCorriente.findUnique({
         where: { id: params.id },

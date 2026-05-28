@@ -55,6 +55,8 @@ export default async function CuentasCorrientesPage() {
       monto: Number(m.monto),
       saldoResultante: Number(m.saldoResultante),
       indiceValor: m.indiceValor != null ? Number(m.indiceValor) : null,
+      tipoCambio: m.tipoCambio != null ? Number(m.tipoCambio) : null,
+      montoEnARS: m.montoEnARS != null ? Number(m.montoEnARS) : null,
     })),
   }));
 
