@@ -33,7 +33,7 @@ export async function GET(req: NextRequest) {
       skip: (page - 1) * perPage,
       take: perPage,
       orderBy: { fechaCreacion: 'desc' },
-      include: { cliente: true, creadoPor: { select: { nombre: true } } },
+      include: { cliente: true, creadoPor: { select: { nombre: true } }, obra: { select: { id: true, nombre: true } } },
     }),
     prisma.presupuesto.count({ where }),
   ]);

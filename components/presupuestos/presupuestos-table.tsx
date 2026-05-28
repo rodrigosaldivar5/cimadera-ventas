@@ -84,6 +84,8 @@ export function PresupuestosTable({ presupuestos, total, page, perPage, clientes
   const [editingPrecio, setEditingPrecio] = useState<{ id: string; value: string } | null>(null);
   const [savingPrecio, setSavingPrecio] = useState(false);
 
+  const FILTROS_KEY = 'presupuestos_filtros';
+
   const [estados, setEstados] = useState<string[]>(filters.estados?.split(',').filter(Boolean) ?? []);
   const [prioridades, setPrioridades] = useState<string[]>(filters.prioridades?.split(',').filter(Boolean) ?? []);
   const [estadosOpen, setEstadosOpen] = useState(false);
@@ -93,6 +95,32 @@ export function PresupuestosTable({ presupuestos, total, page, perPage, clientes
   const [obrasCliente, setObrasCliente] = useState<{ id: string; nombre: string }[]>([]);
   const [desde, setDesde] = useState(filters.desde ?? '');
   const [hasta, setHasta] = useState(filters.hasta ?? '');
+
+  // Cargar desde localStorage si no hay params en URL
+  useEffect(() => {
+    const hayUrlFiltros = filters.estados || filters.prioridades || filters.clienteId || filters.desde || filters.hasta;
+    if (!hayUrlFiltros) {
+      try {
+        const saved = localStorage.getItem(FILTROS_KEY);
+        if (saved) {
+          const f = JSON.parse(saved);
+          if (f.estados?.length)   setEstados(f.estados);
+          if (f.prioridades?.length) setPrioridades(f.prioridades);
+          if (f.clienteId)          setClienteId(f.clienteId);
+          if (f.desde)              setDesde(f.desde);
+          if (f.hasta)              setHasta(f.hasta);
+        }
+      } catch {}
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Guardar en localStorage al cambiar cualquier filtro
+  useEffect(() => {
+    try {
+      localStorage.setItem(FILTROS_KEY, JSON.stringify({ estados, prioridades, clienteId, desde, hasta }));
+    } catch {}
+  }, [estados, prioridades, clienteId, desde, hasta]);
 
   useEffect(() => {
     if (!clienteId) { setObrasCliente([]); setObraId(''); return; }
@@ -122,6 +150,17 @@ export function PresupuestosTable({ presupuestos, total, page, perPage, clientes
     if (desde) params.set('desde', desde);
     if (hasta) params.set('hasta', hasta);
     router.push(`/presupuestos?${params.toString()}`);
+  };
+
+  const limpiarFiltros = () => {
+    try { localStorage.removeItem(FILTROS_KEY); } catch {}
+    setEstados([]);
+    setPrioridades([]);
+    setClienteId('');
+    setObraId('');
+    setDesde('');
+    setHasta('');
+    router.push('/presupuestos');
   };
 
   return (
@@ -305,6 +344,11 @@ export function PresupuestosTable({ presupuestos, total, page, perPage, clientes
             <Filter className="mr-2 h-4 w-4" />
             Filtrar
           </Button>
+          {(estados.length > 0 || prioridades.length > 0 || clienteId || desde || hasta) && (
+            <Button onClick={limpiarFiltros} variant="ghost" className="text-slate-400 hover:text-slate-600">
+              Limpiar
+            </Button>
+          )}
         </div>
       </div>
 

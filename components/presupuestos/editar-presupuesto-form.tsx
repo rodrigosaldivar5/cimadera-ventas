@@ -58,6 +58,7 @@ interface PresupuestoInicial {
   id: string;
   numero: number;
   clienteId: string;
+  obraId: string;
   fechaVencimiento: string;
   observaciones: string;
   descuento: number;
@@ -77,6 +78,8 @@ export function EditarPresupuestoForm({ presupuesto }: { presupuesto: Presupuest
   const [itemsProducto, setItemsProducto] = useState<ItemProducto[]>(presupuesto.itemsProducto);
   const [lineas, setLineas] = useState<LineaAdicional[]>(presupuesto.lineas);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [obraId, setObraId] = useState(presupuesto.obraId);
+  const [obras, setObras] = useState<{ id: string; nombre: string }[]>([]);
 
   const { register, handleSubmit, watch, setValue, formState: { errors } } = useForm<Paso1Data>({
     resolver: zodResolver(paso1Schema),
@@ -90,6 +93,16 @@ export function EditarPresupuestoForm({ presupuesto }: { presupuesto: Presupuest
   });
 
   const descuento = watch('descuento') ?? 0;
+  const clienteIdActual = watch('clienteId');
+
+  useEffect(() => {
+    if (!clienteIdActual) { setObras([]); return; }
+    fetch(`/api/clientes/${clienteIdActual}/obras`)
+      .then((r) => r.json())
+      .then((d) => setObras(d.obras ?? []));
+    // Resetear obra solo si el cliente cambió respecto al original
+    if (clienteIdActual !== presupuesto.clienteId) setObraId('');
+  }, [clienteIdActual, presupuesto.clienteId]);
 
   useEffect(() => {
     Promise.all([
@@ -165,6 +178,7 @@ export function EditarPresupuestoForm({ presupuesto }: { presupuesto: Presupuest
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         ...data,
+        obraId: obraId || null,
         puertas: [],
         lineas: lineasPayload,
         subtotal,
@@ -246,6 +260,23 @@ export function EditarPresupuestoForm({ presupuesto }: { presupuesto: Presupuest
                 </Select>
                 {errors.clienteId && <p className="text-xs text-red-500">{errors.clienteId.message}</p>}
               </div>
+
+              {obras.length > 0 && (
+                <div className="space-y-2">
+                  <Label>Obra</Label>
+                  <Select value={obraId || '__none__'} onValueChange={(v) => setObraId(v === '__none__' ? '' : v)}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Sin obra asignada" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">Sin obra</SelectItem>
+                      {obras.map((o) => (
+                        <SelectItem key={o.id} value={o.id}>{o.nombre}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">

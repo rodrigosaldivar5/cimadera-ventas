@@ -53,6 +53,7 @@ export default async function EditarPresupuestoPage({ params }: { params: { id: 
         id: presupuesto.id,
         numero: presupuesto.numero,
         clienteId: presupuesto.clienteId,
+        obraId: presupuesto.obraId ?? '',
         fechaVencimiento: presupuesto.fechaVencimiento
           ? presupuesto.fechaVencimiento.toISOString().split('T')[0]
           : '',
