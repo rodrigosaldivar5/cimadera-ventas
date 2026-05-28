@@ -30,15 +30,15 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
 
     const totalPagado = cuenta.movimientos
       .filter((m) => m.tipo === 'ANTICIPO' || m.tipo === 'PAGO_PARCIAL')
-      .reduce((sum, m) => sum + parseFloat(m.monto.toString()), 0);
+      .reduce((sum, m) => sum + parseFloat((m.montoEnARS ?? m.monto).toString()), 0);
 
-    // saldoActualizado = montoOriginal × (idxNuevo / idxInicio) - totalPagado
-    const montoAjustadoTotal = montoOriginal * (idxNuevo / idxInicio);
-    const saldoActualizado   = montoAjustadoTotal - totalPagado;
+    // saldoActualizado = (montoOriginal - totalPagado) × (idxNuevo / idxInicio)
+    const saldoBase      = montoOriginal - totalPagado;
+    const saldoActualizado = saldoBase * (idxNuevo / idxInicio);
 
-    // ajuste = diferencia entre saldo nuevo y saldo anterior recalculado desde fórmula
+    // saldoAnterior recalculado desde fórmula con índice actual guardado
     const idxActualGuardado      = parseFloat(cuenta.indiceActual.toString());
-    const saldoAnteriorCalculado = (montoOriginal * idxActualGuardado / idxInicio) - totalPagado;
+    const saldoAnteriorCalculado = saldoBase * (idxActualGuardado / idxInicio);
     const ajuste                 = saldoActualizado - saldoAnteriorCalculado;
 
     const descripcionFinal =

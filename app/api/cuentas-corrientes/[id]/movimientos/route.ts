@@ -38,7 +38,9 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
         .filter((m) => m.tipo === 'ANTICIPO' || m.tipo === 'PAGO_PARCIAL')
         .reduce((sum, m) => sum + parseFloat((m.montoEnARS ?? m.monto).toString()), 0);
       const totalPagadoNuevo = totalPagadoAnterior + montoParaRestar;
-      const nuevoSaldo = (montoOriginal * idxActual / idxInicio) - totalPagadoNuevo;
+      // fórmula: (montoOriginal - totalPagado) × (idxActual / idxInicio)
+      const saldoBase  = montoOriginal - totalPagadoNuevo;
+      const nuevoSaldo = saldoBase * (idxActual / idxInicio);
       saldoResultante = nuevoSaldo;
       updateCuenta.saldoActualizado = nuevoSaldo;
       updateCuenta.estado = nuevoSaldo <= 0 ? EstadoCuenta.CANCELADO : EstadoCuenta.SALDO_PENDIENTE;

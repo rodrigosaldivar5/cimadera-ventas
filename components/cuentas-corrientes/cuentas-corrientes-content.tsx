@@ -422,14 +422,16 @@ export function CuentasCorrientesContent({ cuentasIniciales, clientes, presupues
     } else {
       montoEnARS = parseFloat(pfMonto);
     }
-    const idxActual    = Number(cuenta.indiceActual);
-    const idxInicio    = Number(cuenta.indiceInicio);
+    const idxActual     = Number(cuenta.indiceActual);
+    const idxInicio     = Number(cuenta.indiceInicio);
     const montoOriginal = Number(cuenta.montoOriginal);
     const totalPagadoHasta = cuenta.movimientos
       .filter((m) => m.tipo === 'ANTICIPO' || m.tipo === 'PAGO_PARCIAL')
       .reduce((sum, m) => sum + Number(m.montoEnARS ?? m.monto), 0);
-    const saldoActualReal = (montoOriginal * idxActual / idxInicio) - totalPagadoHasta;
-    return { saldoResultante: saldoActualReal - montoEnARS, montoEnARS };
+    const totalPagadoNuevo = totalPagadoHasta + montoEnARS;
+    const saldoBase       = montoOriginal - totalPagadoNuevo;
+    const saldoResultante = saldoBase * (idxActual / idxInicio);
+    return { saldoResultante, montoEnARS };
   };
 
   const handleRegistrarPago = async () => {
@@ -505,11 +507,13 @@ export function CuentasCorrientesContent({ cuentasIniciales, clientes, presupues
       .filter((m) => m.tipo === 'ANTICIPO' || m.tipo === 'PAGO_PARCIAL')
       .reduce((sum, m) => sum + Number(m.monto), 0);
     const montoOriginal = Number(cuenta.montoOriginal);
+    const saldoBase     = montoOriginal - totalPagado;
+    const saldoNuevo    = saldoBase * (idxNuevo / idxInicio);
+    const idxActual     = Number(cuenta.indiceActual);
+    const saldoAnterior = saldoBase * (idxActual / idxInicio);
+    const ajuste        = saldoNuevo - saldoAnterior;
+    // montoAjustado: valor bruto sin pagos, solo para referencia en el UI
     const montoAjustado = montoOriginal * (idxNuevo / idxInicio);
-    const saldoNuevo    = montoAjustado - totalPagado;
-    const idxActual         = Number(cuenta.indiceActual);
-    const saldoAnteriorReal = (montoOriginal * idxActual / idxInicio) - totalPagado;
-    const ajuste            = saldoNuevo - saldoAnteriorReal;
     const variacion     = ((idxNuevo / idxInicio - 1) * 100).toFixed(2);
     return { ajuste, saldoNuevo, montoAjustado, variacion, totalPagado };
   };

@@ -52,8 +52,8 @@ export async function PUT(req: NextRequest, { params }: RouteContext) {
       const montoOriginal = Number(cuentaActual.montoOriginal);
       const totalPagado = cuentaActual.movimientos
         .filter((m) => m.tipo === 'ANTICIPO' || m.tipo === 'PAGO_PARCIAL')
-        .reduce((sum, m) => sum + Number(m.monto), 0);
-      const saldoActualizado = (montoOriginal * idxNuevo / idxInicio) - totalPagado;
+        .reduce((sum, m) => sum + Number(m.montoEnARS ?? m.monto), 0);
+      const saldoActualizado = (montoOriginal - totalPagado) * (idxNuevo / idxInicio);
       updateData.indiceActual = idxNuevo;
       updateData.saldoActualizado = saldoActualizado;
       updateData.estado = saldoActualizado <= 0 ? EstadoCuenta.CANCELADO : EstadoCuenta.SALDO_PENDIENTE;
