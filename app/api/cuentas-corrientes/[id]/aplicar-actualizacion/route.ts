@@ -23,23 +23,26 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
     });
     if (!cuenta) return NextResponse.json({ error: 'Cuenta no encontrada' }, { status: 404 });
 
-    const idxInicio   = parseFloat(cuenta.indiceInicio.toString());
-    const idxAnterior = parseFloat(cuenta.indiceActual.toString());
-    const idxNuevo    = parseFloat(indiceNuevo.toString());
+    // Immutable — read only, never written
+    const idxInicio     = parseFloat(cuenta.indiceInicio.toString());
     const montoOriginal = parseFloat(cuenta.montoOriginal.toString());
+    const idxNuevo      = parseFloat(indiceNuevo.toString());
 
     const totalPagado = cuenta.movimientos
       .filter((m) => m.tipo === 'ANTICIPO' || m.tipo === 'PAGO_PARCIAL')
       .reduce((sum, m) => sum + parseFloat(m.monto.toString()), 0);
 
-    // Recalcular saldos desde la fórmula base — nunca desde el saldo almacenado
-    const saldoConIndiceAnterior = (montoOriginal * idxAnterior / idxInicio) - totalPagado;
-    const saldoConIndiceNuevo    = (montoOriginal * idxNuevo    / idxInicio) - totalPagado;
-    const montoAjuste = saldoConIndiceNuevo - saldoConIndiceAnterior; // puede ser negativo
+    // saldoActualizado = montoOriginal × (idxNuevo / idxInicio) - totalPagado
+    const montoAjustadoTotal = montoOriginal * (idxNuevo / idxInicio);
+    const saldoActualizado   = montoAjustadoTotal - totalPagado;
+
+    // ajuste = diferencia entre saldo nuevo y saldo anterior almacenado
+    const saldoAnterior = parseFloat(cuenta.saldoActualizado.toString());
+    const ajuste        = saldoActualizado - saldoAnterior;
 
     const descripcionFinal =
       descripcion?.trim() ||
-      `Actualización por ${cuenta.nombreIndice} (${idxAnterior} → ${idxNuevo})`;
+      `Actualización por ${cuenta.nombreIndice} (→ ${idxNuevo})`;
 
     const [movimiento] = await prisma.$transaction([
       prisma.movimientoCuenta.create({
@@ -47,8 +50,8 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
           cuentaId: params.id,
           tipo: TipoMovimiento.ACTUALIZACION,
           descripcion: descripcionFinal,
-          monto: montoAjuste,
-          saldoResultante: saldoConIndiceNuevo,
+          monto: ajuste,
+          saldoResultante: saldoActualizado,
           fecha: new Date(),
           indiceValor: idxNuevo,
         },
@@ -56,9 +59,9 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
       prisma.cuentaCorriente.update({
         where: { id: params.id },
         data: {
-          indiceActual: idxNuevo,
-          saldoActualizado: saldoConIndiceNuevo,
-          estado: saldoConIndiceNuevo <= 0 ? 'CANCELADO' : 'SALDO_PENDIENTE',
+          indiceActual:     idxNuevo,
+          saldoActualizado: saldoActualizado,
+          estado: saldoActualizado <= 0 ? 'CANCELADO' : 'SALDO_PENDIENTE',
         },
       }),
     ]);
