@@ -19,13 +19,13 @@ export async function POST(req: NextRequest) {
   const session = await auth();
   if (!session?.user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
 
-  const { nombre, categoria, monto, observacion } = await req.json();
+  const { nombre, categoria, moneda, monto, observacion } = await req.json();
   if (!nombre || !categoria || monto === undefined) {
     return NextResponse.json({ error: 'Faltan campos requeridos' }, { status: 400 });
   }
 
   const costo = await prisma.costoFijo.create({
-    data: { nombre, categoria, monto: Number(monto), observacion: observacion || null },
+    data: { nombre, categoria, moneda: moneda ?? 'ARS', monto: Number(monto), observacion: observacion || null },
   });
 
   return NextResponse.json(costo, { status: 201 });

@@ -333,12 +333,28 @@ model CuentaCorriente {
 model CostoFijo {
   id            String   @id @default(cuid())
   nombre        String
-  categoria     String   // NOMINA | INFRAESTRUCTURA | SERVICIOS | OTROS
+  categoria     String
+  moneda        String   @default("ARS")
   monto         Float
   activo        Boolean  @default(true)
   observacion   String?
   creadoEn      DateTime @default(now())
   actualizadoEn DateTime @updatedAt
+}
+
+model CategoriaCostoFijo {
+  id     String @id @default(cuid())
+  nombre String @unique
+}
+
+model SnapshotCostosFijos {
+  id        String   @id @default(cuid())
+  mes       Int
+  anio      Int
+  datos     Json
+  createdAt DateTime @default(now())
+
+  @@unique([mes, anio])
 }
 
 model SaldoCaja {

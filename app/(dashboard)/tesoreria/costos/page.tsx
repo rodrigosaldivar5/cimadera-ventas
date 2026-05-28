@@ -19,7 +19,7 @@ export default async function CostosFijosPage() {
     orderBy: { categoria: 'asc' },
   });
 
-  const costosSerializados = costos.map((c) => ({ ...c, monto: Number(c.monto) }));
+  const costosSerializados = costos.map((c) => ({ ...c, monto: Number(c.monto), moneda: c.moneda ?? 'ARS' }));
 
   return (
     <div className="p-6 space-y-6 max-w-4xl mx-auto">

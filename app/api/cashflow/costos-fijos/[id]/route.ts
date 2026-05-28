@@ -12,6 +12,7 @@ export async function PUT(req: NextRequest, { params }: RouteContext) {
   const updateData: Record<string, unknown> = {};
   if (data.nombre !== undefined) updateData.nombre = data.nombre;
   if (data.categoria !== undefined) updateData.categoria = data.categoria;
+  if (data.moneda !== undefined) updateData.moneda = data.moneda;
   if (data.monto !== undefined) updateData.monto = Number(data.monto);
   if (data.observacion !== undefined) updateData.observacion = data.observacion;
 
