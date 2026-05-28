@@ -474,8 +474,9 @@ export function CuentasCorrientesContent({ cuentasIniciales, clientes, presupues
     const montoOriginal = Number(cuenta.montoOriginal);
     const montoAjustado = montoOriginal * (idxNuevo / idxInicio);
     const saldoNuevo    = montoAjustado - totalPagado;
-    const saldoActual   = Number(cuenta.saldoActualizado);
-    const ajuste        = saldoNuevo - saldoActual;
+    const idxActual         = Number(cuenta.indiceActual);
+    const saldoAnteriorReal = (montoOriginal * idxActual / idxInicio) - totalPagado;
+    const ajuste            = saldoNuevo - saldoAnteriorReal;
     const variacion     = ((idxNuevo / idxInicio - 1) * 100).toFixed(2);
     return { ajuste, saldoNuevo, montoAjustado, variacion, totalPagado };
   };

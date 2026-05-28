@@ -36,9 +36,10 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
     const montoAjustadoTotal = montoOriginal * (idxNuevo / idxInicio);
     const saldoActualizado   = montoAjustadoTotal - totalPagado;
 
-    // ajuste = diferencia entre saldo nuevo y saldo anterior almacenado
-    const saldoAnterior = parseFloat(cuenta.saldoActualizado.toString());
-    const ajuste        = saldoActualizado - saldoAnterior;
+    // ajuste = diferencia entre saldo nuevo y saldo anterior recalculado desde fórmula
+    const idxActualGuardado      = parseFloat(cuenta.indiceActual.toString());
+    const saldoAnteriorCalculado = (montoOriginal * idxActualGuardado / idxInicio) - totalPagado;
+    const ajuste                 = saldoActualizado - saldoAnteriorCalculado;
 
     const descripcionFinal =
       descripcion?.trim() ||
