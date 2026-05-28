@@ -8,7 +8,14 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
 
   const presupuesto = await prisma.presupuesto.findUnique({
     where: { id: params.id },
-    include: { cliente: true, creadoPor: true, lineas: { include: { item: true } }, puertas: { include: { tipoPuerta: true } } },
+    include: {
+      cliente: true,
+      creadoPor: true,
+      obra: true,
+      responsable: true,
+      lineas: { include: { item: true, opciones: true } },
+      puertas: { include: { tipoPuerta: true } },
+    },
   });
 
   if (!presupuesto) return NextResponse.json({ error: 'No encontrado' }, { status: 404 });

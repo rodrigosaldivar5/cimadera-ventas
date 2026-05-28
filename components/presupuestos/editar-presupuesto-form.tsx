@@ -99,9 +99,13 @@ export function EditarPresupuestoForm({ presupuesto }: { presupuesto: Presupuest
     if (!clienteIdActual) { setObras([]); return; }
     fetch(`/api/clientes/${clienteIdActual}/obras`)
       .then((r) => r.json())
-      .then((d) => setObras(d.obras ?? []));
-    // Resetear obra solo si el cliente cambió respecto al original
-    if (clienteIdActual !== presupuesto.clienteId) setObraId('');
+      .then((d) => {
+        const lista = d.obras ?? [];
+        setObras(lista);
+        if (clienteIdActual !== presupuesto.clienteId) {
+          setObraId('');
+        }
+      });
   }, [clienteIdActual, presupuesto.clienteId]);
 
   useEffect(() => {
@@ -261,22 +265,20 @@ export function EditarPresupuestoForm({ presupuesto }: { presupuesto: Presupuest
                 {errors.clienteId && <p className="text-xs text-red-500">{errors.clienteId.message}</p>}
               </div>
 
-              {obras.length > 0 && (
-                <div className="space-y-2">
-                  <Label>Obra</Label>
-                  <Select value={obraId || '__none__'} onValueChange={(v) => setObraId(v === '__none__' ? '' : v)}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Sin obra asignada" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="__none__">Sin obra</SelectItem>
-                      {obras.map((o) => (
-                        <SelectItem key={o.id} value={o.id}>{o.nombre}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              )}
+              <div className="space-y-2">
+                <Label>Obra</Label>
+                <Select value={obraId || '__none__'} onValueChange={(v) => setObraId(v === '__none__' ? '' : v)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder={obras.length === 0 ? 'Sin obras para este cliente' : 'Sin obra asignada'} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">Sin obra</SelectItem>
+                    {obras.map((o) => (
+                      <SelectItem key={o.id} value={o.id}>{o.nombre}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
