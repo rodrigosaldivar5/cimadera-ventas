@@ -1,9 +1,9 @@
-export const estadoBadgeClass: Record<string, string> = {
+﻿export const estadoBadgeClass: Record<string, string> = {
   PENDIENTE:   'bg-slate-100 text-slate-600 border-slate-300',
   EN_PROCESO:  'bg-yellow-100 text-yellow-700 border-yellow-300',
   FINALIZADO:  'bg-amber-800 text-white border-amber-900',
   PARA_ENVIAR: 'bg-blue-100 text-blue-700 border-blue-300',
-  ENVIADO:     'bg-sky-100 text-sky-700 border-sky-300',
+  ENVIADO:     'bg-sky-100 text-[#0089C7] border-sky-300',
   APROBADO:    'bg-green-100 text-green-700 border-green-300',
   RECHAZADO:   'bg-red-100 text-red-700 border-red-300',
 };

@@ -1,4 +1,4 @@
-export const dynamic = 'force-dynamic';
+﻿export const dynamic = 'force-dynamic';
 
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
@@ -102,7 +102,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: { 
       title: 'Presupuestos este mes',
       value: totalMes,
       icon: FileText,
-      color: 'text-sky-500',
+      color: 'text-[#00ADEF]',
       bg: 'bg-sky-50',
       href: '/presupuestos',
     },
@@ -172,7 +172,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: { 
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
-            <TrendingUp className="h-5 w-5 text-sky-500" />
+            <TrendingUp className="h-5 w-5 text-[#00ADEF]" />
             Presupuestos por mes (últimos 6 meses)
           </CardTitle>
         </CardHeader>
@@ -199,7 +199,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: { 
               {ultimos.map((p) => (
                 <TableRow key={p.id} className="cursor-pointer">
                   <TableCell className="font-medium">
-                    <Link href={`/presupuestos/${p.id}`} className="text-sky-600 hover:underline">
+                    <Link href={`/presupuestos/${p.id}`} className="text-[#00ADEF] hover:underline">
                       #{p.numero}
                     </Link>
                   </TableCell>
@@ -287,8 +287,8 @@ export default async function DashboardPage({ searchParams }: { searchParams: { 
                 href={`/dashboard?userId=${v.id}`}
                 className={`px-3 py-1.5 rounded-full text-sm font-medium border transition-colors ${
                   userId === v.id
-                    ? 'bg-sky-500 text-white border-sky-500'
-                    : 'border-slate-300 text-slate-600 hover:border-sky-400 hover:text-sky-600'
+                    ? 'bg-[#00ADEF] text-white border-[#00ADEF]'
+                    : 'border-slate-300 text-slate-600 hover:border-sky-400 hover:text-[#00ADEF]'
                 }`}
               >
                 {v.nombre}

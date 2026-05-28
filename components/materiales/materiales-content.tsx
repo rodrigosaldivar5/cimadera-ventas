@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
@@ -257,12 +257,12 @@ export function MateriaisContent({ categorias: iniciales }: { categorias: Catego
             <Button variant="outline" onClick={() => { setImportResultado(null); setImportFilas([]); setImportOpen(true); }} className="gap-1.5">
               <Upload className="h-4 w-4" /> Importar materiales
             </Button>
-            <Button onClick={openNew} className="bg-sky-500 hover:bg-sky-600">
+            <Button onClick={openNew} className="bg-[#00ADEF] hover:bg-[#0089C7]">
               <Plus className="mr-2 h-4 w-4" /> Nuevo Ítem
             </Button>
           </div>
         ) : (
-          <Button onClick={openNewCat} className="bg-sky-500 hover:bg-sky-600">
+          <Button onClick={openNewCat} className="bg-[#00ADEF] hover:bg-[#0089C7]">
             <FolderPlus className="mr-2 h-4 w-4" /> Nueva Categoría
           </Button>
         )}
@@ -313,7 +313,7 @@ export function MateriaisContent({ categorias: iniciales }: { categorias: Catego
                           <TableCell>{item.unidad}</TableCell>
                           <TableCell className="text-right">{formatCurrency(Number(item.costoBase))}</TableCell>
                           <TableCell className="text-right">{Number(item.indiceUtilidad).toFixed(2)}</TableCell>
-                          <TableCell className="text-right font-medium text-sky-600">{formatCurrency(Number(item.precioVenta))}</TableCell>
+                          <TableCell className="text-right font-medium text-[#00ADEF]">{formatCurrency(Number(item.precioVenta))}</TableCell>
                           <TableCell>
                             <div className="flex gap-1">
                               <Button variant="ghost" size="icon" onClick={() => openEdit(item)}>
@@ -425,11 +425,11 @@ export function MateriaisContent({ categorias: iniciales }: { categorias: Catego
             </div>
             <div className="rounded-lg bg-sky-50 border border-sky-200 p-3 flex justify-between items-center">
               <span className="text-sm text-slate-600">Precio de venta calculado:</span>
-              <span className="font-bold text-sky-600 text-lg">{formatCurrency(precioCalculado)}</span>
+              <span className="font-bold text-[#00ADEF] text-lg">{formatCurrency(precioCalculado)}</span>
             </div>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button>
-              <Button type="submit" className="bg-sky-500 hover:bg-sky-600" disabled={isSubmitting}>
+              <Button type="submit" className="bg-[#00ADEF] hover:bg-[#0089C7]" disabled={isSubmitting}>
                 {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 {editingItem ? 'Guardar' : 'Crear'}
               </Button>
@@ -451,7 +451,7 @@ export function MateriaisContent({ categorias: iniciales }: { categorias: Catego
           <DialogFooter>
             <Button variant="outline" onClick={() => setCatDialogOpen(false)}>Cancelar</Button>
             <Button
-              className="bg-sky-500 hover:bg-sky-600"
+              className="bg-[#00ADEF] hover:bg-[#0089C7]"
               disabled={!catNombre.trim() || catSaving}
               onClick={saveCat}
             >
@@ -520,7 +520,7 @@ export function MateriaisContent({ categorias: iniciales }: { categorias: Catego
                           <TableCell>{fila.categoria || '—'}</TableCell>
                           <TableCell className="text-right">{formatCurrency(fila.costoBase)}</TableCell>
                           <TableCell className="text-right">{fila.indiceUtilidad}</TableCell>
-                          <TableCell className="text-right font-medium text-sky-600">
+                          <TableCell className="text-right font-medium text-[#00ADEF]">
                             {formatCurrency(fila.costoBase * fila.indiceUtilidad)}
                           </TableCell>
                           <TableCell>
@@ -549,7 +549,7 @@ export function MateriaisContent({ categorias: iniciales }: { categorias: Catego
           <DialogFooter className="pt-2 border-t">
             <Button variant="outline" onClick={() => setImportOpen(false)}>Cerrar</Button>
             <Button
-              className="bg-sky-500 hover:bg-sky-600 gap-1.5"
+              className="bg-[#00ADEF] hover:bg-[#0089C7] gap-1.5"
               disabled={importFilas.filter((f) => !f.error).length === 0 || importando}
               onClick={ejecutarImport}
             >

@@ -16,6 +16,16 @@ const config: Config = {
     },
     extend: {
       colors: {
+        cimadera: {
+          azul:           '#00ADEF',
+          azulProfundo:   '#0089C7',
+          azulClaro:      '#CCF0FC',
+          negro:          '#1A1A1A',
+          grisCorporativo:'#4A4A4A',
+          grisClaro:      '#F2F2F2',
+          maderaCalida:   '#8B6C3E',
+          maderaClara:    '#D4B896',
+        },
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",

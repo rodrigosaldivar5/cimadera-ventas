@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
@@ -51,7 +51,7 @@ export function Header({ userName, userEmail, rolNombre }: HeaderProps) {
             3
           </Badge>
         </Button>
-        <Button asChild size="sm" className="bg-sky-500 hover:bg-sky-600">
+        <Button asChild size="sm" className="bg-[#00ADEF] hover:bg-[#0089C7]">
           <Link href="/presupuestos/nuevo">
             <Plus className="mr-1.5 h-4 w-4" />
             Nuevo Presupuesto

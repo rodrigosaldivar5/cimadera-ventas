@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState } from 'react';
 import Image from 'next/image';
@@ -15,7 +15,7 @@ const CATEGORIAS = ['Interior', 'Exterior', 'Placard', 'Otro'] as const;
 type Categoria = typeof CATEGORIAS[number];
 
 const categoriaBadgeClass: Record<string, string> = {
-  Interior: 'bg-sky-100 text-sky-700 border-sky-200',
+  Interior: 'bg-sky-100 text-[#0089C7] border-sky-200',
   Exterior: 'bg-amber-100 text-amber-700 border-amber-200',
   Placard: 'bg-purple-100 text-purple-700 border-purple-200',
   Otro: 'bg-slate-100 text-slate-600 border-slate-200',
@@ -97,8 +97,8 @@ export function CatalogoPuertas({ initialPuertas, isAdmin }: Props) {
               onClick={() => setFiltro(cat)}
               className={`px-4 py-1.5 rounded-full text-sm font-medium border transition-colors ${
                 filtro === cat
-                  ? 'bg-sky-500 text-white border-sky-500'
-                  : 'bg-white border-slate-300 text-slate-600 hover:border-sky-400 hover:text-sky-600'
+                  ? 'bg-[#00ADEF] text-white border-[#00ADEF]'
+                  : 'bg-white border-slate-300 text-slate-600 hover:border-sky-400 hover:text-[#00ADEF]'
               }`}
             >
               {cat}
@@ -106,7 +106,7 @@ export function CatalogoPuertas({ initialPuertas, isAdmin }: Props) {
           ))}
         </div>
         {isAdmin && (
-          <Button onClick={() => setAgregarOpen(true)} className="bg-sky-500 hover:bg-sky-600">
+          <Button onClick={() => setAgregarOpen(true)} className="bg-[#00ADEF] hover:bg-[#0089C7]">
             <Plus className="mr-1.5 h-4 w-4" /> Agregar imagen
           </Button>
         )}
@@ -226,7 +226,7 @@ export function CatalogoPuertas({ initialPuertas, isAdmin }: Props) {
             <Button
               onClick={guardar}
               disabled={!form.nombre.trim() || !form.imageUrl.trim() || isLoading}
-              className="bg-sky-500 hover:bg-sky-600"
+              className="bg-[#00ADEF] hover:bg-[#0089C7]"
             >
               Agregar
             </Button>

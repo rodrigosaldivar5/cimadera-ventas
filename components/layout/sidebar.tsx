@@ -104,9 +104,9 @@ export function Sidebar({ userName, userEmail, rolNombre }: SidebarProps) {
     setOpenItems((prev) => ({ ...prev, [href]: !prev[href] }));
 
   return (
-    <aside className="flex h-full w-64 flex-col bg-slate-900">
+    <aside className="flex h-full w-64 flex-col bg-[#1A1A1A]">
       {/* Logo */}
-      <div className="flex h-16 items-center px-6 border-b border-slate-800">
+      <div className="flex h-16 items-center px-6 border-b border-white/10">
         <Logo variant="light" />
       </div>
 
@@ -125,13 +125,13 @@ export function Sidebar({ userName, userEmail, rolNombre }: SidebarProps) {
                 <li key={item.href}>
                   <div className={cn(
                     'flex items-center rounded-lg transition-colors',
-                    isActive ? 'bg-slate-800' : 'hover:bg-slate-800',
+                    isActive ? 'bg-[#00ADEF]/10' : 'hover:bg-[#00ADEF]/10',
                   )}>
                     <Link
                       href={item.href}
                       className={cn(
                         'flex items-center gap-3 flex-1 px-3 py-2.5 text-sm font-medium',
-                        isActive ? 'text-sky-400' : 'text-slate-400 hover:text-slate-100'
+                        isActive ? 'text-[#00ADEF]' : 'text-[#8A8A8A] hover:text-white'
                       )}
                     >
                       <Icon className="h-5 w-5 shrink-0" />
@@ -140,14 +140,14 @@ export function Sidebar({ userName, userEmail, rolNombre }: SidebarProps) {
                     <button
                       onClick={() => toggleItem(item.href)}
                       className={cn(
-                        'px-2 py-2.5 text-slate-400 hover:text-slate-100',
+                        'px-2 py-2.5 text-[#8A8A8A] hover:text-white',
                       )}
                     >
                       <ChevronRight className={cn('h-4 w-4 transition-transform', isOpen && 'rotate-90')} />
                     </button>
                   </div>
                   {isOpen && (
-                    <ul className="mt-1 ml-4 space-y-1 border-l border-slate-700 pl-3">
+                    <ul className="mt-1 ml-4 space-y-1 border-l border-white/10 pl-3">
                       {item.children.map((child) => {
                         const ChildIcon = child.icon;
                         const childActive = pathname.startsWith(child.href);
@@ -158,8 +158,8 @@ export function Sidebar({ userName, userEmail, rolNombre }: SidebarProps) {
                               className={cn(
                                 'flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition-colors',
                                 childActive
-                                  ? 'bg-slate-800 text-sky-400 font-medium'
-                                  : 'text-slate-400 hover:bg-slate-800 hover:text-slate-100'
+                                  ? 'bg-[#00ADEF]/10 text-[#00ADEF] font-medium'
+                                  : 'text-[#8A8A8A] hover:bg-[#00ADEF]/10 hover:text-white'
                               )}
                             >
                               <ChildIcon className="h-4 w-4 shrink-0" />
@@ -181,8 +181,8 @@ export function Sidebar({ userName, userEmail, rolNombre }: SidebarProps) {
                   className={cn(
                     'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors',
                     isActive
-                      ? 'bg-slate-800 text-sky-400'
-                      : 'text-slate-400 hover:bg-slate-800 hover:text-slate-100'
+                      ? 'bg-[#00ADEF]/10 text-[#00ADEF]'
+                      : 'text-[#8A8A8A] hover:bg-[#00ADEF]/10 hover:text-white'
                   )}
                 >
                   <Icon className="h-5 w-5 shrink-0" />
@@ -196,9 +196,9 @@ export function Sidebar({ userName, userEmail, rolNombre }: SidebarProps) {
       </nav>
 
       {/* Usuario */}
-      <div className="border-t border-slate-800 p-4">
+      <div className="border-t border-white/10 p-4">
         <div className="flex items-center gap-3 mb-3">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-sky-500 text-white text-sm font-semibold">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#00ADEF] text-white text-sm font-semibold">
             {userName.charAt(0).toUpperCase()}
           </div>
           <div className="min-w-0 flex-1">
@@ -209,7 +209,7 @@ export function Sidebar({ userName, userEmail, rolNombre }: SidebarProps) {
         <Button
           variant="ghost"
           size="sm"
-          className="w-full justify-start text-slate-400 hover:text-slate-100 hover:bg-slate-800"
+          className="w-full justify-start text-[#8A8A8A] hover:text-white hover:bg-[#00ADEF]/10"
           onClick={() => signOut({ callbackUrl: '/login' })}
         >
           <LogOut className="mr-2 h-4 w-4" />

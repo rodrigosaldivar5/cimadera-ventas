@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -127,7 +127,7 @@ export function PresupuestoAcciones({ presupuesto, presupuestoPDF, presupuestoDa
       >
         <Download className="mr-1.5 h-4 w-4" /> Exportar PDF
       </Button>
-      <Button size="sm" onClick={() => setEstadoDialog(true)} className="bg-sky-500 hover:bg-sky-600">
+      <Button size="sm" onClick={() => setEstadoDialog(true)} className="bg-[#00ADEF] hover:bg-[#0089C7]">
         <RefreshCw className="mr-1.5 h-4 w-4" /> Cambiar estado
       </Button>
 
@@ -149,7 +149,7 @@ export function PresupuestoAcciones({ presupuesto, presupuestoPDF, presupuestoDa
           </Select>
           <DialogFooter>
             <Button variant="outline" onClick={() => setEstadoDialog(false)}>Cancelar</Button>
-            <Button onClick={cambiarEstado} disabled={isLoading} className="bg-sky-500 hover:bg-sky-600">
+            <Button onClick={cambiarEstado} disabled={isLoading} className="bg-[#00ADEF] hover:bg-[#0089C7]">
               {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Confirmar'}
             </Button>
           </DialogFooter>

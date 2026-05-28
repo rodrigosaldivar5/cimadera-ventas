@@ -1,4 +1,4 @@
-export const dynamic = 'force-dynamic';
+﻿export const dynamic = 'force-dynamic';
 
 import { auth } from '@/lib/auth';
 import { redirect } from 'next/navigation';
@@ -16,7 +16,7 @@ export default async function TesoreriaPage() {
         <div className="h-16 w-16 rounded-full bg-slate-100 flex items-center justify-center text-2xl">🔒</div>
         <h1 className="text-2xl font-bold text-slate-800">Acceso restringido</h1>
         <p className="text-slate-500 max-w-sm">Este módulo es solo para administradores.</p>
-        <Link href="/dashboard" className="mt-2 text-sky-600 hover:underline text-sm">← Volver al dashboard</Link>
+        <Link href="/dashboard" className="mt-2 text-[#00ADEF] hover:underline text-sm">← Volver al dashboard</Link>
       </div>
     );
   }

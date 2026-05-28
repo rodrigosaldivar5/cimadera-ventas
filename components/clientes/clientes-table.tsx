@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -120,7 +120,7 @@ export function ClientesTable({ clientes, total, page, perPage, q }: ClientesTab
             <Search className="h-4 w-4" />
           </Button>
         </form>
-        <Button onClick={openNew} className="bg-sky-500 hover:bg-sky-600">
+        <Button onClick={openNew} className="bg-[#00ADEF] hover:bg-[#0089C7]">
           <Plus className="mr-2 h-4 w-4" />
           Nuevo Cliente
         </Button>
@@ -255,7 +255,7 @@ export function ClientesTable({ clientes, total, page, perPage, q }: ClientesTab
             </div>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button>
-              <Button type="submit" className="bg-sky-500 hover:bg-sky-600" disabled={isSubmitting}>
+              <Button type="submit" className="bg-[#00ADEF] hover:bg-[#0089C7]" disabled={isSubmitting}>
                 {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 {editingCliente ? 'Guardar cambios' : 'Crear cliente'}
               </Button>

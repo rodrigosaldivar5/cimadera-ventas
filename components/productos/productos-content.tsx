@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
@@ -241,11 +241,11 @@ export function ProductosContent({ productos, categorias, categoriasItem }: Prop
         </div>
 
         {tab === 'productos' ? (
-          <Button className="bg-sky-500 hover:bg-sky-600" onClick={() => { resetForm(); setDialogOpen(true); }}>
+          <Button className="bg-[#00ADEF] hover:bg-[#0089C7]" onClick={() => { resetForm(); setDialogOpen(true); }}>
             <Plus className="mr-2 h-4 w-4" /> Nuevo Producto
           </Button>
         ) : (
-          <Button className="bg-sky-500 hover:bg-sky-600" onClick={openNewCat}>
+          <Button className="bg-[#00ADEF] hover:bg-[#0089C7]" onClick={openNewCat}>
             <FolderPlus className="mr-2 h-4 w-4" /> Nueva Categoría
           </Button>
         )}
@@ -441,7 +441,7 @@ export function ProductosContent({ productos, categorias, categoriasItem }: Prop
                         </div>
                       </div>
                     ))}
-                    <Button variant="ghost" size="sm" className="text-sky-600 hover:text-sky-700" onClick={() => addOpcion(ai)}>
+                    <Button variant="ghost" size="sm" className="text-[#00ADEF] hover:text-[#0089C7]" onClick={() => addOpcion(ai)}>
                       <Plus className="mr-1 h-3.5 w-3.5" /> Agregar opción
                     </Button>
                   </div>
@@ -458,7 +458,7 @@ export function ProductosContent({ productos, categorias, categoriasItem }: Prop
             <div className="flex justify-end gap-2 pt-2">
               <Button variant="outline" onClick={() => { setDialogOpen(false); resetForm(); }}>Cancelar</Button>
               <Button
-                className="bg-sky-500 hover:bg-sky-600"
+                className="bg-[#00ADEF] hover:bg-[#0089C7]"
                 disabled={!nombre.trim() || !categoriaId || saving}
                 onClick={guardar}
               >
@@ -481,7 +481,7 @@ export function ProductosContent({ productos, categorias, categoriasItem }: Prop
           </div>
           <div className="flex justify-end gap-2">
             <Button variant="outline" onClick={() => setCatDialogOpen(false)}>Cancelar</Button>
-            <Button className="bg-sky-500 hover:bg-sky-600" disabled={!catNombre.trim() || catSaving} onClick={saveCat}>
+            <Button className="bg-[#00ADEF] hover:bg-[#0089C7]" disabled={!catNombre.trim() || catSaving} onClick={saveCat}>
               {catSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {editingCat ? 'Guardar' : 'Crear'}
             </Button>

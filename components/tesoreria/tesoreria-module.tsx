@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState, useEffect, useCallback } from 'react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
@@ -73,7 +73,7 @@ const TIPO_LABEL: Record<string, string> = {
 };
 
 const CAJA_BADGE: Record<TipoCaja, string> = {
-  ARS: 'bg-sky-100 text-sky-700',
+  ARS: 'bg-sky-100 text-[#0089C7]',
   USD: 'bg-amber-100 text-amber-700',
 };
 

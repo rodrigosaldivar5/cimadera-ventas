@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
@@ -67,7 +67,7 @@ export function RolesContent({ roles, divisiones }: Props) {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-semibold text-slate-800">Roles y Permisos</h1>
-        <Button className="bg-sky-500 hover:bg-sky-600" onClick={() => setDialogOpen(true)}>
+        <Button className="bg-[#00ADEF] hover:bg-[#0089C7]" onClick={() => setDialogOpen(true)}>
           <Plus className="mr-2 h-4 w-4" />
           Nuevo Rol
         </Button>
@@ -145,7 +145,7 @@ export function RolesContent({ roles, divisiones }: Props) {
             <div className="flex justify-end gap-2 pt-2">
               <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button>
               <Button
-                className="bg-sky-500 hover:bg-sky-600"
+                className="bg-[#00ADEF] hover:bg-[#0089C7]"
                 disabled={!nuevoNombre.trim() || !nuevoAreaId || saving}
                 onClick={crearRol}
               >

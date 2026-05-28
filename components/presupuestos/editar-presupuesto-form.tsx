@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
@@ -212,10 +212,10 @@ export function EditarPresupuestoForm({ presupuesto }: { presupuesto: Presupuest
       <div className="flex items-center gap-2">
         {[1, 2, 3].map((s) => (
           <div key={s} className="flex items-center gap-2">
-            <div className={`h-8 w-8 rounded-full flex items-center justify-center text-sm font-semibold ${paso >= s ? 'bg-sky-500 text-white' : 'bg-slate-200 text-slate-500'}`}>
+            <div className={`h-8 w-8 rounded-full flex items-center justify-center text-sm font-semibold ${paso >= s ? 'bg-[#00ADEF] text-white' : 'bg-slate-200 text-slate-500'}`}>
               {s}
             </div>
-            {s < 3 && <div className={`h-0.5 w-16 ${paso > s ? 'bg-sky-500' : 'bg-slate-200'}`} />}
+            {s < 3 && <div className={`h-0.5 w-16 ${paso > s ? 'bg-[#00ADEF]' : 'bg-slate-200'}`} />}
           </div>
         ))}
         <span className="ml-2 text-sm text-slate-500">
@@ -297,7 +297,7 @@ export function EditarPresupuestoForm({ presupuesto }: { presupuesto: Presupuest
               </div>
 
               <div className="flex justify-end">
-                <Button type="submit" className="bg-sky-500 hover:bg-sky-600">
+                <Button type="submit" className="bg-[#00ADEF] hover:bg-[#0089C7]">
                   Siguiente <ChevronRight className="ml-2 h-4 w-4" />
                 </Button>
               </div>
@@ -324,7 +324,7 @@ export function EditarPresupuestoForm({ presupuesto }: { presupuesto: Presupuest
             <Button variant="outline" onClick={() => setPaso(1)}>
               <ChevronLeft className="mr-2 h-4 w-4" /> Anterior
             </Button>
-            <Button onClick={() => setPaso(3)} className="bg-sky-500 hover:bg-sky-600">
+            <Button onClick={() => setPaso(3)} className="bg-[#00ADEF] hover:bg-[#0089C7]">
               Siguiente <ChevronRight className="ml-2 h-4 w-4" />
             </Button>
           </div>
@@ -411,7 +411,7 @@ export function EditarPresupuestoForm({ presupuesto }: { presupuesto: Presupuest
                   <span>Descuento ({descuento}%)</span>
                   <span>-{formatCurrency(descuentoMonto)}</span>
                 </div>
-                <div className="flex justify-between font-bold text-lg text-sky-600">
+                <div className="flex justify-between font-bold text-lg text-[#00ADEF]">
                   <span>Total Final</span>
                   <span>{formatCurrency(total)}</span>
                 </div>
@@ -428,7 +428,7 @@ export function EditarPresupuestoForm({ presupuesto }: { presupuesto: Presupuest
                 {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 <Save className="mr-2 h-4 w-4" /> Guardar cambios
               </Button>
-              <Button onClick={handleSubmit((data) => guardar(data, true))} className="bg-sky-500 hover:bg-sky-600" disabled={isSubmitting}>
+              <Button onClick={handleSubmit((data) => guardar(data, true))} className="bg-[#00ADEF] hover:bg-[#0089C7]" disabled={isSubmitting}>
                 {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 <Send className="mr-2 h-4 w-4" /> Guardar y enviar
               </Button>

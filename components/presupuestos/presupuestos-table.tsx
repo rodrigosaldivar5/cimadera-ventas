@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -253,7 +253,7 @@ export function PresupuestosTable({ presupuestos, total, page, perPage, clientes
       <div className="flex flex-col gap-3">
         <div className="flex justify-between items-center">
           <h2 className="text-sm text-slate-500">{total} presupuestos encontrados</h2>
-          <Button asChild className="bg-sky-500 hover:bg-sky-600">
+          <Button asChild className="bg-[#00ADEF] hover:bg-[#0089C7]">
             <Link href="/presupuestos/nuevo">
               <Plus className="mr-2 h-4 w-4" />
               Nuevo Presupuesto
@@ -299,7 +299,7 @@ export function PresupuestosTable({ presupuestos, total, page, perPage, clientes
                 </Button>
                 <Button
                   size="sm"
-                  className="flex-1 h-7 text-xs bg-sky-500 hover:bg-sky-600"
+                  className="flex-1 h-7 text-xs bg-[#00ADEF] hover:bg-[#0089C7]"
                   onClick={() => { setEstadosOpen(false); applyFilters(); }}
                 >
                   Aplicar
@@ -344,7 +344,7 @@ export function PresupuestosTable({ presupuestos, total, page, perPage, clientes
                 </Button>
                 <Button
                   size="sm"
-                  className="flex-1 h-7 text-xs bg-sky-500 hover:bg-sky-600"
+                  className="flex-1 h-7 text-xs bg-[#00ADEF] hover:bg-[#0089C7]"
                   onClick={() => { setPrioridadesOpen(false); applyFilters(); }}
                 >
                   Aplicar
@@ -467,7 +467,7 @@ export function PresupuestosTable({ presupuestos, total, page, perPage, clientes
                     </div>
                   ) : (
                     <button
-                      className="text-right w-full text-sm font-medium hover:text-sky-600 transition-colors"
+                      className="text-right w-full text-sm font-medium hover:text-[#00ADEF] transition-colors"
                       onClick={() => setEditingPrecio({ id: p.id, value: p.precioFinal != null ? String(Number(p.precioFinal)) : '' })}
                     >
                       {p.precioFinal != null ? formatCurrency(Number(p.precioFinal)) : <span className="text-slate-300 text-xs">—</span>}

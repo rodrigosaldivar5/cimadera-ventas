@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
@@ -74,7 +74,7 @@ export default function RegisterPage() {
             Tu cuenta fue creada y está pendiente de aprobación por un administrador.
             Te notificaremos cuando sea activada.
           </p>
-          <Button asChild className="bg-sky-500 hover:bg-sky-600">
+          <Button asChild className="bg-[#00ADEF] hover:bg-[#0089C7]">
             <Link href="/login">Volver al inicio</Link>
           </Button>
         </CardContent>
@@ -125,7 +125,7 @@ export default function RegisterPage() {
             {errors.confirmPassword && <p className="text-xs text-red-500">{errors.confirmPassword.message}</p>}
           </div>
 
-          <Button type="submit" className="w-full bg-sky-500 hover:bg-sky-600" disabled={isLoading}>
+          <Button type="submit" className="w-full bg-[#00ADEF] hover:bg-[#0089C7]" disabled={isLoading}>
             {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             Crear cuenta
           </Button>
@@ -135,7 +135,7 @@ export default function RegisterPage() {
       <CardFooter className="justify-center">
         <p className="text-sm text-slate-500">
           ¿Ya tenés cuenta?{' '}
-          <Link href="/login" className="font-medium text-sky-600 hover:text-sky-700">
+          <Link href="/login" className="font-medium text-[#00ADEF] hover:text-[#0089C7]">
             Iniciá sesión
           </Link>
         </p>

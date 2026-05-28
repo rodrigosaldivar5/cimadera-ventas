@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState } from 'react';
 import Link from 'next/link';
@@ -50,7 +50,7 @@ export function ObrasTab({ clienteId, obras: initialObras }: Props) {
   return (
     <div className="space-y-4">
       <div className="flex justify-end">
-        <Button size="sm" onClick={() => setDialogOpen(true)} className="bg-sky-500 hover:bg-sky-600">
+        <Button size="sm" onClick={() => setDialogOpen(true)} className="bg-[#00ADEF] hover:bg-[#0089C7]">
           <Plus className="mr-1.5 h-4 w-4" /> Nueva Obra
         </Button>
       </div>
@@ -111,7 +111,7 @@ export function ObrasTab({ clienteId, obras: initialObras }: Props) {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button>
-            <Button onClick={crearObra} disabled={!nombre.trim() || isLoading} className="bg-sky-500 hover:bg-sky-600">
+            <Button onClick={crearObra} disabled={!nombre.trim() || isLoading} className="bg-[#00ADEF] hover:bg-[#0089C7]">
               Crear obra
             </Button>
           </DialogFooter>

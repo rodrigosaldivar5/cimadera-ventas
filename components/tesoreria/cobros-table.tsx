@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState } from 'react';
 import { ProbabilidadBadge } from './probabilidad-badge';
@@ -130,7 +130,7 @@ export function CobrosTable({ cuentasIniciales }: { cuentasIniciales: Cuenta[] }
                 value={proximoCobro}
                 min={new Date().toISOString().slice(0, 10)}
                 onChange={(e) => setProximoCobro(e.target.value)}
-                className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500"
+                className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#00ADEF]"
               />
             </div>
             <div>
@@ -140,7 +140,7 @@ export function CobrosTable({ cuentasIniciales }: { cuentasIniciales: Cuenta[] }
               <select
                 value={probabilidad}
                 onChange={(e) => setProbabilidad(e.target.value as 'ALTA' | 'MEDIA' | 'BAJA')}
-                className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500"
+                className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#00ADEF]"
               >
                 <option value="ALTA">Alta</option>
                 <option value="MEDIA">Media</option>
@@ -157,7 +157,7 @@ export function CobrosTable({ cuentasIniciales }: { cuentasIniciales: Cuenta[] }
                 rows={3}
                 maxLength={200}
                 placeholder="Observación sobre este cobro..."
-                className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500 resize-none"
+                className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#00ADEF] resize-none"
               />
               <p className="text-xs text-slate-400 text-right">{nota.length}/200</p>
             </div>

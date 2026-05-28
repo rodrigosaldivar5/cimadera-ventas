@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
@@ -36,7 +36,7 @@ export function ActualizarPreciosBtn({ presupuestoId }: Props) {
       <Button
         size="sm"
         variant="outline"
-        className="gap-1.5 text-sky-600 border-sky-200 hover:bg-sky-50"
+        className="gap-1.5 text-[#00ADEF] border-sky-200 hover:bg-sky-50"
         onClick={() => setOpen(true)}
       >
         <RefreshCw className="h-3.5 w-3.5" />

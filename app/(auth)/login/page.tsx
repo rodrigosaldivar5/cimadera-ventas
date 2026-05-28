@@ -65,7 +65,7 @@ export default function LoginPage() {
         <div className="flex justify-center">
           <Logo variant="dark" />
         </div>
-        <CardTitle className="text-2xl">Iniciar sesión</CardTitle>
+        <CardTitle className="text-2xl font-display font-bold tracking-wide">Iniciar sesión</CardTitle>
         <CardDescription>Ingresá tu email y contraseña para continuar</CardDescription>
       </CardHeader>
 
@@ -106,7 +106,7 @@ export default function LoginPage() {
             )}
           </div>
 
-          <Button type="submit" className="w-full bg-sky-500 hover:bg-sky-600" disabled={isLoading}>
+          <Button type="submit" className="w-full bg-[#00ADEF] hover:bg-[#0089C7]" disabled={isLoading}>
             {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             Ingresar
           </Button>
@@ -116,7 +116,7 @@ export default function LoginPage() {
       <CardFooter className="justify-center">
         <p className="text-sm text-slate-500">
           ¿No tenés cuenta?{' '}
-          <Link href="/register" className="font-medium text-sky-600 hover:text-sky-700">
+          <Link href="/register" className="font-medium text-[#00ADEF] hover:text-[#0089C7]">
             Registrate
           </Link>
         </p>

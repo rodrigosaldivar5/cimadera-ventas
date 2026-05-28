@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
@@ -217,7 +217,7 @@ export function CotizadorDinamico({ productos, items, onChange }: Props) {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <span className="text-sm text-slate-500">{items.length} ítem{items.length !== 1 ? 's' : ''} agregado{items.length !== 1 ? 's' : ''}</span>
-        <Button size="sm" className="bg-sky-500 hover:bg-sky-600" onClick={() => setDialogOpen(true)}>
+        <Button size="sm" className="bg-[#00ADEF] hover:bg-[#0089C7]" onClick={() => setDialogOpen(true)}>
           <Plus className="mr-1.5 h-4 w-4" />
           Agregar ítem
         </Button>
@@ -234,11 +234,11 @@ export function CotizadorDinamico({ productos, items, onChange }: Props) {
                   <span className="ml-2 text-sm text-slate-500">× {item.cantidad}</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="font-semibold text-sky-600">{formatCurrency(item.subtotal)}</span>
+                  <span className="font-semibold text-[#00ADEF]">{formatCurrency(item.subtotal)}</span>
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-7 w-7 text-slate-400 hover:text-sky-600"
+                    className="h-7 w-7 text-slate-400 hover:text-[#00ADEF]"
                     onClick={() => editarItem(idx)}
                     title="Editar"
                   >
@@ -271,7 +271,7 @@ export function CotizadorDinamico({ productos, items, onChange }: Props) {
             </div>
           ))}
           <div className="flex justify-end text-sm font-semibold text-slate-700">
-            Subtotal ítems: <span className="ml-2 text-sky-600">{formatCurrency(totalItems)}</span>
+            Subtotal ítems: <span className="ml-2 text-[#00ADEF]">{formatCurrency(totalItems)}</span>
           </div>
         </div>
       )}
@@ -420,7 +420,7 @@ export function CotizadorDinamico({ productos, items, onChange }: Props) {
                           </Button>
                         </div>
                       ))}
-                      <Button variant="ghost" size="sm" className="text-sky-600 hover:text-sky-700" onClick={agregarItemLibre}>
+                      <Button variant="ghost" size="sm" className="text-[#00ADEF] hover:text-[#0089C7]" onClick={agregarItemLibre}>
                         <Plus className="mr-1 h-3.5 w-3.5" /> Agregar ítem
                       </Button>
                     </div>
@@ -429,16 +429,16 @@ export function CotizadorDinamico({ productos, items, onChange }: Props) {
 
                 {/* Total en tiempo real */}
                 <div className="rounded-lg bg-sky-50 border border-sky-200 p-4 text-center">
-                  <p className="text-sm text-sky-600 mb-1">Total del ítem</p>
-                  <p className="text-3xl font-bold text-sky-700">{formatCurrency(calcularSubtotalItem())}</p>
-                  <p className="text-xs text-sky-500 mt-1">{cantidad} unidad{cantidad > 1 ? 'es' : ''}</p>
+                  <p className="text-sm text-[#00ADEF] mb-1">Total del ítem</p>
+                  <p className="text-3xl font-bold text-[#0089C7]">{formatCurrency(calcularSubtotalItem())}</p>
+                  <p className="text-xs text-[#00ADEF] mt-1">{cantidad} unidad{cantidad > 1 ? 'es' : ''}</p>
                 </div>
 
                 <div className="flex justify-end gap-2">
                   <Button variant="outline" onClick={() => { setDialogOpen(false); resetDialog(); }}>
                     Cancelar
                   </Button>
-                  <Button className="bg-sky-500 hover:bg-sky-600" onClick={agregarAlPresupuesto}>
+                  <Button className="bg-[#00ADEF] hover:bg-[#0089C7]" onClick={agregarAlPresupuesto}>
                     <Plus className="mr-1.5 h-4 w-4" />
                     {editandoIdx !== null ? 'Guardar cambios' : 'Agregar al presupuesto'}
                   </Button>

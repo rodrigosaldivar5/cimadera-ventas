@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -401,8 +401,8 @@ export default function NuevoPresupuestoPage() {
       <div className="flex items-center gap-2">
         {[1, 2, 3].map((s) => (
           <div key={s} className="flex items-center gap-2">
-            <div className={`h-8 w-8 rounded-full flex items-center justify-center text-sm font-semibold ${paso >= s ? 'bg-sky-500 text-white' : 'bg-slate-200 text-slate-500'}`}>{s}</div>
-            {s < 3 && <div className={`h-0.5 w-16 ${paso > s ? 'bg-sky-500' : 'bg-slate-200'}`} />}
+            <div className={`h-8 w-8 rounded-full flex items-center justify-center text-sm font-semibold ${paso >= s ? 'bg-[#00ADEF] text-white' : 'bg-slate-200 text-slate-500'}`}>{s}</div>
+            {s < 3 && <div className={`h-0.5 w-16 ${paso > s ? 'bg-[#00ADEF]' : 'bg-slate-200'}`} />}
           </div>
         ))}
         <span className="ml-2 text-sm text-slate-500">
@@ -602,7 +602,7 @@ export default function NuevoPresupuestoPage() {
                   {isSavingPendiente && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                   <Clock className="mr-2 h-4 w-4" /> Guardar como pendiente
                 </Button>
-                <Button type="submit" className="bg-sky-500 hover:bg-sky-600">
+                <Button type="submit" className="bg-[#00ADEF] hover:bg-[#0089C7]">
                   Siguiente <ChevronRight className="ml-2 h-4 w-4" />
                 </Button>
               </div>
@@ -629,7 +629,7 @@ export default function NuevoPresupuestoPage() {
             <Button variant="outline" onClick={() => setPaso(1)}>
               <ChevronLeft className="mr-2 h-4 w-4" /> Anterior
             </Button>
-            <Button onClick={() => setPaso(3)} className="bg-sky-500 hover:bg-sky-600">
+            <Button onClick={() => setPaso(3)} className="bg-[#00ADEF] hover:bg-[#0089C7]">
               Siguiente <ChevronRight className="ml-2 h-4 w-4" />
             </Button>
           </div>
@@ -816,7 +816,7 @@ export default function NuevoPresupuestoPage() {
                 {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 <Save className="mr-2 h-4 w-4" /> Guardar borrador
               </Button>
-              <Button onClick={handleSubmit((data) => guardar(data, true))} className="bg-sky-500 hover:bg-sky-600" disabled={isSubmitting}>
+              <Button onClick={handleSubmit((data) => guardar(data, true))} className="bg-[#00ADEF] hover:bg-[#0089C7]" disabled={isSubmitting}>
                 {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 <Send className="mr-2 h-4 w-4" /> Guardar y enviar
               </Button>
@@ -841,7 +841,7 @@ export default function NuevoPresupuestoPage() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => { setNuevaObraOpen(false); setNuevaObraNombre(''); setNuevaObraDireccion(''); }}>Cancelar</Button>
-            <Button onClick={crearObraInline} disabled={!nuevaObraNombre.trim()} className="bg-sky-500 hover:bg-sky-600">Crear obra</Button>
+            <Button onClick={crearObraInline} disabled={!nuevaObraNombre.trim()} className="bg-[#00ADEF] hover:bg-[#0089C7]">Crear obra</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -881,7 +881,7 @@ export default function NuevoPresupuestoPage() {
             </div>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => { setNuevoClienteOpen(false); resetCliente(); }}>Cancelar</Button>
-              <Button type="submit" className="bg-sky-500 hover:bg-sky-600">Crear cliente</Button>
+              <Button type="submit" className="bg-[#00ADEF] hover:bg-[#0089C7]">Crear cliente</Button>
             </DialogFooter>
           </form>
         </DialogContent>

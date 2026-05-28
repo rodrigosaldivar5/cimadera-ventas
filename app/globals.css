@@ -2,8 +2,6 @@
 @tailwind components;
 @tailwind utilities;
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
-
 @layer base {
   :root {
     --background: 210 40% 96.1%;
@@ -12,19 +10,19 @@
     --card-foreground: 215 28% 17%;
     --popover: 0 0% 100%;
     --popover-foreground: 215 28% 17%;
-    --primary: 199 89% 48%;
+    --primary: 199 100% 47%;
     --primary-foreground: 0 0% 100%;
     --secondary: 210 40% 96.1%;
     --secondary-foreground: 215 28% 17%;
     --muted: 210 40% 96.1%;
     --muted-foreground: 215 20% 45%;
-    --accent: 199 89% 48%;
+    --accent: 199 100% 47%;
     --accent-foreground: 0 0% 100%;
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 100%;
-    --border: 214.3 31.8% 91.4%;
+    --border: 0 0% 87.8%;
     --input: 214.3 31.8% 91.4%;
-    --ring: 199 89% 48%;
+    --ring: 199 100% 47%;
     --radius: 0.5rem;
   }
 }
@@ -35,11 +33,21 @@
   }
   body {
     @apply bg-background text-foreground;
-    font-family: 'Inter', sans-serif;
+    font-family: var(--font-inter), 'Inter', system-ui, sans-serif;
+  }
+}
+
+@layer utilities {
+  .font-display {
+    font-family: var(--font-barlow), system-ui, sans-serif;
+  }
+  .font-body {
+    font-family: var(--font-inter), system-ui, sans-serif;
   }
 }
 
 /* Sidebar activo */
 .sidebar-link-active {
-  @apply text-sky-400 bg-slate-800;
+  color: #00ADEF;
+  background-color: rgba(0, 173, 239, 0.1);
 }

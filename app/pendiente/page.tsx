@@ -1,4 +1,4 @@
-import Link from 'next/link';
+﻿import Link from 'next/link';
 import { Logo } from '@/components/logo';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -12,7 +12,7 @@ export default function PendientePage() {
           <div className="flex justify-center">
             <Logo variant="dark" />
           </div>
-          <Clock className="h-12 w-12 text-sky-500 mx-auto" />
+          <Clock className="h-12 w-12 text-[#00ADEF] mx-auto" />
           <h2 className="text-xl font-semibold text-slate-800">Cuenta pendiente de aprobación</h2>
           <p className="text-slate-500">
             Tu cuenta fue registrada y está siendo revisada por un administrador.

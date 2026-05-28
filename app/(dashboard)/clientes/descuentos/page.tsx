@@ -1,4 +1,4 @@
-export const dynamic = 'force-dynamic';
+﻿export const dynamic = 'force-dynamic';
 
 import { prisma } from '@/lib/prisma';
 import { DescuentosForm } from '@/components/clientes/descuentos-form';
@@ -14,7 +14,7 @@ export default async function DescuentosPage() {
     <div className="max-w-2xl mx-auto space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
-          <Percent className="h-6 w-6 text-sky-500" />
+          <Percent className="h-6 w-6 text-[#00ADEF]" />
           Descuentos por tipo de cliente
         </h1>
         <p className="text-sm text-slate-500 mt-1">

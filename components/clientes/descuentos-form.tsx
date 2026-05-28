@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
@@ -78,7 +78,7 @@ export function DescuentosForm({ descuentos: inicial }: { descuentos: DescuentoR
               size="sm"
               onClick={() => save(row)}
               disabled={saving === row.tipoCliente}
-              className="bg-sky-500 hover:bg-sky-600"
+              className="bg-[#00ADEF] hover:bg-[#0089C7]"
             >
               {saving === row.tipoCliente
                 ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />

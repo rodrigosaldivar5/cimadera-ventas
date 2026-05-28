@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -52,7 +52,7 @@ export function SaldoForm({ historial }: { historial: Registro[] }) {
             type="date"
             value={fecha}
             onChange={(e) => setFecha(e.target.value)}
-            className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500"
+            className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#00ADEF]"
           />
         </div>
         <div>
@@ -65,7 +65,7 @@ export function SaldoForm({ historial }: { historial: Registro[] }) {
             onChange={(e) => setSaldo(e.target.value)}
             placeholder="0"
             min={0}
-            className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500"
+            className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#00ADEF]"
           />
         </div>
         <div>
@@ -74,7 +74,7 @@ export function SaldoForm({ historial }: { historial: Registro[] }) {
             value={nota}
             onChange={(e) => setNota(e.target.value)}
             rows={2}
-            className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-sky-500"
+            className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-[#00ADEF]"
           />
         </div>
         {error && <p className="text-sm text-red-600">{error}</p>}
@@ -99,7 +99,7 @@ export function SaldoForm({ historial }: { historial: Registro[] }) {
                 <tr key={r.id} className={i === 0 ? 'bg-sky-50' : 'hover:bg-slate-50'}>
                   <td className="px-4 py-3 text-slate-700">
                     {new Date(r.fecha).toLocaleDateString('es-AR')}
-                    {i === 0 && <span className="ml-2 text-xs text-sky-600 font-medium">actual</span>}
+                    {i === 0 && <span className="ml-2 text-xs text-[#00ADEF] font-medium">actual</span>}
                   </td>
                   <td className="px-4 py-3 text-right font-semibold text-slate-800">{fmt(r.saldo)}</td>
                   <td className="px-4 py-3 text-slate-500">{r.nota ?? '—'}</td>

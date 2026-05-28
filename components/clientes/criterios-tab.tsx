@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -84,7 +84,7 @@ export function CriteriosTab({ clienteId, criterios: iniciales }: Props) {
   return (
     <div className="space-y-4">
       <div className="flex justify-end">
-        <Button size="sm" onClick={openNew} className="bg-sky-500 hover:bg-sky-600">
+        <Button size="sm" onClick={openNew} className="bg-[#00ADEF] hover:bg-[#0089C7]">
           <Plus className="mr-1.5 h-4 w-4" /> Nuevo Criterio
         </Button>
       </div>
@@ -144,7 +144,7 @@ export function CriteriosTab({ clienteId, criterios: iniciales }: Props) {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button>
-            <Button className="bg-sky-500 hover:bg-sky-600" disabled={!titulo.trim() || saving} onClick={save}>
+            <Button className="bg-[#00ADEF] hover:bg-[#0089C7]" disabled={!titulo.trim() || saving} onClick={save}>
               {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {editing ? 'Guardar' : 'Crear'}
             </Button>

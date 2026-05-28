@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
@@ -72,7 +72,7 @@ export function UsuariosContent({ usuarios, roles }: Props) {
               variant={filtro === f ? 'default' : 'outline'}
               size="sm"
               onClick={() => setFiltro(f)}
-              className={filtro === f ? 'bg-sky-500 hover:bg-sky-600' : ''}
+              className={filtro === f ? 'bg-[#00ADEF] hover:bg-[#0089C7]' : ''}
             >
               {f.charAt(0).toUpperCase() + f.slice(1)}
             </Button>

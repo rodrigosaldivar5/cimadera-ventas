@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
@@ -223,7 +223,7 @@ export function DocumentacionPresupuesto({ presupuestoId, precioFinalInicial, ar
                   <a
                     href={a.url}
                     download={a.nombre}
-                    className="text-slate-400 hover:text-sky-600 shrink-0"
+                    className="text-slate-400 hover:text-[#00ADEF] shrink-0"
                     title="Descargar"
                   >
                     <Download className="h-3.5 w-3.5" />
