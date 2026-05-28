@@ -100,6 +100,28 @@ function fmtIndice(n: unknown) {
   return Number(n).toLocaleString('es-AR', { minimumFractionDigits: 4, maximumFractionDigits: 4 });
 }
 
+// Normaliza los Decimal de Prisma (que llegan como strings desde la API) a number,
+// igual que hace el Server Component en page.tsx antes de pasar los datos al cliente.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function serializeCuenta(c: any): CuentaConRelaciones {
+  return {
+    ...c,
+    montoOriginal:    Number(c.montoOriginal),
+    indiceInicio:     Number(c.indiceInicio),
+    indiceActual:     Number(c.indiceActual),
+    saldoActualizado: Number(c.saldoActualizado),
+    presupuesto: c.presupuesto
+      ? { ...c.presupuesto, totalFinal: Number(c.presupuesto.totalFinal) }
+      : null,
+    movimientos: (c.movimientos ?? []).map((m: any) => ({
+      ...m,
+      monto:           Number(m.monto),
+      saldoResultante: Number(m.saldoResultante),
+      indiceValor:     m.indiceValor != null ? Number(m.indiceValor) : null,
+    })),
+  };
+}
+
 // ── Main Component ────────────────────────────────────────────────────────────
 
 interface Props {
@@ -203,7 +225,7 @@ export function CuentasCorrientesContent({ cuentasIniciales, clientes, presupues
     const res = await fetch(`/api/cuentas-corrientes/${id}`);
     if (res.ok) {
       const updated = await res.json();
-      setCuentas((prev) => prev.map((c) => (c.id === id ? updated : c)));
+      setCuentas((prev) => prev.map((c) => (c.id === id ? serializeCuenta(updated) : c)));
     }
   }, []);
 
@@ -411,7 +433,7 @@ export function CuentasCorrientesContent({ cuentasIniciales, clientes, presupues
         return;
       }
       const { cuenta } = await res.json();
-      setCuentas((prev) => prev.map((c) => (c.id === activeCuentaId ? cuenta : c)));
+      setCuentas((prev) => prev.map((c) => (c.id === activeCuentaId ? serializeCuenta(cuenta) : c)));
       setPagoOpen(false);
       showToast('Pago registrado');
     } finally {
@@ -472,7 +494,7 @@ export function CuentasCorrientesContent({ cuentasIniciales, clientes, presupues
         return;
       }
       const { cuenta } = await res.json();
-      setCuentas((prev) => prev.map((c) => (c.id === activeCuentaId ? cuenta : c)));
+      setCuentas((prev) => prev.map((c) => (c.id === activeCuentaId ? serializeCuenta(cuenta) : c)));
       setActualizacionOpen(false);
       showToast('Actualización aplicada');
     } finally {
