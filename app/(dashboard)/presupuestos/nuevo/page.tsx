@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -120,6 +120,7 @@ export default function NuevoPresupuestoPage() {
 
   const descuento = watch('descuento') ?? 0;
   const clienteId = watch('clienteId');
+  const clienteAnteriorRef = useRef<string | undefined>(undefined);
 
   useEffect(() => {
     // Check for saved draft on mount
@@ -216,7 +217,10 @@ export default function NuevoPresupuestoPage() {
     fetch(`/api/clientes/${clienteId}/obras`).then((r) => r.json()).then((data) => {
       setObras(data.obras ?? []);
     });
-    setValue('obraId', undefined);
+    if (clienteAnteriorRef.current !== undefined && clienteAnteriorRef.current !== clienteId) {
+      setValue('obraId', undefined);
+    }
+    clienteAnteriorRef.current = clienteId;
   }, [clienteId, setValue]);
 
   const tipoClienteLabel = () => {
@@ -265,6 +269,7 @@ export default function NuevoPresupuestoPage() {
       body: JSON.stringify({
         numero: watch('numero') || nextNumero,
         clienteId: cId,
+        obraId: watch('obraId') || null,
         nombrePresupuesto: watch('nombrePresupuesto') || null,
         prioridad: watch('prioridad') ?? 'MEDIA',
         responsableId: watch('responsableId') || null,
@@ -369,7 +374,7 @@ export default function NuevoPresupuestoPage() {
         totalConIva: ivaResult.totalConIva,
         preciosNetos,
         estado: enviar ? 'ENVIADO' : 'EN_PROCESO',
-        obraId: data.obraId || null,
+        obraId: watch('obraId') || data.obraId || null,
       }),
     });
     setIsSubmitting(false);
@@ -452,8 +457,8 @@ export default function NuevoPresupuestoPage() {
                   <Label>Cliente *</Label>
                   <div className="flex gap-2">
                     <Select
-                      defaultValue={clienteIdParam || undefined}
-                      onValueChange={(v) => setValue('clienteId', v)}
+                      value={watch('clienteId') || ''}
+                      onValueChange={(v) => setValue('clienteId', v, { shouldValidate: true })}
                     >
                       <SelectTrigger className="flex-1">
                         <SelectValue placeholder="Seleccioná un cliente" />
@@ -526,7 +531,7 @@ export default function NuevoPresupuestoPage() {
                     <div className="flex gap-2">
                       <Select
                         value={watch('obraId') || '__none__'}
-                        onValueChange={(v) => setValue('obraId', v === '__none__' ? undefined : v)}
+                        onValueChange={(v) => setValue('obraId', v === '__none__' ? undefined : v, { shouldDirty: true })}
                       >
                         <SelectTrigger className="flex-1">
                           <SelectValue placeholder="Sin obra asociada" />
