@@ -313,6 +313,14 @@ async function main() {
     },
   });
 
+  // --- IndiceGlobal inicial ---
+  const existeIndice = await prisma.indiceGlobal.findFirst({ orderBy: { fecha: 'desc' } });
+  if (!existeIndice) {
+    await prisma.indiceGlobal.create({
+      data: { nombre: 'CAC MO', valor: 17009.6000 },
+    });
+  }
+
   console.log('Seed completado exitosamente.');
 }
 

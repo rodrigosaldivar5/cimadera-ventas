@@ -125,6 +125,50 @@ export function CuentasCorrientesContent({ cuentasIniciales, clientes, presupues
     setTimeout(() => setToast(null), 4000);
   }, []);
 
+  // ── Índice global ─────────────────────────────────────────────────────────
+  const [indiceGlobal, setIndiceGlobal] = useState<number | null>(null);
+  const [indiceGlobalNombre, setIndiceGlobalNombre] = useState('CAC MO');
+  const [indiceGlobalFecha, setIndiceGlobalFecha] = useState<string | null>(null);
+  const [editandoIndice, setEditandoIndice] = useState(false);
+  const [indiceEditValor, setIndiceEditValor] = useState('');
+  const [indiceEditNombre, setIndiceEditNombre] = useState('');
+  const [indiceEditSaving, setIndiceEditSaving] = useState(false);
+
+  useEffect(() => {
+    fetch('/api/indices/actual')
+      .then((r) => r.json())
+      .then((d) => {
+        if (d?.valor) {
+          setIndiceGlobal(Number(d.valor));
+          setIndiceGlobalNombre(d.nombre ?? 'CAC MO');
+          setIndiceGlobalFecha(d.fecha ?? null);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  const handleGuardarIndice = async () => {
+    if (!indiceEditValor) return;
+    setIndiceEditSaving(true);
+    try {
+      const res = await fetch('/api/indices/actual', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nombre: indiceEditNombre || indiceGlobalNombre, valor: parseFloat(indiceEditValor) }),
+      });
+      if (res.ok) {
+        const d = await res.json();
+        setIndiceGlobal(Number(d.valor));
+        setIndiceGlobalNombre(d.nombre);
+        setIndiceGlobalFecha(d.fecha);
+        setEditandoIndice(false);
+        showToast('Índice actualizado');
+      }
+    } finally {
+      setIndiceEditSaving(false);
+    }
+  };
+
   // ── Banner presupuestos sin cuenta ────────────────────────────────────────
   const [dismissedIds, setDismissedIds] = useState<string[]>([]);
   const [showAllBanner, setShowAllBanner] = useState(false);
@@ -384,7 +428,7 @@ export function CuentasCorrientesContent({ cuentasIniciales, clientes, presupues
     setActiveCuentaId(cuentaId);
     const cuenta = cuentas.find((c) => c.id === cuentaId);
     setAfDescripcion(cuenta ? `Actualización por ${cuenta.nombreIndice}` : 'Actualización');
-    setAfIndiceNuevo('');
+    setAfIndiceNuevo(indiceGlobal !== null ? String(indiceGlobal) : '');
     setActualizacionOpen(true);
   };
 
@@ -394,17 +438,17 @@ export function CuentasCorrientesContent({ cuentasIniciales, clientes, presupues
     if (!cuenta) return null;
     const idxNuevo = parseFloat(afIndiceNuevo);
     const idxInicio = Number(cuenta.indiceInicio);
-    const idxAnterior = Number(cuenta.indiceActual);
-    if (!idxInicio || !idxAnterior) return null;
+    if (!idxInicio) return null;
     const totalPagado = cuenta.movimientos
       .filter((m) => m.tipo === 'ANTICIPO' || m.tipo === 'PAGO_PARCIAL')
       .reduce((sum, m) => sum + Number(m.monto), 0);
     const montoOriginal = Number(cuenta.montoOriginal);
-    const saldoNuevo  = montoOriginal * (idxNuevo    / idxInicio) - totalPagado;
-    const saldoActual = Number(cuenta.saldoActualizado);
-    const ajuste      = saldoNuevo - saldoActual;
-    const variacion   = ((idxNuevo / idxAnterior - 1) * 100).toFixed(2);
-    return { ajuste, saldoNuevo, variacion };
+    const montoAjustado = montoOriginal * (idxNuevo / idxInicio);
+    const saldoNuevo    = montoAjustado - totalPagado;
+    const saldoActual   = Number(cuenta.saldoActualizado);
+    const ajuste        = saldoNuevo - saldoActual;
+    const variacion     = ((idxNuevo / idxInicio - 1) * 100).toFixed(2);
+    return { ajuste, saldoNuevo, montoAjustado, variacion };
   };
 
   const handleAplicarActualizacion = async () => {
@@ -625,6 +669,62 @@ export function CuentasCorrientesContent({ cuentasIniciales, clientes, presupues
         </div>
       )}
 
+      {/* Índice global bar */}
+      <div className="flex items-center justify-between bg-[#E6F4FB] border border-[#00ADEF]/30 rounded-lg px-4 py-2.5 text-sm">
+        <div className="flex items-center gap-3">
+          <TrendingUp className="w-4 h-4 text-[#00ADEF] shrink-0" />
+          <span className="font-semibold text-[#0C447C]">{indiceGlobalNombre}</span>
+          {indiceGlobal !== null ? (
+            <span className="text-[#1A1A1A] font-mono font-bold">{fmtIndice(indiceGlobal)}</span>
+          ) : (
+            <span className="text-gray-400 italic text-xs">Cargando…</span>
+          )}
+          {indiceGlobalFecha && (
+            <span className="text-[#4A4A4A] text-xs hidden sm:inline">
+              — actualizado {new Date(indiceGlobalFecha).toLocaleDateString('es-AR')}
+            </span>
+          )}
+        </div>
+        {editandoIndice ? (
+          <div className="flex items-center gap-2">
+            <Input
+              className="h-7 w-28 text-xs"
+              placeholder="Nombre"
+              value={indiceEditNombre}
+              onChange={(e) => setIndiceEditNombre(e.target.value)}
+            />
+            <Input
+              type="number"
+              step="0.0001"
+              className="h-7 w-32 text-xs font-mono"
+              placeholder="Valor"
+              value={indiceEditValor}
+              onChange={(e) => setIndiceEditValor(e.target.value)}
+            />
+            <Button size="sm" className="h-7 text-xs bg-[#00ADEF] hover:bg-[#0089C7] text-white" onClick={handleGuardarIndice} disabled={indiceEditSaving}>
+              {indiceEditSaving ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Guardar'}
+            </Button>
+            <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setEditandoIndice(false)}>
+              <X className="w-3 h-3" />
+            </Button>
+          </div>
+        ) : (
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-7 text-xs text-[#0C447C] hover:bg-[#00ADEF]/10"
+            onClick={() => {
+              setIndiceEditValor(indiceGlobal !== null ? String(indiceGlobal) : '');
+              setIndiceEditNombre(indiceGlobalNombre);
+              setEditandoIndice(true);
+            }}
+          >
+            <Edit className="w-3 h-3 mr-1" />
+            Actualizar
+          </Button>
+        )}
+      </div>
+
       {/* Metrics */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="bg-white rounded-lg border p-4 shadow-sm">
@@ -758,17 +858,11 @@ export function CuentasCorrientesContent({ cuentasIniciales, clientes, presupues
               {isExpanded && (
                 <div className="border-t px-5 pb-5 space-y-4">
                   {/* Index info row */}
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-4">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mt-4">
                     <div className="bg-gray-50 rounded-md p-3">
                       <p className="text-xs text-gray-400">{cuenta.nombreIndice} — Índice inicio</p>
                       <p className="text-sm font-semibold text-[#1A1A1A] mt-0.5">
                         {fmtIndice(cuenta.indiceInicio)}
-                      </p>
-                    </div>
-                    <div className="bg-gray-50 rounded-md p-3">
-                      <p className="text-xs text-gray-400">{cuenta.nombreIndice} — Índice actual</p>
-                      <p className="text-sm font-semibold text-[#1A1A1A] mt-0.5">
-                        {fmtIndice(cuenta.indiceActual)}
                       </p>
                     </div>
                     <div className="bg-gray-50 rounded-md p-3">
@@ -1151,15 +1245,15 @@ export function CuentasCorrientesContent({ cuentasIniciales, clientes, presupues
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <Label>Índice anterior</Label>
+                <Label>Índice inicio</Label>
                 <Input
-                  value={activeCuenta ? fmtIndice(activeCuenta.indiceActual) : ''}
+                  value={activeCuenta ? fmtIndice(activeCuenta.indiceInicio) : ''}
                   readOnly
-                  className="bg-gray-50 text-gray-500"
+                  className="bg-gray-50 text-gray-500 cursor-not-allowed"
                 />
               </div>
               <div>
-                <Label>Índice nuevo *</Label>
+                <Label>Índice actual *</Label>
                 <Input
                   type="number"
                   step="0.0001"
@@ -1175,21 +1269,25 @@ export function CuentasCorrientesContent({ cuentasIniciales, clientes, presupues
               return (
                 <div className="bg-gray-50 rounded-md p-3 space-y-1 text-sm">
                   <div className="flex justify-between">
-                    <span className="text-gray-500">Variación índice:</span>
+                    <span className="text-gray-500">Variación respecto al inicio:</span>
                     <span className={`font-semibold ${Number(calc.variacion) >= 0 ? 'text-green-700' : 'text-red-600'}`}>
                       {Number(calc.variacion) >= 0 ? '+' : ''}{calc.variacion}%
                     </span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-500">Ajuste:</span>
-                    <span className={`font-semibold ${calc.ajuste >= 0 ? 'text-green-700' : 'text-red-600'}`}>
-                      {calc.ajuste >= 0 ? '+' : ''}{formatCurrency(calc.ajuste)}
-                    </span>
+                    <span className="text-gray-500">Monto ajustado:</span>
+                    <span className="font-semibold text-[#1A1A1A]">{formatCurrency(calc.montoAjustado)}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-500">Saldo resultante:</span>
-                    <span className={`font-semibold ${calc.saldoNuevo >= 0 ? 'text-green-700' : 'text-red-600'}`}>
+                    <span className={`font-semibold ${calc.saldoNuevo >= 0 ? 'text-[#1A1A1A]' : 'text-red-600'}`}>
                       {formatCurrency(calc.saldoNuevo)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between border-t border-gray-200 pt-1 mt-1">
+                    <span className="text-gray-500">Ajuste a aplicar:</span>
+                    <span className={`font-semibold ${calc.ajuste >= 0 ? 'text-green-700' : 'text-red-600'}`}>
+                      {calc.ajuste >= 0 ? '+' : ''}{formatCurrency(calc.ajuste)}
                     </span>
                   </div>
                 </div>

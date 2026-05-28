@@ -458,3 +458,11 @@ model ActivoCanje {
   createdAt        DateTime    @default(now())
   updatedAt        DateTime    @updatedAt
 }
+
+model IndiceGlobal {
+  id        String   @id @default(cuid())
+  nombre    String   @default("ICC")
+  valor     Decimal  @db.Decimal(10, 4)
+  fecha     DateTime @default(now())
+  creadoPor String?
+}
