@@ -477,7 +477,7 @@ export function CuentasCorrientesContent({ cuentasIniciales, clientes, presupues
     const saldoActual   = Number(cuenta.saldoActualizado);
     const ajuste        = saldoNuevo - saldoActual;
     const variacion     = ((idxNuevo / idxInicio - 1) * 100).toFixed(2);
-    return { ajuste, saldoNuevo, montoAjustado, variacion };
+    return { ajuste, saldoNuevo, montoAjustado, variacion, totalPagado };
   };
 
   const handleAplicarActualizacion = async () => {
@@ -1301,27 +1301,29 @@ export function CuentasCorrientesContent({ cuentasIniciales, clientes, presupues
               const calc = calcActualizacion();
               if (!calc) return null;
               return (
-                <div className="bg-gray-50 rounded-md p-3 space-y-1 text-sm">
+                <div className="mt-3 space-y-1.5 text-sm border-t pt-3">
                   <div className="flex justify-between">
                     <span className="text-gray-500">Variación respecto al inicio:</span>
-                    <span className={`font-semibold ${Number(calc.variacion) >= 0 ? 'text-green-700' : 'text-red-600'}`}>
-                      {Number(calc.variacion) >= 0 ? '+' : ''}{calc.variacion}%
+                    <span className={parseFloat(calc.variacion) >= 0 ? 'text-green-700 font-medium' : 'text-red-600 font-medium'}>
+                      {parseFloat(calc.variacion) >= 0 ? '+' : ''}{calc.variacion}%
                     </span>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-500">Monto ajustado:</span>
-                    <span className="font-semibold text-[#1A1A1A]">{formatCurrency(calc.montoAjustado)}</span>
+                  <div className="flex justify-between font-semibold">
+                    <span className="text-gray-700">Saldo resultante:</span>
+                    <span className="text-red-600">{formatCurrency(calc.saldoNuevo)}</span>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-500">Saldo resultante:</span>
-                    <span className={`font-semibold ${calc.saldoNuevo >= 0 ? 'text-[#1A1A1A]' : 'text-red-600'}`}>
-                      {formatCurrency(calc.saldoNuevo)}
-                    </span>
+                  <div className="flex justify-between text-xs text-gray-400">
+                    <span>Monto ajustado bruto:</span>
+                    <span>{formatCurrency(calc.montoAjustado)}</span>
                   </div>
-                  <div className="flex justify-between border-t border-gray-200 pt-1 mt-1">
+                  <div className="flex justify-between text-xs text-gray-400">
+                    <span>Menos pagos registrados:</span>
+                    <span>− {formatCurrency(calc.totalPagado)}</span>
+                  </div>
+                  <div className="flex justify-between border-t border-gray-200 pt-1.5 mt-0.5">
                     <span className="text-gray-500">Ajuste a aplicar:</span>
-                    <span className={`font-semibold ${calc.ajuste >= 0 ? 'text-green-700' : 'text-red-600'}`}>
-                      {calc.ajuste >= 0 ? '+' : ''}{formatCurrency(calc.ajuste)}
+                    <span className={calc.ajuste >= 0 ? 'text-green-700 font-medium' : 'text-red-600 font-medium'}>
+                      {calc.ajuste >= 0 ? '+' : ''}{formatCurrency(Math.abs(calc.ajuste))}
                     </span>
                   </div>
                 </div>
