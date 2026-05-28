@@ -432,8 +432,15 @@ export function CuentasCorrientesContent({ cuentasIniciales, clientes, presupues
         showToast(err.error ?? 'Error al registrar pago', true);
         return;
       }
-      const { cuenta } = await res.json();
-      setCuentas((prev) => prev.map((c) => (c.id === activeCuentaId ? serializeCuenta(cuenta) : c)));
+      const data = await res.json();
+      let cuentaFresh = data.cuenta;
+      if (!cuentaFresh) {
+        const r2 = await fetch(`/api/cuentas-corrientes/${activeCuentaId}`);
+        if (r2.ok) cuentaFresh = await r2.json();
+      }
+      if (cuentaFresh) {
+        setCuentas((prev) => prev.map((c) => (c.id === activeCuentaId ? serializeCuenta(cuentaFresh) : c)));
+      }
       setPagoOpen(false);
       showToast('Pago registrado');
     } finally {
@@ -493,8 +500,15 @@ export function CuentasCorrientesContent({ cuentasIniciales, clientes, presupues
         showToast(err.error ?? 'Error al aplicar actualización', true);
         return;
       }
-      const { cuenta } = await res.json();
-      setCuentas((prev) => prev.map((c) => (c.id === activeCuentaId ? serializeCuenta(cuenta) : c)));
+      const data = await res.json();
+      let cuentaFresh = data.cuenta;
+      if (!cuentaFresh) {
+        const r2 = await fetch(`/api/cuentas-corrientes/${activeCuentaId}`);
+        if (r2.ok) cuentaFresh = await r2.json();
+      }
+      if (cuentaFresh) {
+        setCuentas((prev) => prev.map((c) => (c.id === activeCuentaId ? serializeCuenta(cuentaFresh) : c)));
+      }
       setActualizacionOpen(false);
       showToast('Actualización aplicada');
     } finally {
