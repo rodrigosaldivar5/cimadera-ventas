@@ -262,6 +262,7 @@ export default async function PresupuestoDetallePage({ params }: { params: { id:
           url: a.url,
           tipo: a.tipo,
           tamanio: a.tamanio,
+          createdAt: a.createdAt.toISOString(),
         }))}
       />
     </div>

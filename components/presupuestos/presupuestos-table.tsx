@@ -2,7 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -58,6 +58,37 @@ type PresupuestoCritico = {
 };
 
 const EMAILS_AUTORIZADOS_BORRAR = ['coordinacion.general@cimadera.net', 'admin@cimadera.net'];
+const COLUMN_WIDTHS_KEY = 'presupuestos_column_widths';
+
+function ResizableHead({
+  colKey, defaultWidth, width, onResize, children, className = '',
+}: {
+  colKey: string; defaultWidth: number; width?: number;
+  onResize: (key: string, w: number) => void;
+  children: React.ReactNode; className?: string;
+}) {
+  const headRef = useRef<HTMLTableCellElement>(null);
+  const onMouseDown = (e: React.MouseEvent) => {
+    e.preventDefault();
+    const startX = e.clientX;
+    const startWidth = headRef.current?.offsetWidth ?? defaultWidth;
+    const onMouseMove = (ev: MouseEvent) => {
+      onResize(colKey, Math.max(50, startWidth + (ev.clientX - startX)));
+    };
+    const onMouseUp = () => {
+      document.removeEventListener('mousemove', onMouseMove);
+      document.removeEventListener('mouseup', onMouseUp);
+    };
+    document.addEventListener('mousemove', onMouseMove);
+    document.addEventListener('mouseup', onMouseUp);
+  };
+  return (
+    <TableHead ref={headRef} style={{ width: width ?? defaultWidth, position: 'relative' }} className={className}>
+      {children}
+      <div onMouseDown={onMouseDown} style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: 4, cursor: 'col-resize', userSelect: 'none' }} />
+    </TableHead>
+  );
+}
 
 interface Props {
   presupuestos: PresupuestoRow[];
@@ -83,6 +114,17 @@ export function PresupuestosTable({ presupuestos, total, page, perPage, clientes
   const [criticosOpen, setCriticosOpen] = useState(true);
   const [editingPrecio, setEditingPrecio] = useState<{ id: string; value: string } | null>(null);
   const [savingPrecio, setSavingPrecio] = useState(false);
+  const [columnWidths, setColumnWidths] = useState<Record<string, number>>(() => {
+    if (typeof window === 'undefined') return {};
+    try { const s = localStorage.getItem(COLUMN_WIDTHS_KEY); return s ? JSON.parse(s) : {}; } catch { return {}; }
+  });
+  const handleResize = (colKey: string, width: number) => {
+    setColumnWidths((prev) => {
+      const next = { ...prev, [colKey]: width };
+      try { localStorage.setItem(COLUMN_WIDTHS_KEY, JSON.stringify(next)); } catch {}
+      return next;
+    });
+  };
 
   const FILTROS_KEY = 'presupuestos_filtros';
 
@@ -353,26 +395,26 @@ export function PresupuestosTable({ presupuestos, total, page, perPage, clientes
       </div>
 
       {/* Tabla */}
-      <div className="rounded-lg border bg-white shadow-sm overflow-hidden">
+      <div className="rounded-lg border bg-white shadow-sm overflow-hidden [&_td]:py-3.5">
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Nro</TableHead>
-              <TableHead>Nombre</TableHead>
-              <TableHead>Cliente</TableHead>
-              <TableHead>Obra</TableHead>
-              <TableHead>Responsable</TableHead>
-              <TableHead>Prioridad</TableHead>
-              <TableHead>Estado</TableHead>
-              <TableHead>Recepción</TableHead>
-              <TableHead className="text-right">Total</TableHead>
-              <TableHead className="text-right">P. Final</TableHead>
+              <ResizableHead colKey="nro" defaultWidth={72} width={columnWidths.nro} onResize={handleResize}>Nro</ResizableHead>
+              <ResizableHead colKey="nombre" defaultWidth={140} width={columnWidths.nombre} onResize={handleResize}>Nombre</ResizableHead>
+              <ResizableHead colKey="cliente" defaultWidth={150} width={columnWidths.cliente} onResize={handleResize}>Cliente</ResizableHead>
+              <ResizableHead colKey="obra" defaultWidth={120} width={columnWidths.obra} onResize={handleResize}>Obra</ResizableHead>
+              <ResizableHead colKey="responsable" defaultWidth={120} width={columnWidths.responsable} onResize={handleResize}>Responsable</ResizableHead>
+              <ResizableHead colKey="prioridad" defaultWidth={90} width={columnWidths.prioridad} onResize={handleResize}>Prioridad</ResizableHead>
+              <ResizableHead colKey="estado" defaultWidth={120} width={columnWidths.estado} onResize={handleResize}>Estado</ResizableHead>
+              <ResizableHead colKey="recepcion" defaultWidth={100} width={columnWidths.recepcion} onResize={handleResize}>Recepción</ResizableHead>
+              <ResizableHead colKey="total" defaultWidth={110} width={columnWidths.total} onResize={handleResize} className="text-right">Total</ResizableHead>
+              <ResizableHead colKey="pfinal" defaultWidth={110} width={columnWidths.pfinal} onResize={handleResize} className="text-right">P. Final</ResizableHead>
               <TableHead className="w-16"></TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {presupuestos.map((p) => (
-              <TableRow key={p.id}>
+              <TableRow key={p.id} className="border-b border-slate-200 hover:bg-slate-50/50">
                 <TableCell className="font-medium">#{p.numero}</TableCell>
                 <TableCell className="max-w-[140px] truncate text-slate-600">
                   {p.nombrePresupuesto ?? '—'}

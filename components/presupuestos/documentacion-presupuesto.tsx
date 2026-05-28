@@ -17,6 +17,7 @@ type Archivo = {
   url: string;
   tipo: string;
   tamanio: number;
+  createdAt: string;
 };
 
 interface Props {
@@ -212,7 +213,12 @@ export function DocumentacionPresupuesto({ presupuestoId, precioFinalInicial, ar
               {archivos.map((a) => (
                 <div key={a.id} className="flex items-center gap-3 p-2.5 rounded-lg border bg-slate-50">
                   <IconArchivo tipo={a.tipo} />
-                  <span className="text-sm text-slate-700 flex-1 truncate">{a.nombre}</span>
+                  <div className="flex-1 min-w-0">
+                    <span className="text-sm text-slate-700 block truncate">{a.nombre}</span>
+                    <p className="text-xs text-slate-400 mt-0.5">
+                      Subido el {new Date(a.createdAt).toLocaleDateString('es-AR')} a las {new Date(a.createdAt).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })}
+                    </p>
+                  </div>
                   <span className="text-xs text-slate-400 shrink-0">{formatBytes(a.tamanio)}</span>
                   <a
                     href={a.url}
