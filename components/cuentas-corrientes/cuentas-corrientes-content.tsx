@@ -542,7 +542,7 @@ export function CuentasCorrientesContent({ cuentasIniciales, clientes, presupues
         return;
       }
       const cuentaActualizada = await res.json();
-      setCuentas((prev) => prev.map((c) => (c.id === activeCuentaId ? cuentaActualizada : c)));
+      setCuentas((prev) => prev.map((c) => (c.id === activeCuentaId ? serializeCuenta(cuentaActualizada) : c)));
       setEditMovOpen(false);
       showToast('Movimiento actualizado');
     } finally {
@@ -567,7 +567,7 @@ export function CuentasCorrientesContent({ cuentasIniciales, clientes, presupues
         return;
       }
       const cuentaActualizada = await res.json();
-      setCuentas((prev) => prev.map((c) => (c.id === cuentaId ? cuentaActualizada : c)));
+      setCuentas((prev) => prev.map((c) => (c.id === cuentaId ? serializeCuenta(cuentaActualizada) : c)));
       showToast('Movimiento eliminado');
     } finally {
       setDeletingMovId(null);
