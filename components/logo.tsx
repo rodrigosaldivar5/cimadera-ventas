@@ -12,11 +12,12 @@ export function Logo({ className, variant = 'light' }: LogoProps) {
       <Image
         src="/logo.png"
         alt="CIMAdera"
-        width={140}
-        height={40}
-        className="h-10 w-auto"
+        width={200}
+        height={56}
+        className="h-12 w-auto object-contain"
         style={variant === 'light' ? { filter: 'brightness(0) invert(1)' } : undefined}
         priority
+        unoptimized
       />
     </div>
   );

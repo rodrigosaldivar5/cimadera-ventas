@@ -106,7 +106,7 @@ export function Sidebar({ userName, userEmail, rolNombre }: SidebarProps) {
   return (
     <aside className="flex h-full w-64 flex-col bg-[#1A1A1A]">
       {/* Logo */}
-      <div className="flex h-16 items-center px-6 border-b border-white/10">
+      <div className="flex h-20 items-center justify-center px-4 border-b border-white/10">
         <Logo variant="light" />
       </div>
 
