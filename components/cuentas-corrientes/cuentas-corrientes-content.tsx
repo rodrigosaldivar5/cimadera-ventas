@@ -902,20 +902,18 @@ export function CuentasCorrientesContent({ cuentasIniciales, clientes, presupues
                       </p>
                     </div>
                     <div className="bg-gray-50 rounded-md p-3">
-                      <p className="text-xs text-gray-400">Monto original</p>
+                      <p className="text-xs text-gray-400">Monto contrato</p>
                       <p className="text-sm font-semibold text-[#1A1A1A] mt-0.5">
                         {formatCurrency(Number(cuenta.montoOriginal))}
                       </p>
                     </div>
                     <div className="bg-gray-50 rounded-md p-3">
-                      <p className="text-xs text-gray-400">
-                        Saldo actualizado
-                        <span className="ml-1 text-gray-300">
-                          (× {fmtIndice(cuenta.indiceActual)}/{fmtIndice(cuenta.indiceInicio)})
-                        </span>
-                      </p>
+                      <p className="text-xs text-gray-400">Saldo pendiente actualizado</p>
                       <p className="text-sm font-semibold text-red-600 mt-0.5">
                         {formatCurrency(Number(cuenta.saldoActualizado))}
+                      </p>
+                      <p className="text-xs text-gray-400 mt-1">
+                        Monto ajustado: {formatCurrency(Number(cuenta.montoOriginal) * (Number(cuenta.indiceActual) / Number(cuenta.indiceInicio)))}
                       </p>
                     </div>
                   </div>
