@@ -381,6 +381,7 @@ export function CuentasCorrientesContent({ cuentasIniciales, clientes, presupues
 
   // ── Registrar pago ────────────────────────────────────────────────────────
   const [pfTipo, setPfTipo] = useState<'ANTICIPO' | 'PAGO_PARCIAL'>('ANTICIPO');
+  const [pfCaja, setPfCaja] = useState<'ARS' | 'USD'>('ARS');
   const [pfDescripcion, setPfDescripcion] = useState('');
   const [pfMonto, setPfMonto] = useState('');
   const [pfFactura, setPfFactura] = useState('');
@@ -390,6 +391,7 @@ export function CuentasCorrientesContent({ cuentasIniciales, clientes, presupues
   const openPagoDialog = (cuentaId: string) => {
     setActiveCuentaId(cuentaId);
     setPfTipo('ANTICIPO');
+    setPfCaja('ARS');
     setPfDescripcion('');
     setPfMonto('');
     setPfFactura('');
@@ -425,6 +427,7 @@ export function CuentasCorrientesContent({ cuentasIniciales, clientes, presupues
           monto: parseFloat(pfMonto),
           numeroFactura: pfFactura || null,
           fecha: pfFecha,
+          caja: pfCaja,
         }),
       });
       if (!res.ok) {
@@ -942,6 +945,7 @@ export function CuentasCorrientesContent({ cuentasIniciales, clientes, presupues
                           <TableHead className="w-32">Tipo</TableHead>
                           <TableHead>Descripción</TableHead>
                           <TableHead className="w-28">N° Factura</TableHead>
+                          <TableHead className="w-16">Caja</TableHead>
                           <TableHead className="w-32 text-right">Monto</TableHead>
                           <TableHead className="w-32 text-right">Saldo</TableHead>
                           <TableHead className="w-20">Acciones</TableHead>
@@ -950,7 +954,7 @@ export function CuentasCorrientesContent({ cuentasIniciales, clientes, presupues
                       <TableBody>
                         {movsSorted.length === 0 && (
                           <TableRow>
-                            <TableCell colSpan={7} className="text-center text-gray-400 text-sm">
+                            <TableCell colSpan={8} className="text-center text-gray-400 text-sm">
                               Sin movimientos
                             </TableCell>
                           </TableRow>
@@ -966,6 +970,15 @@ export function CuentasCorrientesContent({ cuentasIniciales, clientes, presupues
                             <TableCell className="text-sm">{mov.descripcion}</TableCell>
                             <TableCell className="text-sm text-gray-500">
                               {mov.numeroFactura ?? '—'}
+                            </TableCell>
+                            <TableCell>
+                              {mov.caja === 'USD' ? (
+                                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-semibold bg-[#EAF3DE] text-[#27500A]">U$D</span>
+                              ) : mov.caja === 'ARS' ? (
+                                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-semibold bg-[#E6F1FB] text-[#0C447C]">$</span>
+                              ) : (
+                                <span className="text-gray-400 text-sm">—</span>
+                              )}
                             </TableCell>
                             <TableCell className="text-sm text-right font-medium">
                               {mov.tipo === 'ANTICIPO' || mov.tipo === 'PAGO_PARCIAL' ? (
@@ -1210,14 +1223,54 @@ export function CuentasCorrientesContent({ cuentasIniciales, clientes, presupues
               />
             </div>
             <div>
+              <Label className="mb-1.5 block">Moneda / Caja *</Label>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button
+                  type="button"
+                  onClick={() => setPfCaja('ARS')}
+                  style={{
+                    flex: 1, padding: '10px',
+                    borderRadius: 'var(--radius)',
+                    border: pfCaja === 'ARS' ? '2px solid #00ADEF' : '0.5px solid #e2e8f0',
+                    background: pfCaja === 'ARS' ? '#E6F1FB' : 'white',
+                    color: pfCaja === 'ARS' ? '#0C447C' : '#1A1A1A',
+                    fontWeight: pfCaja === 'ARS' ? 500 : 400,
+                    cursor: 'pointer', fontSize: '14px',
+                  }}
+                >
+                  $ Pesos (ARS)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPfCaja('USD')}
+                  style={{
+                    flex: 1, padding: '10px',
+                    borderRadius: 'var(--radius)',
+                    border: pfCaja === 'USD' ? '2px solid #27500A' : '0.5px solid #e2e8f0',
+                    background: pfCaja === 'USD' ? '#EAF3DE' : 'white',
+                    color: pfCaja === 'USD' ? '#27500A' : '#1A1A1A',
+                    fontWeight: pfCaja === 'USD' ? 500 : 400,
+                    cursor: 'pointer', fontSize: '14px',
+                  }}
+                >
+                  U$D Dólares (USD)
+                </button>
+              </div>
+            </div>
+            <div>
               <Label>Monto *</Label>
               <Input
                 type="number"
                 step="0.01"
-                placeholder="0.00"
+                placeholder="0,00"
                 value={pfMonto}
                 onChange={(e) => setPfMonto(e.target.value)}
               />
+              {pfMonto && (
+                <p className="text-xs text-gray-500 mt-1">
+                  {pfCaja === 'ARS' ? `$ ${parseFloat(pfMonto || '0').toLocaleString('es-AR', { minimumFractionDigits: 2 })}` : `U$D ${parseFloat(pfMonto || '0').toLocaleString('es-AR', { minimumFractionDigits: 2 })}`}
+                </p>
+              )}
             </div>
             <div>
               <Label>N° Factura</Label>

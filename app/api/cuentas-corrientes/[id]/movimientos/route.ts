@@ -11,7 +11,7 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
 
   try {
     const data = await req.json();
-    const { tipo, descripcion, monto, numeroFactura, fecha, indiceValor } = data;
+    const { tipo, descripcion, monto, numeroFactura, fecha, indiceValor, caja } = data;
 
     if (!tipo || !descripcion || monto === undefined || !fecha) {
       return NextResponse.json({ error: 'Faltan campos requeridos' }, { status: 400 });
@@ -66,6 +66,7 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
           numeroFactura: numeroFactura || null,
           fecha: new Date(fecha),
           indiceValor: indiceValor ? Number(indiceValor) : null,
+          caja: caja ?? null,
         },
       }),
       prisma.cuentaCorriente.update({
@@ -73,6 +74,36 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
         data: updateCuenta,
       }),
     ]);
+
+    // Impactar en Tesorería solo para pagos (ANTICIPO / PAGO_PARCIAL) con caja definida
+    if ((tipo === TipoMovimiento.ANTICIPO || tipo === TipoMovimiento.PAGO_PARCIAL) && caja) {
+      const cajaKey = caja as 'ARS' | 'USD';
+      const movsTesoreraHistoricos = await prisma.movimientoTesoreria.findMany({
+        where: { caja: cajaKey },
+        orderBy: { fecha: 'asc' },
+      });
+      const saldoCajaActual = movsTesoreraHistoricos.reduce((sum, m) => {
+        if (['INGRESO', 'TRASPASO_ENTRADA', 'CANJE_REALIZADO'].includes(m.tipo)) {
+          return sum + parseFloat(m.monto.toString());
+        }
+        return sum - parseFloat(m.monto.toString());
+      }, 0);
+      const nuevoSaldoCaja = saldoCajaActual + montoNum;
+      const cuentaInfo = await prisma.cuentaCorriente.findUnique({
+        where: { id: params.id },
+        include: { cliente: { select: { razonSocial: true } } },
+      });
+      await prisma.movimientoTesoreria.create({
+        data: {
+          caja: cajaKey,
+          tipo: 'INGRESO',
+          descripcion: `${tipo === 'ANTICIPO' ? 'Anticipo' : 'Pago parcial'} — ${cuentaInfo?.cliente?.razonSocial ?? 'Cliente'} (CC)`,
+          monto: montoNum,
+          saldoResultante: nuevoSaldoCaja,
+          fecha: new Date(fecha),
+        },
+      });
+    }
 
     const cuentaActualizada = await prisma.cuentaCorriente.findUnique({
       where: { id: params.id },

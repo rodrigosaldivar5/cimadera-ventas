@@ -377,6 +377,7 @@ model MovimientoCuenta {
   numeroFactura   String?
   fecha           DateTime        @default(now())
   indiceValor     Decimal?        @db.Decimal(10, 4)
+  caja            String?
   createdAt       DateTime        @default(now())
 }
 
