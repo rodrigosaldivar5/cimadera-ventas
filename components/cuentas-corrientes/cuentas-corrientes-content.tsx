@@ -249,7 +249,7 @@ export function CuentasCorrientesContent({ cuentasIniciales, clientes, presupues
       sum +
       c.movimientos
         .filter((m) => m.tipo === 'ANTICIPO' || m.tipo === 'PAGO_PARCIAL')
-        .reduce((s, m) => s + Number(m.monto), 0)
+        .reduce((s, m) => s + Number(m.montoEnARS ?? m.monto), 0)
     );
   }, 0);
   const saldoPendienteTotal = cuentas
@@ -505,7 +505,7 @@ export function CuentasCorrientesContent({ cuentasIniciales, clientes, presupues
     if (!idxInicio) return null;
     const totalPagado = cuenta.movimientos
       .filter((m) => m.tipo === 'ANTICIPO' || m.tipo === 'PAGO_PARCIAL')
-      .reduce((sum, m) => sum + Number(m.monto), 0);
+      .reduce((sum, m) => sum + Number(m.montoEnARS ?? m.monto), 0);
     const montoOriginal = Number(cuenta.montoOriginal);
     const saldoBase     = montoOriginal - totalPagado;
     const saldoNuevo    = saldoBase * (idxNuevo / idxInicio);
@@ -868,7 +868,7 @@ export function CuentasCorrientesContent({ cuentasIniciales, clientes, presupues
 
           const totalCobradoCuenta = movsSorted
             .filter((m) => m.tipo === 'ANTICIPO' || m.tipo === 'PAGO_PARCIAL')
-            .reduce((s, m) => s + Number(m.monto), 0);
+            .reduce((s, m) => s + Number(m.montoEnARS ?? m.monto), 0);
 
           const progresoPct =
             Number(cuenta.saldoActualizado) > 0
