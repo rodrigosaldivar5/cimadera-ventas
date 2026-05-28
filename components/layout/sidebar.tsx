@@ -36,7 +36,9 @@ type NavItem = {
   children?: { href: string; label: string; icon: React.ElementType }[];
 };
 
-const navItems: NavItem[] = [
+const TESORERIA_EMAILS = ['coordinacion.general@cimadera.net', 'admin@cimadera.net'];
+
+const navItemsBase: NavItem[] = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   {
     href: '/clientes',
@@ -88,6 +90,9 @@ interface SidebarProps {
 
 export function Sidebar({ userName, userEmail, rolNombre }: SidebarProps) {
   const pathname = usePathname();
+  const navItems = navItemsBase.filter((item) =>
+    item.href !== '/tesoreria' || TESORERIA_EMAILS.includes(userEmail),
+  );
   const [openItems, setOpenItems] = useState<Record<string, boolean>>({
     '/admin': pathname.startsWith('/admin'),
     '/clientes': pathname.startsWith('/clientes/descuentos'),

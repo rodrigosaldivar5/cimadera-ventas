@@ -363,3 +363,82 @@ model MovimientoCuenta {
   indiceValor     Decimal?        @db.Decimal(10, 4)
   createdAt       DateTime        @default(now())
 }
+
+// ─── Tesorería ───────────────────────────────────────────────────────────────
+
+enum TipoCaja {
+  ARS
+  USD
+}
+
+enum TipoMovimientoTesoreria {
+  INGRESO
+  EGRESO
+  TRASPASO_ENTRADA
+  TRASPASO_SALIDA
+  CANJE_REALIZADO
+}
+
+enum EstadoCanje {
+  NO_LIQUIDO
+  REALIZADO
+}
+
+enum TipoActivo {
+  DEPARTAMENTO
+  TERRENO
+  OTRO
+}
+
+model TipoCambio {
+  id          String                @id @default(cuid())
+  valor       Decimal               @db.Decimal(12, 4)
+  fecha       DateTime              @default(now())
+  creadoPor   String?
+  movimientos MovimientoTesoreria[]
+}
+
+model MovimientoTesoreria {
+  id              String                  @id @default(cuid())
+  caja            TipoCaja
+  tipo            TipoMovimientoTesoreria
+  descripcion     String
+  monto           Decimal                 @db.Decimal(14, 2)
+  saldoResultante Decimal                 @db.Decimal(14, 2)
+  tipoCambioId    String?
+  tipoCambio      TipoCambio?             @relation(fields: [tipoCambioId], references: [id])
+  traspasoId      String?
+  traspaso        Traspaso?               @relation(fields: [traspasoId], references: [id])
+  fecha           DateTime                @default(now())
+  createdAt       DateTime                @default(now())
+}
+
+model Traspaso {
+  id              String                @id @default(cuid())
+  cajaOrigen      TipoCaja
+  cajaDestino     TipoCaja
+  montoOrigen     Decimal               @db.Decimal(14, 2)
+  montoDestino    Decimal               @db.Decimal(14, 2)
+  tipoCambioUsado Decimal               @db.Decimal(12, 4)
+  descripcion     String?
+  fecha           DateTime              @default(now())
+  createdAt       DateTime              @default(now())
+  movimientos     MovimientoTesoreria[]
+}
+
+model ActivoCanje {
+  id               String      @id @default(cuid())
+  nombre           String
+  tipo             TipoActivo
+  descripcion      String?
+  fechaRecepcion   DateTime
+  valorEntrada     Decimal     @db.Decimal(14, 2)
+  valorEstimado    Decimal     @db.Decimal(14, 2)
+  estado           EstadoCanje @default(NO_LIQUIDO)
+  fechaRealizacion DateTime?
+  valorVenta       Decimal?    @db.Decimal(14, 2)
+  gananciaUSD      Decimal?    @db.Decimal(14, 2)
+  observaciones    String?
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+}
