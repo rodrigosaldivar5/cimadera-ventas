@@ -331,20 +331,40 @@ model CuentaCorriente {
 }
 
 model CostoFijo {
-  id            String   @id @default(cuid())
+  id            String              @id @default(cuid())
   nombre        String
   categoria     String
-  moneda        String   @default("ARS")
-  monto         Float
-  activo        Boolean  @default(true)
+  categoriaId   String?
+  categoriaRel  CategoriaCostoFijo? @relation(fields: [categoriaId], references: [id])
+  moneda        String              @default("ARS")
+  monto         Float               @default(0)
+  activo        Boolean             @default(true)
   observacion   String?
-  creadoEn      DateTime @default(now())
-  actualizadoEn DateTime @updatedAt
+  creadoEn      DateTime            @default(now())
+  actualizadoEn DateTime            @updatedAt
+  registros     RegistroCostoFijo[]
+}
+
+model RegistroCostoFijo {
+  id            String    @id @default(cuid())
+  costoFijoId   String
+  costoFijo     CostoFijo @relation(fields: [costoFijoId], references: [id], onDelete: Cascade)
+  mes           Int
+  anio          Int
+  montoEstimado Decimal?  @db.Decimal(14, 2)
+  montoReal     Decimal?  @db.Decimal(14, 2)
+  observacion   String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@unique([costoFijoId, mes, anio])
+  @@index([mes, anio])
 }
 
 model CategoriaCostoFijo {
-  id     String @id @default(cuid())
-  nombre String @unique
+  id      String      @id @default(cuid())
+  nombre  String      @unique
+  costos  CostoFijo[]
 }
 
 model SnapshotCostosFijos {
