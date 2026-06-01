@@ -14,6 +14,8 @@ import { DocumentacionPresupuesto } from '@/components/presupuestos/documentacio
 import { EditarResponsable } from '@/components/presupuestos/editar-responsable';
 import { ActualizarPreciosBtn } from '@/components/presupuestos/actualizar-precios-btn';
 import { EliminarPresupuestoBtn } from '@/components/presupuestos/eliminar-presupuesto-btn';
+import { CambiarPrioridadBtn } from '@/components/presupuestos/cambiar-prioridad-btn';
+import { HistorialPresupuesto } from '@/components/presupuestos/historial-presupuesto';
 import { auth } from '@/lib/auth';
 import type { EstadoPresupuesto } from '@prisma/client';
 import Link from 'next/link';
@@ -64,6 +66,10 @@ export default async function PresupuestoDetallePage({ params }: { params: { id:
               redirectOnDelete
             />
           )}
+          <CambiarPrioridadBtn
+            presupuestoId={presupuesto.id}
+            prioridadInicial={presupuesto.prioridad}
+          />
           <Badge variant="outline" className={`text-sm px-3 py-1 ${estadoBadgeClass[presupuesto.estado]}`}>
             {estadoLabel[presupuesto.estado]}
           </Badge>
@@ -252,6 +258,8 @@ export default async function PresupuestoDetallePage({ params }: { params: { id:
           )}
         </CardContent>
       </Card>
+
+      <HistorialPresupuesto presupuestoId={presupuesto.id} />
 
       <DocumentacionPresupuesto
         presupuestoId={presupuesto.id}

@@ -40,6 +40,7 @@ model User {
   createdAt             DateTime      @default(now())
   presupuestosCreados   Presupuesto[] @relation("PresupuestoCreadoPor")
   presupuestosAsignados Presupuesto[] @relation("PresupuestoResponsable")
+  auditorias            AuditoriaPresupuesto[]
 }
 
 model PermisoRol {
@@ -123,6 +124,7 @@ model Presupuesto {
   puertas           PuertaPresupuesto[]
   archivos          ArchivoPresupuesto[]
   cuentaCorriente   CuentaCorriente?
+  auditoria         AuditoriaPresupuesto[]
 }
 
 model Obra {
@@ -488,4 +490,17 @@ model IndiceGlobal {
   valor     Decimal  @db.Decimal(10, 4)
   fecha     DateTime @default(now())
   creadoPor String?
+}
+
+model AuditoriaPresupuesto {
+  id                String      @id @default(cuid())
+  presupuestoId     String
+  presupuesto       Presupuesto @relation(fields: [presupuestoId], references: [id], onDelete: Cascade)
+  usuarioId         String?
+  usuario           User?       @relation(fields: [usuarioId], references: [id])
+  accion            String
+  camposModificados Json?
+  createdAt         DateTime    @default(now())
+
+  @@index([presupuestoId])
 }

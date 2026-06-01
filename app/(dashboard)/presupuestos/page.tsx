@@ -39,7 +39,7 @@ export default async function PresupuestosPage({ searchParams }: { searchParams:
       skip,
       take: perPage,
       orderBy: { fechaCreacion: 'desc' },
-      include: { cliente: true, creadoPor: true, responsable: true, obra: true },
+      include: { cliente: true, creadoPor: true, responsable: true, obra: true, archivos: { select: { id: true } } },
     }),
     prisma.presupuesto.count({ where }),
     prisma.cliente.findMany({ where: { activo: true }, orderBy: { razonSocial: 'asc' }, select: { id: true, razonSocial: true } }),

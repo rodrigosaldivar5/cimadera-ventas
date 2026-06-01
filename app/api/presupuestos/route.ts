@@ -3,6 +3,7 @@ import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { EstadoPresupuesto, Prioridad } from '@prisma/client';
 import { getNextNumeroPresupuesto } from '@/lib/presupuesto-utils';
+import { registrarAuditoria } from '@/lib/auditoria';
 
 export async function GET(req: NextRequest) {
   const session = await auth();
@@ -33,7 +34,13 @@ export async function GET(req: NextRequest) {
       skip: (page - 1) * perPage,
       take: perPage,
       orderBy: { fechaCreacion: 'desc' },
-      include: { cliente: true, creadoPor: { select: { nombre: true } }, obra: { select: { id: true, nombre: true } } },
+      include: {
+        cliente: true,
+        creadoPor: { select: { nombre: true } },
+        responsable: { select: { nombre: true } },
+        obra: { select: { id: true, nombre: true } },
+        archivos: { select: { id: true } },
+      },
     }),
     prisma.presupuesto.count({ where }),
   ]);
@@ -118,6 +125,12 @@ export async function POST(req: NextRequest) {
           })),
         },
       },
+    });
+
+    registrarAuditoria({
+      presupuestoId: presupuesto.id,
+      usuarioId: session.user.id,
+      accion: 'CREACION',
     });
 
     return NextResponse.json(presupuesto, { status: 201 });

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { registrarAuditoria } from '@/lib/auditoria';
 import path from 'path';
 
 const ALLOWED_EXTS = ['.pdf', '.xml', '.xlsx', '.xls', '.doc', '.docx'];
@@ -62,6 +63,15 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       });
 
       archivosCreados.push(actualizado);
+    }
+
+    if (archivosCreados.length > 0) {
+      registrarAuditoria({
+        presupuestoId: params.id,
+        usuarioId: session.user.id,
+        accion: 'ADJUNTO_SUBIDO',
+        camposModificados: { archivos: archivosCreados.map((a) => a.nombre) },
+      });
     }
 
     return NextResponse.json({ archivos: archivosCreados });

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { registrarAuditoria } from '@/lib/auditoria';
 
 export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
   const session = await auth();
@@ -28,6 +29,11 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
 
   try {
     const data = await req.json();
+
+    const prev = await prisma.presupuesto.findUnique({
+      where: { id: params.id },
+      select: { estado: true, clienteId: true, obraId: true, fechaVencimiento: true, totalFinal: true, descuento: true, observaciones: true },
+    });
 
     // Eliminar puertas y líneas existentes para recrearlas
     await prisma.puertaPresupuesto.deleteMany({ where: { presupuestoId: params.id } });
@@ -81,6 +87,27 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
           })),
         },
       },
+    });
+
+    const camposModificados: Record<string, { antes: unknown; despues: unknown }> = {};
+    const check = [
+      ['estado', prev?.estado, data.estado],
+      ['clienteId', prev?.clienteId, data.clienteId],
+      ['obraId', prev?.obraId, data.obraId || null],
+      ['fechaVencimiento', prev?.fechaVencimiento?.toISOString() ?? null, data.fechaVencimiento ?? null],
+      ['totalFinal', Number(prev?.totalFinal ?? 0), data.totalFinal ?? 0],
+      ['descuento', Number(prev?.descuento ?? 0), data.descuento ?? 0],
+      ['observaciones', prev?.observaciones ?? null, data.observaciones ?? null],
+    ] as const;
+    for (const [campo, antes, despues] of check) {
+      if (String(antes) !== String(despues)) camposModificados[campo] = { antes, despues };
+    }
+
+    registrarAuditoria({
+      presupuestoId: params.id,
+      usuarioId: session.user.id,
+      accion: 'MODIFICACION',
+      camposModificados: Object.keys(camposModificados).length ? camposModificados : undefined,
     });
 
     return NextResponse.json(presupuesto);

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { registrarAuditoria } from '@/lib/auditoria';
 
 export async function DELETE(
   _req: NextRequest,
@@ -13,5 +14,13 @@ export async function DELETE(
   if (!archivo) return NextResponse.json({ error: 'No encontrado' }, { status: 404 });
 
   await prisma.archivoPresupuesto.delete({ where: { id: params.archivoId } });
+
+  registrarAuditoria({
+    presupuestoId: params.id,
+    usuarioId: session.user.id,
+    accion: 'ADJUNTO_ELIMINADO',
+    camposModificados: { nombre: archivo.nombre },
+  });
+
   return NextResponse.json({ success: true });
 }

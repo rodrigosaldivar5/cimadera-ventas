@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuCheckboxItem, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuCheckboxItem, DropdownMenuSeparator, DropdownMenuItem } from '@/components/ui/dropdown-menu';
 import { Plus, Eye, ChevronLeft, ChevronRight, Filter, AlertTriangle, ChevronDown, ChevronUp, Check } from 'lucide-react';
 import { EliminarPresupuestoBtn } from '@/components/presupuestos/eliminar-presupuesto-btn';
 import { formatCurrency, formatDate } from '@/lib/utils';
@@ -46,6 +46,7 @@ type PresupuestoRow = {
   creadoPor: { nombre: string };
   responsable: { nombre: string } | null;
   obra: { nombre: string } | null;
+  archivos: { id: string }[];
 };
 
 type PresupuestoCritico = {
@@ -68,24 +69,42 @@ function ResizableHead({
   children: React.ReactNode; className?: string;
 }) {
   const headRef = useRef<HTMLTableCellElement>(null);
+  const dragRef = useRef<{ startX: number; startWidth: number } | null>(null);
+  const [isHovering, setIsHovering] = useState(false);
+
   const onMouseDown = (e: React.MouseEvent) => {
     e.preventDefault();
-    const startX = e.clientX;
-    const startWidth = headRef.current?.offsetWidth ?? defaultWidth;
+    dragRef.current = {
+      startX: e.clientX,
+      startWidth: headRef.current?.offsetWidth ?? defaultWidth,
+    };
     const onMouseMove = (ev: MouseEvent) => {
-      onResize(colKey, Math.max(50, startWidth + (ev.clientX - startX)));
+      if (!dragRef.current) return;
+      onResize(colKey, Math.max(50, dragRef.current.startWidth + (ev.clientX - dragRef.current.startX)));
     };
     const onMouseUp = () => {
+      dragRef.current = null;
       document.removeEventListener('mousemove', onMouseMove);
       document.removeEventListener('mouseup', onMouseUp);
     };
     document.addEventListener('mousemove', onMouseMove);
     document.addEventListener('mouseup', onMouseUp);
   };
+
   return (
-    <TableHead ref={headRef} style={{ width: width ?? defaultWidth, position: 'relative' }} className={className}>
+    <TableHead ref={headRef} style={{ width: width ?? defaultWidth, position: 'relative', userSelect: 'none' }} className={className}>
       {children}
-      <div onMouseDown={onMouseDown} style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: 4, cursor: 'col-resize', userSelect: 'none' }} />
+      <div
+        onMouseDown={onMouseDown}
+        onMouseEnter={() => setIsHovering(true)}
+        onMouseLeave={() => setIsHovering(false)}
+        style={{
+          position: 'absolute', right: 0, top: 0, bottom: 0, width: 5,
+          cursor: 'col-resize',
+          background: isHovering ? 'rgba(0,173,239,0.35)' : 'transparent',
+          transition: 'background 0.15s',
+        }}
+      />
     </TableHead>
   );
 }
@@ -114,6 +133,7 @@ export function PresupuestosTable({ presupuestos, total, page, perPage, clientes
   const [criticosOpen, setCriticosOpen] = useState(true);
   const [editingPrecio, setEditingPrecio] = useState<{ id: string; value: string } | null>(null);
   const [savingPrecio, setSavingPrecio] = useState(false);
+  const [savingPrioridad, setSavingPrioridad] = useState<string | null>(null);
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>(() => {
     if (typeof window === 'undefined') return {};
     try { const s = localStorage.getItem(COLUMN_WIDTHS_KEY); return s ? JSON.parse(s) : {}; } catch { return {}; }
@@ -168,6 +188,17 @@ export function PresupuestosTable({ presupuestos, total, page, perPage, clientes
     if (!clienteId) { setObrasCliente([]); setObraId(''); return; }
     fetch(`/api/clientes/${clienteId}/obras`).then((r) => r.json()).then((d) => setObrasCliente(d.obras ?? []));
   }, [clienteId]);
+
+  const changePrioridad = async (id: string, prioridad: Prioridad) => {
+    setSavingPrioridad(id);
+    await fetch(`/api/presupuestos/${id}/prioridad`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prioridad }),
+    });
+    setSavingPrioridad(null);
+    router.refresh();
+  };
 
   const savePrecioFinal = async () => {
     if (!editingPrecio) return;
@@ -414,7 +445,10 @@ export function PresupuestosTable({ presupuestos, total, page, perPage, clientes
           </TableHeader>
           <TableBody>
             {presupuestos.map((p) => (
-              <TableRow key={p.id} className="border-b border-slate-200 hover:bg-slate-50/50">
+              <TableRow
+                key={p.id}
+                className={`border-b border-slate-200 hover:bg-slate-50/50 ${p.estado === 'ENVIADO' && p.archivos.length === 0 ? 'bg-amber-50' : ''}`}
+              >
                 <TableCell className="font-medium">#{p.numero}</TableCell>
                 <TableCell className="max-w-[140px] truncate text-slate-600">
                   {p.nombrePresupuesto ?? '—'}
@@ -425,10 +459,40 @@ export function PresupuestosTable({ presupuestos, total, page, perPage, clientes
                   {p.responsable?.nombre ?? p.creadoPor.nombre}
                 </TableCell>
                 <TableCell>
-                  <Badge variant={prioridadVariant[p.prioridad]}>{p.prioridad}</Badge>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <button className="focus:outline-none" disabled={savingPrioridad === p.id}>
+                        <Badge variant="outline" className={`cursor-pointer ${prioridadBadgeClass[p.prioridad]}`}>
+                          {prioridadLabel[p.prioridad]}
+                        </Badge>
+                      </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="start" className="w-28">
+                      {Object.values(PRIORIDAD).map((pr) => (
+                        <DropdownMenuItem
+                          key={pr}
+                          onSelect={() => changePrioridad(p.id, pr)}
+                          disabled={pr === p.prioridad}
+                          className="gap-2 cursor-pointer"
+                        >
+                          <Badge variant="outline" className={`${prioridadBadgeClass[pr]} pointer-events-none`}>
+                            {prioridadLabel[pr]}
+                          </Badge>
+                          {pr === p.prioridad && <Check className="h-3 w-3 ml-auto shrink-0" />}
+                        </DropdownMenuItem>
+                      ))}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </TableCell>
                 <TableCell>
-                  <Badge variant="outline" className={estadoBadgeClass[p.estado]}>{estadoLabel[p.estado]}</Badge>
+                  <div className="flex items-center gap-1.5">
+                    <Badge variant="outline" className={estadoBadgeClass[p.estado]}>{estadoLabel[p.estado]}</Badge>
+                    {p.estado === 'ENVIADO' && p.archivos.length === 0 && (
+                      <span title="Sin adjuntos">
+                        <AlertTriangle className="h-3.5 w-3.5 text-amber-500 shrink-0" />
+                      </span>
+                    )}
+                  </div>
                 </TableCell>
                 <TableCell className="text-slate-500 text-sm">
                   {p.fechaRecepcion ? formatDate(p.fechaRecepcion) : '—'}

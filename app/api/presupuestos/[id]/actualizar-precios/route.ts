@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { registrarAuditoria } from '@/lib/auditoria';
 
 export async function POST(_req: NextRequest, { params }: { params: { id: string } }) {
   const session = await auth();
@@ -77,6 +78,13 @@ export async function POST(_req: NextRequest, { params }: { params: { id: string
   const updated = await prisma.presupuesto.update({
     where: { id: params.id },
     data: { subtotal: subtotalTotal, totalFinal },
+  });
+
+  registrarAuditoria({
+    presupuestoId: params.id,
+    usuarioId: session.user.id,
+    accion: 'ACTUALIZACION_PRECIOS',
+    camposModificados: { totalFinal: { antes: Number(presupuesto.totalFinal), despues: Number(updated.totalFinal) } },
   });
 
   return NextResponse.json({ subtotal: Number(updated.subtotal), totalFinal: Number(updated.totalFinal) });
