@@ -44,6 +44,59 @@ export const PERMISOS_CONFIG = {
     ],
     columnas: [] as { key: string; label: string }[],
   },
+  productos: {
+    label: 'Productos',
+    acciones: [
+      { key: 'ver', label: 'Ver productos' },
+      { key: 'crear', label: 'Crear producto' },
+      { key: 'editar', label: 'Editar producto' },
+      { key: 'eliminar', label: 'Eliminar producto' },
+    ],
+    columnas: [] as { key: string; label: string }[],
+  },
+  materiales: {
+    label: 'Materiales',
+    acciones: [
+      { key: 'ver', label: 'Ver materiales' },
+      { key: 'crear', label: 'Crear material' },
+      { key: 'editar', label: 'Editar material' },
+      { key: 'eliminar', label: 'Eliminar material' },
+    ],
+    columnas: [] as { key: string; label: string }[],
+  },
+  catalogo: {
+    label: 'Catálogo',
+    acciones: [
+      { key: 'ver', label: 'Ver catálogo' },
+      { key: 'crear', label: 'Crear ítem' },
+      { key: 'editar', label: 'Editar ítem' },
+      { key: 'eliminar', label: 'Eliminar ítem' },
+    ],
+    columnas: [] as { key: string; label: string }[],
+  },
+  tesoreria: {
+    label: 'Tesorería',
+    acciones: [
+      { key: 'ver', label: 'Ver tesorería' },
+      { key: 'ver_costos', label: 'Ver costos fijos' },
+      { key: 'editar_costos', label: 'Editar costos fijos' },
+      { key: 'ver_saldo', label: 'Ver registro de saldo' },
+      { key: 'editar_saldo', label: 'Editar registro de saldo' },
+      { key: 'ver_cashflow', label: 'Ver cashflow' },
+    ],
+    columnas: [] as { key: string; label: string }[],
+  },
+  admin: {
+    label: 'Administración',
+    acciones: [
+      { key: 'ver_usuarios', label: 'Ver usuarios' },
+      { key: 'crear_usuario', label: 'Crear usuario' },
+      { key: 'editar_usuario', label: 'Editar usuario' },
+      { key: 'ver_roles', label: 'Ver roles y permisos' },
+      { key: 'editar_roles', label: 'Editar roles y permisos' },
+    ],
+    columnas: [] as { key: string; label: string }[],
+  },
 } as const;
 
 export type ModuloPermiso = keyof typeof PERMISOS_CONFIG;
