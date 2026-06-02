@@ -11,7 +11,7 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
 
   try {
     const data = await req.json();
-    const { tipo, descripcion, monto, numeroFactura, fecha, indiceValor, caja, tipoCambio, montoEnARS } = data;
+    const { tipo, descripcion, monto, numeroFactura, fecha, indiceValor, caja, tipoCambio, montoEnARS, equivalenteUSD } = data;
 
     if (!tipo || !descripcion || monto === undefined || !fecha) {
       return NextResponse.json({ error: 'Faltan campos requeridos' }, { status: 400 });
@@ -73,6 +73,7 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
           caja: caja ?? null,
           tipoCambio: tipoCambio ? Number(tipoCambio) : null,
           montoEnARS: montoEnARS ? Number(montoEnARS) : null,
+          equivalenteUSD: equivalenteUSD != null ? Number(equivalenteUSD) : null,
         },
       }),
       prisma.cuentaCorriente.update({

@@ -20,7 +20,7 @@ import { auth } from '@/lib/auth';
 import type { EstadoPresupuesto } from '@prisma/client';
 import Link from 'next/link';
 import { ArrowLeft, Building2, User2, Calendar } from 'lucide-react';
-import { estadoBadgeClass, estadoLabel } from '@/lib/enums';
+import { estadoBadgeClass, estadoLabel, getEstiloEstado, getLabelEstado } from '@/lib/enums';
 
 const EMAILS_AUTORIZADOS_BORRAR = ['coordinacion.general@cimadera.net', 'admin@cimadera.net'];
 
@@ -70,9 +70,7 @@ export default async function PresupuestoDetallePage({ params }: { params: { id:
             presupuestoId={presupuesto.id}
             prioridadInicial={presupuesto.prioridad}
           />
-          <Badge variant="outline" className={`text-sm px-3 py-1 ${estadoBadgeClass[presupuesto.estado]}`}>
-            {estadoLabel[presupuesto.estado]}
-          </Badge>
+          <span style={getEstiloEstado(presupuesto.estado)}>{getLabelEstado(presupuesto.estado)}</span>
           <PresupuestoAcciones
             presupuesto={{ id: presupuesto.id, estado: presupuesto.estado, numero: presupuesto.numero }}
             presupuestoDatos={{

@@ -8,10 +8,10 @@ import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { formatDate } from '@/lib/utils';
-import type { User, Rol, Division, Area, PermisoRol } from '@prisma/client';
+import type { User, Rol, Division, Area } from '@prisma/client';
 
 type UsuarioConRol = User & { rol: Rol | null };
-type RolCompleto = Rol & { area: Area & { division: Division }; permisos: PermisoRol[] };
+type RolCompleto = Rol & { area: Area & { division: Division } };
 type DivisionCompleta = Division & { areas: (Area & { roles: Rol[] })[] };
 
 interface Props {
@@ -20,7 +20,6 @@ interface Props {
   divisiones: DivisionCompleta[];
 }
 
-const MODULOS = ['clientes', 'presupuestos', 'materiales', 'admin'];
 
 export function AdminContent({ usuarios, roles, divisiones }: Props) {
   const router = useRouter();
@@ -43,14 +42,6 @@ export function AdminContent({ usuarios, roles, divisiones }: Props) {
     router.refresh();
   };
 
-  const togglePermiso = async (rolId: string, modulo: string, campo: string, valor: boolean) => {
-    await fetch('/api/admin/permisos', {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ rolId, modulo, campo, valor }),
-    });
-    router.refresh();
-  };
 
   return (
     <Tabs defaultValue="usuarios">
@@ -104,44 +95,22 @@ export function AdminContent({ usuarios, roles, divisiones }: Props) {
 
       {/* Tab Roles y Permisos */}
       <TabsContent value="roles">
-        <div className="space-y-6">
-          {roles.map((rol) => (
-            <div key={rol.id} className="rounded-lg border bg-white shadow-sm overflow-hidden">
-              <div className="px-4 py-3 border-b bg-slate-50 flex items-center gap-3">
-                <span className="font-semibold text-slate-800">{rol.nombre}</span>
-                <Badge variant="secondary">{rol.area.division.nombre} · {rol.area.nombre}</Badge>
+        <div className="rounded-lg border bg-white shadow-sm p-6 text-center space-y-3">
+          <p className="text-slate-600 text-sm">La gestión de roles y permisos granulares se administra desde la página dedicada.</p>
+          <a
+            href="/admin/roles"
+            className="inline-flex items-center px-4 py-2 rounded-md bg-[#00ADEF] hover:bg-[#0089C7] text-white text-sm font-medium transition-colors"
+          >
+            Ir a Roles y Permisos
+          </a>
+          <div className="mt-4 space-y-2">
+            {roles.map((rol) => (
+              <div key={rol.id} className="flex items-center gap-3 bg-slate-50 rounded-md px-3 py-2 text-sm">
+                <span className="font-medium text-slate-800">{rol.nombre}</span>
+                <Badge variant="secondary" className="text-xs">{rol.area.division.nombre} · {rol.area.nombre}</Badge>
               </div>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Módulo</TableHead>
-                    <TableHead className="text-center">Ver</TableHead>
-                    <TableHead className="text-center">Crear</TableHead>
-                    <TableHead className="text-center">Editar</TableHead>
-                    <TableHead className="text-center">Eliminar</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {MODULOS.map((modulo) => {
-                    const permiso = rol.permisos.find((p) => p.modulo === modulo);
-                    return (
-                      <TableRow key={modulo}>
-                        <TableCell className="capitalize font-medium">{modulo}</TableCell>
-                        {['puede_ver', 'puede_crear', 'puede_editar', 'puede_eliminar'].map((campo) => (
-                          <TableCell key={campo} className="text-center">
-                            <Switch
-                              checked={permiso ? (permiso[campo as keyof PermisoRol] as boolean) : false}
-                              onCheckedChange={(v) => togglePermiso(rol.id, modulo, campo, v)}
-                            />
-                          </TableCell>
-                        ))}
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
       </TabsContent>
 

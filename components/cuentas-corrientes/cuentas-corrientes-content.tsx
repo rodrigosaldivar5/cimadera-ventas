@@ -51,19 +51,21 @@ type PresupuestoSinCuenta = {
   obra?: { nombre: string } | null;
 };
 
-type MovimientoSerializado = Omit<MovimientoCuenta, 'monto' | 'saldoResultante' | 'indiceValor' | 'tipoCambio' | 'montoEnARS'> & {
+type MovimientoSerializado = Omit<MovimientoCuenta, 'monto' | 'saldoResultante' | 'indiceValor' | 'tipoCambio' | 'montoEnARS' | 'equivalenteUSD'> & {
   monto: number;
   saldoResultante: number;
   indiceValor: number | null;
   tipoCambio: number | null;
   montoEnARS: number | null;
+  equivalenteUSD: number | null;
 };
 
-type CuentaConRelaciones = Omit<CuentaCorriente, 'montoOriginal' | 'indiceInicio' | 'indiceActual' | 'saldoActualizado'> & {
+type CuentaConRelaciones = Omit<CuentaCorriente, 'montoOriginal' | 'indiceInicio' | 'indiceActual' | 'saldoActualizado' | 'montoEstimadoCobro'> & {
   montoOriginal: number;
   indiceInicio: number;
   indiceActual: number;
   saldoActualizado: number;
+  montoEstimadoCobro: number | null;
   cliente: { id: string; razonSocial: string; cuit?: string | null; email?: string | null; telefono?: string | null };
   obra?: { id: string; nombre: string; direccion?: string | null } | null;
   presupuesto?: { id: string; numero: number; totalFinal: number; nombrePresupuesto?: string | null } | null;
@@ -122,7 +124,9 @@ function serializeCuenta(c: any): CuentaConRelaciones {
       indiceValor:     m.indiceValor != null ? Number(m.indiceValor) : null,
       tipoCambio:      m.tipoCambio != null ? Number(m.tipoCambio) : null,
       montoEnARS:      m.montoEnARS != null ? Number(m.montoEnARS) : null,
+      equivalenteUSD:  m.equivalenteUSD != null ? Number(m.equivalenteUSD) : null,
     })),
+    montoEstimadoCobro: c.montoEstimadoCobro != null ? Number(c.montoEstimadoCobro) : null,
   };
 }
 
@@ -383,6 +387,41 @@ export function CuentasCorrientesContent({ cuentasIniciales, clientes, presupues
     setNuevaOpen(true);
   };
 
+  // ── Proyección de cobro (cashflow fields) ────────────────────────────────
+  const [cfSavingId, setCfSavingId] = useState<string | null>(null);
+  const [cfDraft, setCfDraft] = useState<Record<string, { fecha: string; monto: string; notas: string }>>({});
+
+  const getCfDraft = (cuenta: CuentaConRelaciones) =>
+    cfDraft[cuenta.id] ?? {
+      fecha: cuenta.fechaEstimadaCobro ? new Date(cuenta.fechaEstimadaCobro).toISOString().slice(0, 10) : '',
+      monto: cuenta.montoEstimadoCobro != null ? String(cuenta.montoEstimadoCobro) : '',
+      notas: cuenta.notasCobro ?? '',
+    };
+
+  const handleGuardarCashflow = async (cuentaId: string) => {
+    const d = cfDraft[cuentaId];
+    if (!d) return;
+    setCfSavingId(cuentaId);
+    try {
+      const res = await fetch(`/api/cuentas-corrientes/${cuentaId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fechaEstimadaCobro: d.fecha || null,
+          montoEstimadoCobro: d.monto ? parseFloat(d.monto) : null,
+          notasCobro: d.notas || null,
+        }),
+      });
+      if (!res.ok) { showToast('Error al guardar', true); return; }
+      const updated = await res.json();
+      setCuentas((prev) => prev.map((c) => (c.id === cuentaId ? serializeCuenta(updated) : c)));
+      setCfDraft((prev) => { const next = { ...prev }; delete next[cuentaId]; return next; });
+      showToast('Proyección guardada');
+    } finally {
+      setCfSavingId(null);
+    }
+  };
+
   // ── Registrar pago ────────────────────────────────────────────────────────
   const [pfTipo, setPfTipo] = useState<'ANTICIPO' | 'PAGO_PARCIAL'>('ANTICIPO');
   const [pfCaja, setPfCaja] = useState<'ARS' | 'USD'>('ARS');
@@ -444,9 +483,12 @@ export function CuentasCorrientesContent({ cuentasIniciales, clientes, presupues
       return;
     }
     setPfSaving(true);
-    const tcNum = pfCaja === 'USD' && pfTipoCambio ? parseFloat(pfTipoCambio) : null;
+    const tcNum = pfTipoCambio ? parseFloat(pfTipoCambio) : null;
     const montoNum = parseFloat(pfMonto);
-    const montoEnARSNum = tcNum ? montoNum * tcNum : montoNum;
+    const montoEnARSNum = pfCaja === 'USD' && tcNum ? montoNum * tcNum : montoNum;
+    const equivalenteUSDNum = tcNum
+      ? (pfCaja === 'USD' ? montoNum : montoNum / tcNum)
+      : null;
     try {
       const res = await fetch(`/api/cuentas-corrientes/${activeCuentaId}/movimientos`, {
         method: 'POST',
@@ -460,6 +502,7 @@ export function CuentasCorrientesContent({ cuentasIniciales, clientes, presupues
           caja: pfCaja,
           tipoCambio: tcNum,
           montoEnARS: montoEnARSNum,
+          equivalenteUSD: equivalenteUSDNum,
         }),
       });
       if (!res.ok) {
@@ -1003,9 +1046,13 @@ export function CuentasCorrientesContent({ cuentasIniciales, clientes, presupues
                             </TableCell>
                             <TableCell className="text-sm">
                               <div>{mov.descripcion}</div>
-                              {mov.tipoCambio != null && mov.caja === 'USD' && (
+                              {mov.tipoCambio != null && (
                                 <div className="text-xs text-gray-400 mt-0.5">
-                                  U$D {Number(mov.monto).toLocaleString('es-AR', { minimumFractionDigits: 2 })} × ${Number(mov.tipoCambio).toLocaleString('es-AR')}
+                                  {mov.caja === 'USD'
+                                    ? `U$D ${Number(mov.monto).toLocaleString('es-AR', { minimumFractionDigits: 2 })} × $${Number(mov.tipoCambio).toLocaleString('es-AR')}`
+                                    : mov.equivalenteUSD != null
+                                      ? `≈ U$D ${Number(mov.equivalenteUSD).toLocaleString('es-AR', { minimumFractionDigits: 2 })} (TC: $${Number(mov.tipoCambio).toLocaleString('es-AR')})`
+                                      : `TC: $${Number(mov.tipoCambio).toLocaleString('es-AR')}`}
                                 </div>
                               )}
                             </TableCell>
@@ -1063,6 +1110,61 @@ export function CuentasCorrientesContent({ cuentasIniciales, clientes, presupues
                       </TableBody>
                     </Table>
                   </div>
+
+                  {/* Proyección de cobro */}
+                  {!cancelado && (() => {
+                    const draft = getCfDraft(cuenta);
+                    const isDirty = cfDraft[cuenta.id] !== undefined;
+                    return (
+                      <div className="bg-blue-50/50 border border-blue-100 rounded-md p-3 space-y-2">
+                        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Proyección de cobro</p>
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                          <div>
+                            <Label className="text-xs">Fecha estimada</Label>
+                            <Input
+                              type="date"
+                              value={draft.fecha}
+                              className="h-8 text-xs mt-1"
+                              onChange={(e) => setCfDraft((p) => ({ ...p, [cuenta.id]: { ...getCfDraft(cuenta), fecha: e.target.value } }))}
+                            />
+                          </div>
+                          <div>
+                            <Label className="text-xs">Monto estimado ($)</Label>
+                            <Input
+                              type="number"
+                              step="0.01"
+                              placeholder="0.00"
+                              value={draft.monto}
+                              className="h-8 text-xs mt-1"
+                              onChange={(e) => setCfDraft((p) => ({ ...p, [cuenta.id]: { ...getCfDraft(cuenta), monto: e.target.value } }))}
+                            />
+                          </div>
+                          <div>
+                            <Label className="text-xs">Notas</Label>
+                            <Input
+                              value={draft.notas}
+                              placeholder="Notas de cobro..."
+                              className="h-8 text-xs mt-1"
+                              onChange={(e) => setCfDraft((p) => ({ ...p, [cuenta.id]: { ...getCfDraft(cuenta), notas: e.target.value } }))}
+                            />
+                          </div>
+                        </div>
+                        {isDirty && (
+                          <div className="flex justify-end">
+                            <Button
+                              size="sm"
+                              className="h-7 text-xs bg-[#00ADEF] hover:bg-[#0089C7] text-white"
+                              onClick={() => handleGuardarCashflow(cuenta.id)}
+                              disabled={cfSavingId === cuenta.id}
+                            >
+                              {cfSavingId === cuenta.id ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : null}
+                              Guardar proyección
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
 
                   {/* Action buttons */}
                   <div className="flex flex-wrap gap-2 pt-2">
@@ -1315,29 +1417,28 @@ export function CuentasCorrientesContent({ cuentasIniciales, clientes, presupues
                 </p>
               )}
             </div>
-            {pfCaja === 'USD' && (
-              <div>
-                <Label>Tipo de cambio *</Label>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '6px' }}>
-                  <span style={{ fontSize: '13px', color: '#4A4A4A', whiteSpace: 'nowrap' }}>$ 1 U$D =</span>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    placeholder="Ej: 1145.00"
-                    value={pfTipoCambio}
-                    onChange={(e) => setPfTipoCambio(e.target.value)}
-                    style={{ flex: 1 }}
-                  />
-                  <span style={{ fontSize: '13px', color: '#4A4A4A' }}>ARS</span>
-                </div>
-                {pfMonto && pfTipoCambio && (
-                  <p className="text-xs text-gray-500 mt-1">
-                    Equivalente: ${' '}
-                    {(parseFloat(pfMonto) * parseFloat(pfTipoCambio)).toLocaleString('es-AR', { minimumFractionDigits: 2 })} ARS
-                  </p>
-                )}
+            <div>
+              <Label>Tipo de cambio {pfCaja === 'USD' ? '*' : '(opcional)'}</Label>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '6px' }}>
+                <span style={{ fontSize: '13px', color: '#4A4A4A', whiteSpace: 'nowrap' }}>$ 1 U$D =</span>
+                <Input
+                  type="number"
+                  step="0.01"
+                  placeholder="Ej: 1145.00"
+                  value={pfTipoCambio}
+                  onChange={(e) => setPfTipoCambio(e.target.value)}
+                  style={{ flex: 1 }}
+                />
+                <span style={{ fontSize: '13px', color: '#4A4A4A' }}>ARS</span>
               </div>
-            )}
+              {pfMonto && pfTipoCambio && (
+                <p className="text-xs text-gray-500 mt-1">
+                  {pfCaja === 'ARS'
+                    ? `≈ U$D ${(parseFloat(pfMonto) / parseFloat(pfTipoCambio)).toLocaleString('es-AR', { minimumFractionDigits: 2 })}`
+                    : `≡ $ ${(parseFloat(pfMonto) * parseFloat(pfTipoCambio)).toLocaleString('es-AR', { minimumFractionDigits: 2 })} ARS`}
+                </p>
+              )}
+            </div>
             <div>
               <Label>N° Factura</Label>
               <Input

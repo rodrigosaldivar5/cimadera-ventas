@@ -13,6 +13,7 @@ import {
 } from '@/components/ui/select';
 import { ArrowLeftRight, Plus, Pencil, CheckCircle, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { CashflowTab } from './cashflow-tab';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -258,6 +259,7 @@ export function TesoreriaModule() {
           <TabsTrigger value="usd">Caja USD</TabsTrigger>
           <TabsTrigger value="canjes">Canjes</TabsTrigger>
           <TabsTrigger value="traspasos">Traspasos</TabsTrigger>
+          <TabsTrigger value="cashflow">Cashflow</TabsTrigger>
         </TabsList>
 
         {/* ── TAB RESUMEN ── */}
@@ -445,6 +447,10 @@ export function TesoreriaModule() {
               </tbody>
             </table>
           </div>
+        </TabsContent>
+
+        <TabsContent value="cashflow" className="space-y-4">
+          <CashflowTab />
         </TabsContent>
       </Tabs>
 

@@ -29,7 +29,7 @@ export async function PUT(req: NextRequest, { params }: RouteContext) {
 
   try {
     const data = await req.json();
-    const { indiceActual, observaciones, estado, proximoCobro, probabilidadCobro } = data;
+    const { indiceActual, observaciones, estado, proximoCobro, probabilidadCobro, fechaEstimadaCobro, montoEstimadoCobro, notasCobro } = data;
 
     const cuentaActual = await prisma.cuentaCorriente.findUnique({
       where: { id: params.id },
@@ -45,6 +45,9 @@ export async function PUT(req: NextRequest, { params }: RouteContext) {
     if (probabilidadCobro !== undefined && ['ALTA', 'MEDIA', 'BAJA'].includes(probabilidadCobro)) {
       updateData.probabilidadCobro = probabilidadCobro;
     }
+    if (fechaEstimadaCobro !== undefined) updateData.fechaEstimadaCobro = fechaEstimadaCobro ? new Date(fechaEstimadaCobro) : null;
+    if (montoEstimadoCobro !== undefined) updateData.montoEstimadoCobro = montoEstimadoCobro != null ? Number(montoEstimadoCobro) : null;
+    if (notasCobro !== undefined) updateData.notasCobro = notasCobro || null;
 
     if (indiceActual !== undefined) {
       const idxNuevo    = Number(indiceActual);

@@ -54,40 +54,36 @@ async function main() {
     create: { id: 'rol-admin', nombre: 'Administrador', areaId: areaDireccion.id },
   });
 
-  // --- Permisos Vendedor ---
-  const modulosVendedor = ['clientes', 'presupuestos'];
-  for (const modulo of modulosVendedor) {
-    await prisma.permisoRol.upsert({
-      where: { id: `perm-vendedor-${modulo}` },
-      update: {},
-      create: {
-        id: `perm-vendedor-${modulo}`,
-        rolId: rolVendedor.id,
-        modulo,
-        puede_ver: true,
-        puede_crear: true,
-        puede_editar: true,
-        puede_eliminar: false,
-      },
-    });
+  // --- Permisos Vendedor (granulares) ---
+  const vendedorAcciones: Record<string, string[]> = {
+    presupuestos: ['ver_lista','ver_detalle','crear','editar','cambiar_estado','exportar_pdf','adjuntar_archivos'],
+    clientes: ['ver_lista','ver_detalle','crear','editar'],
+    cuentas_corrientes: ['ver','registrar_pago','exportar_pdf'],
+  };
+  for (const [modulo, acciones] of Object.entries(vendedorAcciones)) {
+    for (const accion of acciones) {
+      await prisma.permisoRol.upsert({
+        where: { rolId_modulo_accion: { rolId: rolVendedor.id, modulo, accion } },
+        update: { permitido: true },
+        create: { rolId: rolVendedor.id, modulo, accion, permitido: true },
+      });
+    }
   }
 
-  // --- Permisos Admin (todos los módulos) ---
-  const modulosAdmin = ['clientes', 'presupuestos', 'materiales', 'admin'];
-  for (const modulo of modulosAdmin) {
-    await prisma.permisoRol.upsert({
-      where: { id: `perm-admin-${modulo}` },
-      update: {},
-      create: {
-        id: `perm-admin-${modulo}`,
-        rolId: rolAdmin.id,
-        modulo,
-        puede_ver: true,
-        puede_crear: true,
-        puede_editar: true,
-        puede_eliminar: true,
-      },
-    });
+  // --- Permisos Admin (granulares, todos) ---
+  const adminAcciones: Record<string, string[]> = {
+    presupuestos: ['ver_lista','ver_detalle','crear','editar','cambiar_estado','cambiar_prioridad','eliminar','exportar_pdf','adjuntar_archivos'],
+    clientes: ['ver_lista','ver_detalle','crear','editar'],
+    cuentas_corrientes: ['ver','registrar_pago','exportar_pdf'],
+  };
+  for (const [modulo, acciones] of Object.entries(adminAcciones)) {
+    for (const accion of acciones) {
+      await prisma.permisoRol.upsert({
+        where: { rolId_modulo_accion: { rolId: rolAdmin.id, modulo, accion } },
+        update: { permitido: true },
+        create: { rolId: rolAdmin.id, modulo, accion, permitido: true },
+      });
+    }
   }
 
   // --- Usuario Admin ---

@@ -18,6 +18,39 @@ export const estadoLabel: Record<string, string> = {
   RECHAZADO:   'Rechazado',
 };
 
+import type { CSSProperties } from 'react';
+
+const ESTILOS_ESTADO: Record<string, CSSProperties> = {
+  PENDIENTE:   { backgroundColor: '#F1F5F9', color: '#475569', border: '1px solid #CBD5E1' },
+  EN_PROCESO:  { backgroundColor: '#FEF9C3', color: '#854D0E', border: '1px solid #FDE047' },
+  FINALIZADO:  { backgroundColor: '#8B6C3E', color: '#FFFFFF', border: '1px solid #6B4F2C' },
+  PARA_ENVIAR: { backgroundColor: '#DBEAFE', color: '#1E40AF', border: '1px solid #93C5FD' },
+  ENVIADO:     { backgroundColor: '#E0F2FE', color: '#0369A1', border: '1px solid #7DD3FC' },
+  APROBADO:    { backgroundColor: '#DCFCE7', color: '#166534', border: '1px solid #86EFAC' },
+  RECHAZADO:   { backgroundColor: '#FEE2E2', color: '#991B1B', border: '1px solid #FCA5A5' },
+};
+
+const BASE_BADGE_STYLE: CSSProperties = {
+  fontWeight: 500,
+  fontSize: '12px',
+  padding: '2px 8px',
+  borderRadius: '6px',
+  display: 'inline-flex',
+  alignItems: 'center',
+  whiteSpace: 'nowrap',
+};
+
+export function getEstiloEstado(estado: string): CSSProperties {
+  return {
+    ...BASE_BADGE_STYLE,
+    ...(ESTILOS_ESTADO[estado] ?? { backgroundColor: '#F1F5F9', color: '#475569', border: '1px solid #CBD5E1' }),
+  };
+}
+
+export function getLabelEstado(estado: string): string {
+  return estadoLabel[estado] ?? estado;
+}
+
 export const ESTADO_PRESUPUESTO = {
   PENDIENTE: 'PENDIENTE',
   EN_PROCESO: 'EN_PROCESO',

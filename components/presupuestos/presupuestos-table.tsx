@@ -12,7 +12,7 @@ import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuChe
 import { Plus, Eye, ChevronLeft, ChevronRight, Filter, AlertTriangle, ChevronDown, ChevronUp, Check } from 'lucide-react';
 import { EliminarPresupuestoBtn } from '@/components/presupuestos/eliminar-presupuesto-btn';
 import { formatCurrency, formatDate } from '@/lib/utils';
-import { ESTADO_PRESUPUESTO, PRIORIDAD, estadoBadgeClass, estadoLabel, type EstadoPresupuesto, type Prioridad } from '@/lib/enums';
+import { ESTADO_PRESUPUESTO, PRIORIDAD, estadoLabel, getEstiloEstado, getLabelEstado, type EstadoPresupuesto, type Prioridad } from '@/lib/enums';
 
 const prioridadVariant: Record<Prioridad, 'destructive' | 'warning' | 'success'> = {
   ALTA: 'destructive',
@@ -157,6 +157,16 @@ export function PresupuestosTable({ presupuestos, total, page, perPage, clientes
   const [obrasCliente, setObrasCliente] = useState<{ id: string; nombre: string }[]>([]);
   const [desde, setDesde] = useState(filters.desde ?? '');
   const [hasta, setHasta] = useState(filters.hasta ?? '');
+
+  const ALL_COLUMNS = ['numero', 'nombre', 'cliente', 'obra', 'responsable', 'prioridad', 'estado', 'recepcion', 'total', 'precio_final'];
+  const [columnasVisibles, setColumnasVisibles] = useState<string[]>(ALL_COLUMNS);
+  useEffect(() => {
+    fetch('/api/admin/mis-columnas?modulo=presupuestos')
+      .then((r) => r.json())
+      .then((d) => { if (Array.isArray(d.columnas) && d.columnas.length > 0) setColumnasVisibles(d.columnas); })
+      .catch(() => {});
+  }, []);
+  const colVisible = (key: string) => columnasVisibles.includes(key);
 
   // Cargar desde localStorage si no hay params en URL
   useEffect(() => {
@@ -318,9 +328,7 @@ export function PresupuestosTable({ presupuestos, total, page, perPage, clientes
                   }
                   onSelect={(ev) => ev.preventDefault()}
                 >
-                  <Badge variant="outline" className={`${estadoBadgeClass[e]} ml-1`}>
-                    {estadoLabel[e]}
-                  </Badge>
+                  <span style={{ ...getEstiloEstado(e), marginLeft: '4px' }}>{getLabelEstado(e)}</span>
                 </DropdownMenuCheckboxItem>
               ))}
               <DropdownMenuSeparator />
@@ -430,16 +438,16 @@ export function PresupuestosTable({ presupuestos, total, page, perPage, clientes
         <Table>
           <TableHeader>
             <TableRow>
-              <ResizableHead colKey="nro" defaultWidth={72} width={columnWidths.nro} onResize={handleResize}>Nro</ResizableHead>
-              <ResizableHead colKey="nombre" defaultWidth={140} width={columnWidths.nombre} onResize={handleResize}>Nombre</ResizableHead>
-              <ResizableHead colKey="cliente" defaultWidth={150} width={columnWidths.cliente} onResize={handleResize}>Cliente</ResizableHead>
-              <ResizableHead colKey="obra" defaultWidth={120} width={columnWidths.obra} onResize={handleResize}>Obra</ResizableHead>
-              <ResizableHead colKey="responsable" defaultWidth={120} width={columnWidths.responsable} onResize={handleResize}>Responsable</ResizableHead>
-              <ResizableHead colKey="prioridad" defaultWidth={90} width={columnWidths.prioridad} onResize={handleResize}>Prioridad</ResizableHead>
-              <ResizableHead colKey="estado" defaultWidth={120} width={columnWidths.estado} onResize={handleResize}>Estado</ResizableHead>
-              <ResizableHead colKey="recepcion" defaultWidth={100} width={columnWidths.recepcion} onResize={handleResize}>Recepción</ResizableHead>
-              <ResizableHead colKey="total" defaultWidth={110} width={columnWidths.total} onResize={handleResize} className="text-right">Total</ResizableHead>
-              <ResizableHead colKey="pfinal" defaultWidth={110} width={columnWidths.pfinal} onResize={handleResize} className="text-right">P. Final</ResizableHead>
+              {colVisible('numero') && <ResizableHead colKey="nro" defaultWidth={72} width={columnWidths.nro} onResize={handleResize}>Nro</ResizableHead>}
+              {colVisible('nombre') && <ResizableHead colKey="nombre" defaultWidth={140} width={columnWidths.nombre} onResize={handleResize}>Nombre</ResizableHead>}
+              {colVisible('cliente') && <ResizableHead colKey="cliente" defaultWidth={150} width={columnWidths.cliente} onResize={handleResize}>Cliente</ResizableHead>}
+              {colVisible('obra') && <ResizableHead colKey="obra" defaultWidth={120} width={columnWidths.obra} onResize={handleResize}>Obra</ResizableHead>}
+              {colVisible('responsable') && <ResizableHead colKey="responsable" defaultWidth={120} width={columnWidths.responsable} onResize={handleResize}>Responsable</ResizableHead>}
+              {colVisible('prioridad') && <ResizableHead colKey="prioridad" defaultWidth={90} width={columnWidths.prioridad} onResize={handleResize}>Prioridad</ResizableHead>}
+              {colVisible('estado') && <ResizableHead colKey="estado" defaultWidth={120} width={columnWidths.estado} onResize={handleResize}>Estado</ResizableHead>}
+              {colVisible('recepcion') && <ResizableHead colKey="recepcion" defaultWidth={100} width={columnWidths.recepcion} onResize={handleResize}>Recepción</ResizableHead>}
+              {colVisible('total') && <ResizableHead colKey="total" defaultWidth={110} width={columnWidths.total} onResize={handleResize} className="text-right">Total</ResizableHead>}
+              {colVisible('precio_final') && <ResizableHead colKey="pfinal" defaultWidth={110} width={columnWidths.pfinal} onResize={handleResize} className="text-right">P. Final</ResizableHead>}
               <TableHead className="w-16"></TableHead>
             </TableRow>
           </TableHeader>
@@ -449,95 +457,97 @@ export function PresupuestosTable({ presupuestos, total, page, perPage, clientes
                 key={p.id}
                 className={`border-b border-slate-200 hover:bg-slate-50/50 ${p.estado === 'ENVIADO' && p.archivos.length === 0 ? 'bg-amber-50' : ''}`}
               >
-                <TableCell className="font-medium">#{p.numero}</TableCell>
-                <TableCell className="max-w-[140px] truncate text-slate-600">
-                  {p.nombrePresupuesto ?? '—'}
-                </TableCell>
-                <TableCell className="max-w-[150px] truncate">{p.cliente.razonSocial}</TableCell>
-                <TableCell className="text-slate-500 text-sm max-w-[120px] truncate">{p.obra?.nombre ?? '—'}</TableCell>
-                <TableCell className="text-slate-500 text-sm">
-                  {p.responsable?.nombre ?? p.creadoPor.nombre}
-                </TableCell>
-                <TableCell>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <button className="focus:outline-none" disabled={savingPrioridad === p.id}>
-                        <Badge variant="outline" className={`cursor-pointer ${prioridadBadgeClass[p.prioridad]}`}>
-                          {prioridadLabel[p.prioridad]}
-                        </Badge>
-                      </button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="start" className="w-28">
-                      {Object.values(PRIORIDAD).map((pr) => (
-                        <DropdownMenuItem
-                          key={pr}
-                          onSelect={() => changePrioridad(p.id, pr)}
-                          disabled={pr === p.prioridad}
-                          className="gap-2 cursor-pointer"
-                        >
-                          <Badge variant="outline" className={`${prioridadBadgeClass[pr]} pointer-events-none`}>
-                            {prioridadLabel[pr]}
+                {colVisible('numero') && <TableCell className="font-medium">#{p.numero}</TableCell>}
+                {colVisible('nombre') && <TableCell className="max-w-[140px] truncate text-slate-600">{p.nombrePresupuesto ?? '—'}</TableCell>}
+                {colVisible('cliente') && <TableCell className="max-w-[150px] truncate">{p.cliente.razonSocial}</TableCell>}
+                {colVisible('obra') && <TableCell className="text-slate-500 text-sm max-w-[120px] truncate">{p.obra?.nombre ?? '—'}</TableCell>}
+                {colVisible('responsable') && <TableCell className="text-slate-500 text-sm">{p.responsable?.nombre ?? p.creadoPor.nombre}</TableCell>}
+                {colVisible('prioridad') && (
+                  <TableCell>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <button className="focus:outline-none" disabled={savingPrioridad === p.id}>
+                          <Badge variant="outline" className={`cursor-pointer ${prioridadBadgeClass[p.prioridad]}`}>
+                            {prioridadLabel[p.prioridad]}
                           </Badge>
-                          {pr === p.prioridad && <Check className="h-3 w-3 ml-auto shrink-0" />}
-                        </DropdownMenuItem>
-                      ))}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </TableCell>
-                <TableCell>
-                  <div className="flex items-center gap-1.5">
-                    <Badge variant="outline" className={estadoBadgeClass[p.estado]}>{estadoLabel[p.estado]}</Badge>
-                    {p.estado === 'ENVIADO' && p.archivos.length === 0 && (
-                      <span title="Sin adjuntos">
-                        <AlertTriangle className="h-3.5 w-3.5 text-amber-500 shrink-0" />
-                      </span>
-                    )}
-                  </div>
-                </TableCell>
-                <TableCell className="text-slate-500 text-sm">
-                  {p.fechaRecepcion ? formatDate(p.fechaRecepcion) : '—'}
-                </TableCell>
-                <TableCell className="text-right">
-                  <div className="flex flex-col items-end gap-0.5">
-                    <span className="font-medium">
-                      {formatCurrency(
-                        Number(p.totalConIva) > 0 ? Number(p.totalConIva) :
-                        Number(p.precioFinal) > 0 ? Number(p.precioFinal) :
-                        Number(p.totalFinal)
+                        </button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="start" className="w-28">
+                        {Object.values(PRIORIDAD).map((pr) => (
+                          <DropdownMenuItem
+                            key={pr}
+                            onSelect={() => changePrioridad(p.id, pr)}
+                            disabled={pr === p.prioridad}
+                            className="gap-2 cursor-pointer"
+                          >
+                            <Badge variant="outline" className={`${prioridadBadgeClass[pr]} pointer-events-none`}>
+                              {prioridadLabel[pr]}
+                            </Badge>
+                            {pr === p.prioridad && <Check className="h-3 w-3 ml-auto shrink-0" />}
+                          </DropdownMenuItem>
+                        ))}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </TableCell>
+                )}
+                {colVisible('estado') && (
+                  <TableCell>
+                    <div className="flex items-center gap-1.5">
+                      <span style={getEstiloEstado(p.estado)}>{getLabelEstado(p.estado)}</span>
+                      {p.estado === 'ENVIADO' && p.archivos.length === 0 && (
+                        <span title="Sin adjuntos">
+                          <AlertTriangle className="h-3.5 w-3.5 text-amber-500 shrink-0" />
+                        </span>
                       )}
-                    </span>
-                    <Badge variant="outline" className="text-xs px-1 py-0 font-normal">
-                      {Number(p.tasaIva) === 0 ? 'Exento' : `${Number(p.tasaIva)}%`}
-                    </Badge>
-                  </div>
-                </TableCell>
-                <TableCell className="text-right">
-                  {editingPrecio?.id === p.id ? (
-                    <div className="flex items-center gap-1 justify-end">
-                      <Input
-                        type="number"
-                        value={editingPrecio.value}
-                        onChange={(e) => setEditingPrecio({ id: p.id, value: e.target.value })}
-                        className="w-28 h-7 text-xs"
-                        autoFocus
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') savePrecioFinal();
-                          if (e.key === 'Escape') setEditingPrecio(null);
-                        }}
-                      />
-                      <Button size="icon" variant="ghost" className="h-6 w-6" onClick={savePrecioFinal} disabled={savingPrecio}>
-                        <Check className="h-3 w-3" />
-                      </Button>
                     </div>
-                  ) : (
-                    <button
-                      className="text-right w-full text-sm font-medium hover:text-[#00ADEF] transition-colors"
-                      onClick={() => setEditingPrecio({ id: p.id, value: p.precioFinal != null ? String(Number(p.precioFinal)) : '' })}
-                    >
-                      {p.precioFinal != null ? formatCurrency(Number(p.precioFinal)) : <span className="text-slate-300 text-xs">—</span>}
-                    </button>
-                  )}
-                </TableCell>
+                  </TableCell>
+                )}
+                {colVisible('recepcion') && <TableCell className="text-slate-500 text-sm">{p.fechaRecepcion ? formatDate(p.fechaRecepcion) : '—'}</TableCell>}
+                {colVisible('total') && (
+                  <TableCell className="text-right">
+                    <div className="flex flex-col items-end gap-0.5">
+                      <span className="font-medium">
+                        {formatCurrency(
+                          Number(p.totalConIva) > 0 ? Number(p.totalConIva) :
+                          Number(p.precioFinal) > 0 ? Number(p.precioFinal) :
+                          Number(p.totalFinal)
+                        )}
+                      </span>
+                      <Badge variant="outline" className="text-xs px-1 py-0 font-normal">
+                        {Number(p.tasaIva) === 0 ? 'Exento' : `${Number(p.tasaIva)}%`}
+                      </Badge>
+                    </div>
+                  </TableCell>
+                )}
+                {colVisible('precio_final') && (
+                  <TableCell className="text-right">
+                    {editingPrecio?.id === p.id ? (
+                      <div className="flex items-center gap-1 justify-end">
+                        <Input
+                          type="number"
+                          value={editingPrecio.value}
+                          onChange={(e) => setEditingPrecio({ id: p.id, value: e.target.value })}
+                          className="w-28 h-7 text-xs"
+                          autoFocus
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') savePrecioFinal();
+                            if (e.key === 'Escape') setEditingPrecio(null);
+                          }}
+                        />
+                        <Button size="icon" variant="ghost" className="h-6 w-6" onClick={savePrecioFinal} disabled={savingPrecio}>
+                          <Check className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    ) : (
+                      <button
+                        className="text-right w-full text-sm font-medium hover:text-[#00ADEF] transition-colors"
+                        onClick={() => setEditingPrecio({ id: p.id, value: p.precioFinal != null ? String(Number(p.precioFinal)) : '' })}
+                      >
+                        {p.precioFinal != null ? formatCurrency(Number(p.precioFinal)) : <span className="text-slate-300 text-xs">—</span>}
+                      </button>
+                    )}
+                  </TableCell>
+                )}
                 <TableCell>
                   <div className="flex items-center gap-1">
                     <Button variant="ghost" size="icon" asChild>

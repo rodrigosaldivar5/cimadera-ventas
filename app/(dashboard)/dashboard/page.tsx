@@ -4,24 +4,29 @@ import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { DashboardChart } from '@/components/dashboard/dashboard-chart';
 import { DashboardFiscal } from '@/components/dashboard/dashboard-fiscal';
+import { PeriodoSelector } from '@/components/dashboard/periodo-selector';
+import { AnalisisMonetario } from '@/components/dashboard/analisis-monetario';
 import { FileText, Send, CheckCircle, XCircle, TrendingUp, Clock } from 'lucide-react';
 import { startOfMonth, endOfMonth, subMonths, format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import Link from 'next/link';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { estadoBadgeClass, estadoLabel } from '@/lib/enums';
+import { getEstiloEstado, getLabelEstado } from '@/lib/enums';
 
 const PESOS_PROB: Record<string, number> = { ALTA: 1.0, MEDIA: 0.6, BAJA: 0.3 };
 
-export default async function DashboardPage({ searchParams }: { searchParams: { userId?: string } }) {
+export default async function DashboardPage({ searchParams }: { searchParams: { userId?: string; desde?: string; hasta?: string } }) {
   const userId = searchParams.userId;
   const now = new Date();
-  const inicioMes = startOfMonth(now);
-  const finMes = endOfMonth(now);
+  const desde = searchParams.desde;
+  const hasta = searchParams.hasta;
+  const inicioFiltro = desde ? new Date(desde) : startOfMonth(now);
+  const finFiltro = hasta ? new Date(hasta) : endOfMonth(now);
+  const inicioMes = inicioFiltro;
+  const finMes = finFiltro;
 
   const vendedores = await prisma.user.findMany({
     where: { aprobado: true },
@@ -205,9 +210,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: { 
                   </TableCell>
                   <TableCell className="max-w-[140px] truncate">{p.cliente.razonSocial}</TableCell>
                   <TableCell>
-                    <Badge variant="outline" className={estadoBadgeClass[p.estado]}>
-                      {estadoLabel[p.estado]}
-                    </Badge>
+                    <span style={getEstiloEstado(p.estado)}>{getLabelEstado(p.estado)}</span>
                   </TableCell>
                   <TableCell className="text-right font-medium">
                     {formatCurrency(Number(p.totalFinal))}
@@ -238,14 +241,21 @@ export default async function DashboardPage({ searchParams }: { searchParams: { 
             </TabsTrigger>
             <TabsTrigger value="vendedor">Por vendedor</TabsTrigger>
             <TabsTrigger value="fiscal">Resumen fiscal</TabsTrigger>
+            <TabsTrigger value="monetario" asChild>
+              <Link href={`/dashboard?tab=monetario${desde ? `&desde=${desde}` : ''}${hasta ? `&hasta=${hasta}` : ''}`}>Análisis monetario</Link>
+            </TabsTrigger>
           </TabsList>
 
-          {/* Selector de vendedor visible solo en tab vendedor */}
           <div className="flex items-center gap-2 text-sm text-slate-500">
             {selectedVendedor && (
               <span className="font-medium text-slate-700">{selectedVendedor.nombre}</span>
             )}
           </div>
+        </div>
+
+        {/* Period selector shown on relevant tabs */}
+        <div className="mt-3">
+          <PeriodoSelector desde={desde} hasta={hasta} />
         </div>
 
         <TabsContent value="general" className="space-y-6 mt-4">
@@ -277,6 +287,17 @@ export default async function DashboardPage({ searchParams }: { searchParams: { 
 
         <TabsContent value="fiscal" className="mt-4">
           <DashboardFiscal />
+        </TabsContent>
+
+        <TabsContent value="monetario" className="mt-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Análisis monetario ARS / USD</CardTitle>
+            </CardHeader>
+            <CardContent className="p-0">
+              <AnalisisMonetario desde={desde} hasta={hasta} />
+            </CardContent>
+          </Card>
         </TabsContent>
 
         <TabsContent value="vendedor" className="space-y-6 mt-4">

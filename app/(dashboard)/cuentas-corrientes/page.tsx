@@ -57,7 +57,9 @@ export default async function CuentasCorrientesPage() {
       indiceValor: m.indiceValor != null ? Number(m.indiceValor) : null,
       tipoCambio: m.tipoCambio != null ? Number(m.tipoCambio) : null,
       montoEnARS: m.montoEnARS != null ? Number(m.montoEnARS) : null,
+      equivalenteUSD: m.equivalenteUSD != null ? Number(m.equivalenteUSD) : null,
     })),
+    montoEstimadoCobro: c.montoEstimadoCobro != null ? Number(c.montoEstimadoCobro) : null,
   }));
 
   const presupuestosSinCuenta = rawSinCuenta.map((p) => ({

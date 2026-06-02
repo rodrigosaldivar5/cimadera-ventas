@@ -12,7 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { CriteriosTab } from '@/components/clientes/criterios-tab';
 import { ObrasTab } from '@/components/clientes/obras-tab';
-import { TIPO_CLIENTE_LABEL, estadoBadgeClass, estadoLabel, type TipoCliente } from '@/lib/enums';
+import { TIPO_CLIENTE_LABEL, getEstiloEstado, getLabelEstado, type TipoCliente } from '@/lib/enums';
 import { ArrowLeft, Building2, Mail, Phone, MapPin, Hash, FileText } from 'lucide-react';
 
 export default async function ClienteDetallePage({ params }: { params: { id: string } }) {
@@ -160,7 +160,7 @@ export default async function ClienteDetallePage({ params }: { params: { id: str
                         </Link>
                       </TableCell>
                       <TableCell>
-                        <Badge variant="outline" className={estadoBadgeClass[p.estado]}>{estadoLabel[p.estado]}</Badge>
+                        <span style={getEstiloEstado(p.estado)}>{getLabelEstado(p.estado)}</span>
                       </TableCell>
                       <TableCell>{formatDate(p.fechaCreacion)}</TableCell>
                       <TableCell>{p.fechaVencimiento ? formatDate(p.fechaVencimiento) : '—'}</TableCell>
