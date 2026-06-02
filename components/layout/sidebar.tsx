@@ -39,6 +39,7 @@ type NavItem = {
 const TESORERIA_EMAILS = ['coordinacion.general@cimadera.net', 'admin@cimadera.net'];
 
 const ROUTE_PERMISO: Record<string, { modulo: string; accion: string }> = {
+  '/dashboard': { modulo: 'dashboard', accion: 'ver' },
   '/clientes': { modulo: 'clientes', accion: 'ver_lista' },
   '/presupuestos': { modulo: 'presupuestos', accion: 'ver_lista' },
   '/cuentas-corrientes': { modulo: 'cuentas_corrientes', accion: 'ver' },

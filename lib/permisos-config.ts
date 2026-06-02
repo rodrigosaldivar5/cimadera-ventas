@@ -1,4 +1,11 @@
 export const PERMISOS_CONFIG = {
+  dashboard: {
+    label: 'Dashboard',
+    acciones: [
+      { key: 'ver', label: 'Ver dashboard' },
+    ],
+    columnas: [] as { key: string; label: string }[],
+  },
   presupuestos: {
     label: 'Presupuestos',
     acciones: [

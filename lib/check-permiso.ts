@@ -2,7 +2,7 @@ import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { redirect } from 'next/navigation';
 
-export async function requirePermiso(modulo: string, accion: string) {
+export async function requirePermiso(modulo: string, accion: string, redirectTo = '/dashboard') {
   const session = await auth();
   if (!session?.user) redirect('/login');
 
@@ -18,6 +18,6 @@ export async function requirePermiso(modulo: string, accion: string) {
   });
 
   if (!permiso || !permiso.permitido) {
-    redirect('/dashboard');
+    redirect(redirectTo);
   }
 }

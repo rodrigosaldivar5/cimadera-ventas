@@ -1,5 +1,6 @@
 ﻿export const dynamic = 'force-dynamic';
 
+import { requirePermiso } from '@/lib/check-permiso';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { formatCurrency, formatDate } from '@/lib/utils';
@@ -19,6 +20,7 @@ import { getEstiloEstado, getLabelEstado } from '@/lib/enums';
 const PESOS_PROB: Record<string, number> = { ALTA: 1.0, MEDIA: 0.6, BAJA: 0.3 };
 
 export default async function DashboardPage({ searchParams }: { searchParams: { userId?: string; desde?: string; hasta?: string } }) {
+  await requirePermiso('dashboard', 'ver', '/presupuestos');
   const userId = searchParams.userId;
   const now = new Date();
   const desde = searchParams.desde;
