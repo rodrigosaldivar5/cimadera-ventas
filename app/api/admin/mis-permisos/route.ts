@@ -9,8 +9,10 @@ export async function GET() {
 
   const user = await prisma.user.findUnique({
     where: { id: session.user.id },
-    select: { rolId: true },
+    select: { rolId: true, rol: { select: { nombre: true } } },
   });
+
+  const rolNombre = user?.rol?.nombre ?? null;
 
   if (!user?.rolId) {
     const permisos: Record<string, Record<string, boolean>> = {};
@@ -20,7 +22,7 @@ export async function GET() {
         permisos[modulo][accion.key] = true;
       }
     }
-    return NextResponse.json({ permisos });
+    return NextResponse.json({ permisos, rolNombre });
   }
 
   const permisosRol = await prisma.permisoRol.findMany({
@@ -42,5 +44,5 @@ export async function GET() {
     }
   }
 
-  return NextResponse.json({ permisos });
+  return NextResponse.json({ permisos, rolNombre });
 }

@@ -94,14 +94,18 @@ interface SidebarProps {
   rolNombre?: string | null;
 }
 
-export function Sidebar({ userName, userEmail, rolNombre }: SidebarProps) {
+export function Sidebar({ userName, userEmail, rolNombre: rolNombreProp }: SidebarProps) {
   const pathname = usePathname();
   const [permisos, setPermisos] = useState<Record<string, Record<string, boolean>> | null>(null);
+  const [rolNombre, setRolNombre] = useState<string | null>(rolNombreProp ?? null);
 
   useEffect(() => {
     fetch('/api/admin/mis-permisos')
       .then((r) => r.json())
-      .then((d) => setPermisos(d.permisos ?? null))
+      .then((d) => {
+        setPermisos(d.permisos ?? null);
+        if (d.rolNombre) setRolNombre(d.rolNombre);
+      })
       .catch(() => {});
   }, []);
 
