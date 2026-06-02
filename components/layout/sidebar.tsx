@@ -27,7 +27,7 @@ import {
 import { Logo } from '@/components/logo';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 type NavItem = {
   href: string;
@@ -37,6 +37,12 @@ type NavItem = {
 };
 
 const TESORERIA_EMAILS = ['coordinacion.general@cimadera.net', 'admin@cimadera.net'];
+
+const ROUTE_PERMISO: Record<string, { modulo: string; accion: string }> = {
+  '/clientes': { modulo: 'clientes', accion: 'ver_lista' },
+  '/presupuestos': { modulo: 'presupuestos', accion: 'ver_lista' },
+  '/cuentas-corrientes': { modulo: 'cuentas_corrientes', accion: 'ver' },
+};
 
 const navItemsBase: NavItem[] = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -90,9 +96,24 @@ interface SidebarProps {
 
 export function Sidebar({ userName, userEmail, rolNombre }: SidebarProps) {
   const pathname = usePathname();
-  const navItems = navItemsBase.filter((item) =>
-    item.href !== '/tesoreria' || TESORERIA_EMAILS.includes(userEmail),
-  );
+  const [permisos, setPermisos] = useState<Record<string, Record<string, boolean>> | null>(null);
+
+  useEffect(() => {
+    fetch('/api/admin/mis-permisos')
+      .then((r) => r.json())
+      .then((d) => setPermisos(d.permisos ?? null))
+      .catch(() => {});
+  }, []);
+
+  const puedeVerRuta = (href: string): boolean => {
+    if (href === '/tesoreria') return TESORERIA_EMAILS.includes(userEmail);
+    const req = ROUTE_PERMISO[href];
+    if (!req) return true;
+    if (!permisos) return true;
+    return permisos[req.modulo]?.[req.accion] === true;
+  };
+
+  const navItems = navItemsBase.filter((item) => puedeVerRuta(item.href));
   const [openItems, setOpenItems] = useState<Record<string, boolean>>({
     '/admin': pathname.startsWith('/admin'),
     '/clientes': pathname.startsWith('/clientes/descuentos'),

@@ -132,13 +132,16 @@ function serializeCuenta(c: any): CuentaConRelaciones {
 
 // ── Main Component ────────────────────────────────────────────────────────────
 
+const EMAILS_ELIMINAR_CC = ['coordinacion.general@cimadera.net', 'alfredo.ostro@cimadera.net'];
+
 interface Props {
   cuentasIniciales: CuentaConRelaciones[];
   clientes: Cliente[];
   presupuestosSinCuenta: PresupuestoSinCuenta[];
+  userEmail?: string;
 }
 
-export function CuentasCorrientesContent({ cuentasIniciales, clientes, presupuestosSinCuenta }: Props) {
+export function CuentasCorrientesContent({ cuentasIniciales, clientes, presupuestosSinCuenta, userEmail = '' }: Props) {
   const router = useRouter();
   const [cuentas, setCuentas] = useState<CuentaConRelaciones[]>(cuentasIniciales);
   const [search, setSearch] = useState('');
@@ -602,6 +605,8 @@ export function CuentasCorrientesContent({ cuentasIniciales, clientes, presupues
   const [emMonto, setEmMonto] = useState('');
   const [emFactura, setEmFactura] = useState('');
   const [emFecha, setEmFecha] = useState('');
+  const [emCaja, setEmCaja] = useState<string>('ARS');
+  const [emTipoCambio, setEmTipoCambio] = useState('');
   const [emSaving, setEmSaving] = useState(false);
 
   const openEditMovDialog = (cuentaId: string, mov: MovimientoSerializado) => {
@@ -611,6 +616,8 @@ export function CuentasCorrientesContent({ cuentasIniciales, clientes, presupues
     setEmMonto(Number(mov.monto).toFixed(2));
     setEmFactura(mov.numeroFactura ?? '');
     setEmFecha(new Date(mov.fecha).toISOString().slice(0, 10));
+    setEmCaja(mov.caja ?? 'ARS');
+    setEmTipoCambio(mov.tipoCambio != null ? String(mov.tipoCambio) : '');
     setEditMovOpen(true);
   };
 
@@ -628,6 +635,8 @@ export function CuentasCorrientesContent({ cuentasIniciales, clientes, presupues
             monto: parseFloat(emMonto),
             numeroFactura: emFactura || null,
             fecha: emFecha,
+            caja: emCaja || null,
+            tipoCambio: emTipoCambio ? parseFloat(emTipoCambio) : null,
           }),
         },
       );
@@ -642,6 +651,26 @@ export function CuentasCorrientesContent({ cuentasIniciales, clientes, presupues
       showToast('Movimiento actualizado');
     } finally {
       setEmSaving(false);
+    }
+  };
+
+  // ── Eliminar cuenta corriente ─────────────────────────────────────────────
+  const [deletingCuentaId, setDeletingCuentaId] = useState<string | null>(null);
+
+  const handleEliminarCuenta = async (cuentaId: string) => {
+    if (!confirm('¿Eliminar esta cuenta corriente? Esta acción es irreversible y eliminará todos los movimientos asociados.')) return;
+    setDeletingCuentaId(cuentaId);
+    try {
+      const res = await fetch(`/api/cuentas-corrientes/${cuentaId}`, { method: 'DELETE' });
+      if (!res.ok) {
+        const err = await res.json();
+        showToast(err.error ?? 'Error al eliminar cuenta', true);
+        return;
+      }
+      setCuentas((prev) => prev.filter((c) => c.id !== cuentaId));
+      showToast('Cuenta corriente eliminada');
+    } finally {
+      setDeletingCuentaId(null);
     }
   };
 
@@ -666,6 +695,48 @@ export function CuentasCorrientesContent({ cuentasIniciales, clientes, presupues
       showToast('Movimiento eliminado');
     } finally {
       setDeletingMovId(null);
+    }
+  };
+
+  // ── Vincular obra ─────────────────────────────────────────────────────────
+  const [vinObraOpen, setVinObraOpen] = useState(false);
+  const [vinObraCuentaId, setVinObraCuentaId] = useState<string | null>(null);
+  const [vinObras, setVinObras] = useState<Obra[]>([]);
+  const [vinObraSelected, setVinObraSelected] = useState('');
+  const [vinObraSaving, setVinObraSaving] = useState(false);
+
+  const openVinObraDialog = async (cuenta: CuentaConRelaciones) => {
+    setVinObraCuentaId(cuenta.id);
+    setVinObraSelected('');
+    setVinObras([]);
+    setVinObraOpen(true);
+    const res = await fetch(`/api/clientes/${cuenta.cliente.id}/obras`);
+    if (res.ok) {
+      const d = await res.json();
+      setVinObras(d.obras ?? []);
+    }
+  };
+
+  const handleVincularObra = async () => {
+    if (!vinObraCuentaId || !vinObraSelected) return;
+    setVinObraSaving(true);
+    try {
+      const res = await fetch(`/api/cuentas-corrientes/${vinObraCuentaId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ obraId: vinObraSelected }),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        showToast(err.error ?? 'Error al vincular obra', true);
+        return;
+      }
+      const cuentaActualizada = await res.json();
+      setCuentas((prev) => prev.map((c) => (c.id === vinObraCuentaId ? serializeCuenta(cuentaActualizada) : c)));
+      setVinObraOpen(false);
+      showToast('Obra vinculada correctamente');
+    } finally {
+      setVinObraSaving(false);
     }
   };
 
@@ -1193,6 +1264,33 @@ export function CuentasCorrientesContent({ cuentasIniciales, clientes, presupues
                       <FileText className="w-3.5 h-3.5 mr-1.5" />
                       Exportar PDF
                     </Button>
+                    {!cuenta.obra && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => openVinObraDialog(cuenta)}
+                        className="border-slate-300 text-slate-500 hover:bg-slate-50"
+                      >
+                        <Plus className="w-3.5 h-3.5 mr-1.5" />
+                        Vincular obra
+                      </Button>
+                    )}
+                    {EMAILS_ELIMINAR_CC.includes(userEmail) && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleEliminarCuenta(cuenta.id)}
+                        disabled={deletingCuentaId === cuenta.id}
+                        className="border-red-200 text-red-500 hover:bg-red-50 ml-auto"
+                      >
+                        {deletingCuentaId === cuenta.id ? (
+                          <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" />
+                        ) : (
+                          <Trash2 className="w-3.5 h-3.5 mr-1.5" />
+                        )}
+                        Eliminar CC
+                      </Button>
+                    )}
                   </div>
                 </div>
               )}
@@ -1615,6 +1713,44 @@ export function CuentasCorrientesContent({ cuentasIniciales, clientes, presupues
                 onChange={(e) => setEmFecha(e.target.value)}
               />
             </div>
+            <div>
+              <Label className="mb-1.5 block">Caja</Label>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                {(['ARS', 'USD'] as const).map((c) => (
+                  <button
+                    key={c}
+                    type="button"
+                    onClick={() => setEmCaja(c)}
+                    style={{
+                      flex: 1, padding: '8px',
+                      borderRadius: 'var(--radius)',
+                      border: emCaja === c ? (c === 'ARS' ? '2px solid #00ADEF' : '2px solid #27500A') : '0.5px solid #e2e8f0',
+                      background: emCaja === c ? (c === 'ARS' ? '#E6F1FB' : '#EAF3DE') : 'white',
+                      color: emCaja === c ? (c === 'ARS' ? '#0C447C' : '#27500A') : '#1A1A1A',
+                      fontWeight: emCaja === c ? 500 : 400,
+                      cursor: 'pointer', fontSize: '13px',
+                    }}
+                  >
+                    {c === 'ARS' ? '$ Pesos' : 'U$D Dólares'}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <Label>Tipo de cambio {emCaja === 'USD' ? '(obligatorio)' : '(opcional)'}</Label>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '6px' }}>
+                <span style={{ fontSize: '13px', color: '#4A4A4A', whiteSpace: 'nowrap' }}>$ 1 U$D =</span>
+                <Input
+                  type="number"
+                  step="0.01"
+                  placeholder="Ej: 1145.00"
+                  value={emTipoCambio}
+                  onChange={(e) => setEmTipoCambio(e.target.value)}
+                  style={{ flex: 1 }}
+                />
+                <span style={{ fontSize: '13px', color: '#4A4A4A' }}>ARS</span>
+              </div>
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditMovOpen(false)}>Cancelar</Button>
@@ -1625,6 +1761,48 @@ export function CuentasCorrientesContent({ cuentasIniciales, clientes, presupues
             >
               {emSaving ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : null}
               Guardar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Dialog: Vincular obra ───────────────────────────────────────── */}
+      <Dialog open={vinObraOpen} onOpenChange={setVinObraOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Vincular obra</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            {vinObras.length === 0 ? (
+              <p className="text-sm text-slate-400 text-center py-4">
+                {vinObraOpen ? 'Cargando obras...' : 'Sin obras disponibles para este cliente.'}
+              </p>
+            ) : (
+              <div>
+                <Label>Seleccionar obra</Label>
+                <Select value={vinObraSelected || 'none'} onValueChange={(v) => setVinObraSelected(v === 'none' ? '' : v)}>
+                  <SelectTrigger className="mt-1.5">
+                    <SelectValue placeholder="Elegir obra..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">— Seleccionar —</SelectItem>
+                    {vinObras.map((o) => (
+                      <SelectItem key={o.id} value={o.id}>{o.nombre}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setVinObraOpen(false)}>Cancelar</Button>
+            <Button
+              onClick={handleVincularObra}
+              disabled={vinObraSaving || !vinObraSelected}
+              className="bg-[#00ADEF] hover:bg-[#0089C7] text-white"
+            >
+              {vinObraSaving ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : null}
+              Vincular
             </Button>
           </DialogFooter>
         </DialogContent>

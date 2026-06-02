@@ -122,7 +122,7 @@ export async function PATCH(req: NextRequest, { params }: RouteContext) {
 
   try {
     const data = await req.json();
-    const { descripcion, monto, numeroFactura, fecha } = data;
+    const { descripcion, monto, numeroFactura, fecha, caja, tipoCambio } = data;
 
     const movimiento = await prisma.movimientoCuenta.findUnique({
       where: { id: params.movimientoId },
@@ -143,6 +143,8 @@ export async function PATCH(req: NextRequest, { params }: RouteContext) {
     if (monto !== undefined) updateData.monto = Number(monto);
     if (numeroFactura !== undefined) updateData.numeroFactura = numeroFactura || null;
     if (fecha !== undefined) updateData.fecha = new Date(fecha);
+    if (caja !== undefined) updateData.caja = caja || null;
+    if (tipoCambio !== undefined) updateData.tipoCambio = tipoCambio != null ? Number(tipoCambio) : null;
 
     await prisma.movimientoCuenta.update({
       where: { id: params.movimientoId },

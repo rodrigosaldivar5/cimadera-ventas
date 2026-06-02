@@ -3,7 +3,54 @@ import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { EstadoCuenta } from '@prisma/client';
 
+const EMAILS_ELIMINAR_CC = ['coordinacion.general@cimadera.net', 'alfredo.ostro@cimadera.net'];
+
 type RouteContext = { params: { id: string } };
+
+export async function DELETE(_req: NextRequest, { params }: RouteContext) {
+  const session = await auth();
+  if (!session?.user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+
+  if (!EMAILS_ELIMINAR_CC.includes(session.user.email ?? '')) {
+    return NextResponse.json({ error: 'No tenés permisos para eliminar cuentas corrientes' }, { status: 403 });
+  }
+
+  try {
+    await prisma.movimientoCuenta.deleteMany({ where: { cuentaId: params.id } });
+    await prisma.cuentaCorriente.delete({ where: { id: params.id } });
+    return NextResponse.json({ ok: true });
+  } catch (err) {
+    console.error(err);
+    return NextResponse.json({ error: 'Error al eliminar cuenta corriente' }, { status: 500 });
+  }
+}
+
+export async function PATCH(req: NextRequest, { params }: RouteContext) {
+  const session = await auth();
+  if (!session?.user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+
+  try {
+    const data = await req.json();
+    const updateData: Record<string, unknown> = {};
+    if (data.obraId !== undefined) updateData.obraId = data.obraId || null;
+
+    const cuenta = await prisma.cuentaCorriente.update({
+      where: { id: params.id },
+      data: updateData,
+      include: {
+        cliente: { select: { id: true, razonSocial: true, cuit: true, email: true, telefono: true } },
+        obra: { select: { id: true, nombre: true, direccion: true } },
+        presupuesto: { select: { id: true, numero: true, totalFinal: true, nombrePresupuesto: true } },
+        movimientos: { orderBy: { fecha: 'asc' } },
+      },
+    });
+
+    return NextResponse.json(cuenta);
+  } catch (err) {
+    console.error(err);
+    return NextResponse.json({ error: 'Error al actualizar cuenta' }, { status: 500 });
+  }
+}
 
 export async function GET(_req: NextRequest, { params }: RouteContext) {
   const session = await auth();

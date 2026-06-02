@@ -5,7 +5,8 @@ import { prisma } from '@/lib/prisma';
 import { CuentasCorrientesContent } from '@/components/cuentas-corrientes/cuentas-corrientes-content';
 
 export default async function CuentasCorrientesPage() {
-  await auth();
+  const session = await auth();
+  const userEmail = session?.user?.email ?? '';
 
   const [rawCuentas, clientes, rawSinCuenta] = await Promise.all([
     prisma.cuentaCorriente.findMany({
@@ -73,6 +74,7 @@ export default async function CuentasCorrientesPage() {
       cuentasIniciales={cuentas}
       clientes={clientes}
       presupuestosSinCuenta={presupuestosSinCuenta}
+      userEmail={userEmail}
     />
   );
 }

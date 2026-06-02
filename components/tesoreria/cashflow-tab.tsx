@@ -6,6 +6,9 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
+import {
+  BarChart, Bar, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, Cell,
+} from 'recharts';
 
 type CashflowData = {
   saldoARS: number;
@@ -29,6 +32,7 @@ type CashflowData = {
     egresosEstimadosARS: number;
     saldoAcumuladoARS: number;
     semaforo: 'verde' | 'amarillo' | 'rojo';
+    esProyectado: boolean;
   }[];
 };
 
@@ -43,6 +47,12 @@ function fmtARS(n: number) {
 }
 function fmtUSD(n: number) {
   return `U$D ${n.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
+function fmtARSShort(n: number) {
+  if (Math.abs(n) >= 1_000_000) return `$${(n / 1_000_000).toFixed(1)}M`;
+  if (Math.abs(n) >= 1_000) return `$${(n / 1_000).toFixed(0)}k`;
+  return fmtARS(n);
 }
 
 export function CashflowTab() {
@@ -69,6 +79,15 @@ export function CashflowTab() {
   if (error || !data) {
     return <p className="text-center text-slate-400 py-8">Error al cargar datos de cashflow.</p>;
   }
+
+  const chartData = data.semanas.map((s) => ({
+    name: `S${s.semana}`,
+    ingresos: s.ingresosProyectadosARS,
+    egresosReales: s.esProyectado ? 0 : s.egresosEstimadosARS,
+    egresosProyectados: s.esProyectado ? s.egresosEstimadosARS : 0,
+  }));
+
+  const hasProjectedCosts = data.semanas.some((s) => s.esProyectado);
 
   return (
     <div className="space-y-6">
@@ -125,6 +144,33 @@ export function CashflowTab() {
         </div>
       )}
 
+      {/* Cashflow bar chart */}
+      <div>
+        <h3 className="text-sm font-semibold text-slate-600 mb-3">Gráfico cashflow 12 semanas (ARS)</h3>
+        <div className="h-56">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={chartData} barCategoryGap="20%" barGap={2}>
+              <XAxis dataKey="name" tick={{ fontSize: 11 }} />
+              <YAxis tickFormatter={fmtARSShort} tick={{ fontSize: 11 }} width={70} />
+              <Tooltip
+                formatter={(value, name) => [
+                  fmtARS(Number(value ?? 0)),
+                  name === 'ingresos' ? 'Ingresos proy.' : name === 'egresosReales' ? 'Costos reales' : 'Costos proy.*',
+                ]}
+              />
+              <Legend
+                formatter={(value) =>
+                  value === 'ingresos' ? 'Ingresos proy.' : value === 'egresosReales' ? 'Costos reales' : 'Costos proy.*'
+                }
+              />
+              <Bar dataKey="ingresos" fill="#22c55e" name="ingresos" />
+              <Bar dataKey="egresosReales" fill="#EF4444" name="egresosReales" />
+              <Bar dataKey="egresosProyectados" fill="#F59E0B" name="egresosProyectados" />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+
       {/* 12-week projection table */}
       <div>
         <h3 className="text-sm font-semibold text-slate-600 mb-3">Proyección 12 semanas (ARS)</h3>
@@ -150,8 +196,8 @@ export function CashflowTab() {
                 <TableCell className="text-right text-green-700 text-sm">
                   {s.ingresosProyectadosARS > 0 ? `+${fmtARS(s.ingresosProyectadosARS)}` : '—'}
                 </TableCell>
-                <TableCell className="text-right text-red-600 text-sm">
-                  −{fmtARS(s.egresosEstimadosARS)}
+                <TableCell className="text-right text-sm font-medium" style={{ color: s.esProyectado ? '#F59E0B' : '#EF4444' }}>
+                  −{fmtARS(s.egresosEstimadosARS)}{s.esProyectado ? ' *' : ''}
                 </TableCell>
                 <TableCell className="text-right font-semibold text-sm">
                   {fmtARS(s.saldoAcumuladoARS)}
@@ -167,6 +213,9 @@ export function CashflowTab() {
             ))}
           </TableBody>
         </Table>
+        {hasProjectedCosts && (
+          <p className="text-xs text-slate-400 mt-2">* Costos proyectados basados en estimados o promedio de últimos 3 meses</p>
+        )}
       </div>
     </div>
   );

@@ -98,6 +98,25 @@ export async function GET() {
     const semanaInicio = startOfWeek(addDays(now, i * 7), { weekStartsOn: 1 });
     const semanaFin = endOfWeek(addDays(now, i * 7), { weekStartsOn: 1 });
 
+    const esPasada = semanaFin < now;
+    const semanaMes = semanaInicio.getMonth() + 1;
+    const semanaAnio = semanaInicio.getFullYear();
+
+    let egresosARS = costoSemanalARS;
+    let esProyectado = true;
+
+    if (esPasada) {
+      const registrosMes = registrosCostos.filter((r) => r.mes === semanaMes && r.anio === semanaAnio);
+      if (registrosMes.length > 0) {
+        const costoMesARS = registrosMes.reduce((sum, r) => {
+          const monto = r.montoReal != null ? Number(r.montoReal) : 0;
+          return sum + (r.costoFijo.moneda === 'USD' ? monto * tc : monto);
+        }, 0);
+        egresosARS = costoMesARS / 4.33;
+        esProyectado = false;
+      }
+    }
+
     const ingresosProyectados = cuentasConProyeccion
       .filter((c) => {
         if (!c.fechaEstimadaCobro) return false;
@@ -111,8 +130,9 @@ export async function GET() {
       inicio: semanaInicio.toISOString(),
       fin: semanaFin.toISOString(),
       ingresosProyectadosARS: ingresosProyectados,
-      egresosEstimadosARS: costoSemanalARS,
+      egresosEstimadosARS: egresosARS,
       egresosEstimadosUSD: costoSemanalUSD,
+      esProyectado,
     };
   });
 
