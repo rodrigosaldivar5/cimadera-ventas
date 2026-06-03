@@ -65,7 +65,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
           precio: Number(o.precioUnitario),
         })),
       }));
-      emitEvent({
+      await emitEvent({
         eventType: EVENT_TYPES.PRESUPUESTO_APROBADO,
         entityType: 'presupuesto',
         entityId: p.id,
