@@ -47,8 +47,10 @@ function buildHeaders(
   }
   return {
     'Content-Type': 'application/json',
+    'X-Event-Id': String(payload.eventId ?? ''),
     'X-Event-Type': String(payload.eventType ?? ''),
     'X-Event-Version': String(payload.version ?? '1.0'),
+    'X-Timestamp': String(payload.emittedAt ?? new Date().toISOString()),
     'X-Correlation-Id': String(payload.correlationId ?? ''),
     'X-Payload-Hash': String(payload.hash ?? ''),
     'X-Source': 'ventas.cimadera.net',
