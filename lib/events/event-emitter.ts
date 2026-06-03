@@ -75,6 +75,7 @@ export async function emitEvent({
     data,
   };
 
+  // Completar emittedBy si hay userId
   if (userId) {
     const user = await prisma.user.findUnique({
       where: { id: userId },
