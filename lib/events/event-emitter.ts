@@ -37,7 +37,8 @@ export async function emitEvent({
   const hash = crypto.createHash('sha256').update(payloadString).digest('hex');
 
   const corrId = correlationId ?? entityId;
-  const causId = causationId ?? null;
+  // Si no se pasa causationId, usar el eventId (este evento es el origen)
+  const causId = causationId ?? eventId;
 
   // Validar campos críticos
   if (eventType === EVENT_TYPES.PRESUPUESTO_APROBADO) {
@@ -60,6 +61,7 @@ export async function emitEvent({
   }
 
   const payload: Record<string, unknown> = {
+    eventId,
     eventType,
     version: '1.0',
     correlationId: corrId,
