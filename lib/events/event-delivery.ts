@@ -54,7 +54,7 @@ function buildHeaders(
     'X-Correlation-Id': String(payload.correlationId ?? ''),
     'X-Payload-Hash': String(payload.hash ?? ''),
     'X-Source': 'ventas.cimadera.net',
-    'X-Signature': hmacSignature(body, process.env.EXTERNAL_API_KEY ?? ''),
+    'X-Signature': hmacSignature(body, process.env.PRODUCCION_WEBHOOK_SECRET ?? process.env.EXTERNAL_API_KEY ?? ''),
     Authorization: `Bearer ${process.env.EXTERNAL_API_KEY ?? ''}`,
   };
 }
