@@ -30,6 +30,9 @@ const paso1Schema = z.object({
   observaciones: z.string().optional(),
   descuento: z.number().min(0).max(100),
   prioridad: z.enum(['ALTA', 'MEDIA', 'BAJA']),
+  division: z.enum(['MADERA', 'MELAMINA', 'ALUMINIO', 'MIXTO']).optional(),
+  fechaPrometidaCliente: z.string().optional(),
+  fechaObjetivoProduccion: z.string().optional(),
 });
 
 const nuevoClienteSchema = z.object({
@@ -106,6 +109,10 @@ export default function NuevoPresupuestoPage() {
   const [nuevaObraOpen, setNuevaObraOpen] = useState(false);
   const [nuevaObraNombre, setNuevaObraNombre] = useState('');
   const [nuevaObraDireccion, setNuevaObraDireccion] = useState('');
+  const [nuevaObraCodigoObra, setNuevaObraCodigoObra] = useState('');
+  const [anticipoEsperado, setAnticipoEsperado] = useState<string>('');
+  const [saldoEsperado, setSaldoEsperado] = useState<string>('');
+  const [probabilidadCobro, setProbabilidadCobro] = useState<string>('');
   const [usuarios, setUsuarios] = useState<{ id: string; nombre: string }[]>([]);
 
   const { register, handleSubmit, watch, setValue, formState: { errors } } = useForm<Paso1Data>({
@@ -234,7 +241,11 @@ export default function NuevoPresupuestoPage() {
     const res = await fetch(`/api/clientes/${clienteId}/obras`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ nombre: nuevaObraNombre.trim(), direccion: nuevaObraDireccion || null }),
+      body: JSON.stringify({
+        nombre: nuevaObraNombre.trim(),
+        codigoObra: nuevaObraCodigoObra.trim() || null,
+        direccion: nuevaObraDireccion || null,
+      }),
     });
     if (!res.ok) return;
     const obra = await res.json();
@@ -243,6 +254,7 @@ export default function NuevoPresupuestoPage() {
     setNuevaObraOpen(false);
     setNuevaObraNombre('');
     setNuevaObraDireccion('');
+    setNuevaObraCodigoObra('');
   };
 
   const crearClienteInline = async (data: NuevoClienteData) => {
@@ -274,6 +286,9 @@ export default function NuevoPresupuestoPage() {
         prioridad: watch('prioridad') ?? 'MEDIA',
         responsableId: watch('responsableId') || null,
         observaciones: watch('observaciones') || null,
+        division: watch('division') || null,
+        fechaPrometidaCliente: watch('fechaPrometidaCliente') || null,
+        fechaObjetivoProduccion: watch('fechaObjetivoProduccion') || null,
         estado: 'PENDIENTE',
         descuento: 0,
         subtotal: 0,
@@ -375,6 +390,9 @@ export default function NuevoPresupuestoPage() {
         preciosNetos,
         estado: enviar ? 'ENVIADO' : 'EN_PROCESO',
         obraId: watch('obraId') || data.obraId || null,
+        anticipoEsperado: anticipoEsperado !== '' ? Number(anticipoEsperado) : null,
+        saldoEsperado: saldoEsperado !== '' ? Number(saldoEsperado) : null,
+        probabilidadCobro: probabilidadCobro !== '' ? Number(probabilidadCobro) : null,
       }),
     });
     setIsSubmitting(false);
@@ -550,6 +568,26 @@ export default function NuevoPresupuestoPage() {
                   </div>
                 )}
 
+                {/* División productiva */}
+                <div className="space-y-2">
+                  <Label>División productiva</Label>
+                  <Select
+                    value={watch('division') || '__none__'}
+                    onValueChange={(v) => setValue('division', v === '__none__' ? undefined : v as 'MADERA' | 'MELAMINA' | 'ALUMINIO' | 'MIXTO')}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Sin selección" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">Sin selección</SelectItem>
+                      <SelectItem value="MADERA">Madera</SelectItem>
+                      <SelectItem value="MELAMINA">Melamina</SelectItem>
+                      <SelectItem value="ALUMINIO">Aluminio</SelectItem>
+                      <SelectItem value="MIXTO">Mixto</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
                 {/* Tipo cliente */}
                 {clienteId && (
                   <div className="space-y-2">
@@ -584,6 +622,25 @@ export default function NuevoPresupuestoPage() {
                 <div className="space-y-2">
                   <Label>Fecha de vencimiento</Label>
                   <Input type="date" {...register('fechaVencimiento')} />
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Fecha prometida al cliente</Label>
+                  <Input
+                    type="date"
+                    {...register('fechaPrometidaCliente')}
+                    onChange={(e) => {
+                      setValue('fechaPrometidaCliente', e.target.value);
+                      if (!watch('fechaObjetivoProduccion')) {
+                        setValue('fechaObjetivoProduccion', e.target.value);
+                      }
+                    }}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Fecha objetivo producción</Label>
+                  <Input type="date" {...register('fechaObjetivoProduccion')} />
                 </div>
               </div>
 
@@ -728,6 +785,54 @@ export default function NuevoPresupuestoPage() {
             </CardContent>
           </Card>
 
+          {/* Forecast */}
+          <Card>
+            <CardHeader><CardTitle>Forecast</CardTitle></CardHeader>
+            <CardContent className="space-y-3">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Anticipo esperado ($)</Label>
+                  <Input
+                    type="number"
+                    min={0}
+                    step={0.01}
+                    placeholder="Monto del anticipo previsto"
+                    value={anticipoEsperado}
+                    onChange={(e) => {
+                      setAnticipoEsperado(e.target.value);
+                      const ant = Number(e.target.value);
+                      if (!isNaN(ant) && ant >= 0) {
+                        setSaldoEsperado(String(Math.max(0, total - ant)));
+                      }
+                    }}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Saldo esperado ($)</Label>
+                  <Input
+                    type="number"
+                    min={0}
+                    step={0.01}
+                    value={saldoEsperado}
+                    onChange={(e) => setSaldoEsperado(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Probabilidad de cobro (%)</Label>
+                  <Input
+                    type="number"
+                    min={0}
+                    max={100}
+                    step={1}
+                    placeholder="0 – 100"
+                    value={probabilidadCobro}
+                    onChange={(e) => setProbabilidadCobro(e.target.value)}
+                  />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
           {/* Resumen */}
           <Card>
             <CardHeader><CardTitle>Resumen</CardTitle></CardHeader>
@@ -835,12 +940,16 @@ export default function NuevoPresupuestoPage() {
               <Input value={nuevaObraNombre} onChange={(e) => setNuevaObraNombre(e.target.value)} autoFocus placeholder="Ej: Torre Madero Piso 3" />
             </div>
             <div className="space-y-1.5">
+              <Label>Código de obra</Label>
+              <Input value={nuevaObraCodigoObra} onChange={(e) => setNuevaObraCodigoObra(e.target.value)} placeholder="Ej: OBR-001" />
+            </div>
+            <div className="space-y-1.5">
               <Label>Dirección</Label>
               <Input value={nuevaObraDireccion} onChange={(e) => setNuevaObraDireccion(e.target.value)} placeholder="Ej: Av. Madero 1234" />
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => { setNuevaObraOpen(false); setNuevaObraNombre(''); setNuevaObraDireccion(''); }}>Cancelar</Button>
+            <Button variant="outline" onClick={() => { setNuevaObraOpen(false); setNuevaObraNombre(''); setNuevaObraDireccion(''); setNuevaObraCodigoObra(''); }}>Cancelar</Button>
             <Button onClick={crearObraInline} disabled={!nuevaObraNombre.trim()} className="bg-[#00ADEF] hover:bg-[#0089C7]">Crear obra</Button>
           </DialogFooter>
         </DialogContent>

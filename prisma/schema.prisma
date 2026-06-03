@@ -42,6 +42,8 @@ model User {
   presupuestosCreados   Presupuesto[] @relation("PresupuestoCreadoPor")
   presupuestosAsignados Presupuesto[] @relation("PresupuestoResponsable")
   auditorias            AuditoriaPresupuesto[]
+  eventLogs             EventLog[]
+  decisionesAprobadas   DecisionLog[] @relation("DecisionesAprobadas")
 }
 
 model PermisoRol {
@@ -133,13 +135,21 @@ model Presupuesto {
   lineas            LineaPresupuesto[]
   puertas           PuertaPresupuesto[]
   archivos          ArchivoPresupuesto[]
-  cuentaCorriente   CuentaCorriente?
-  auditoria         AuditoriaPresupuesto[]
+  cuentaCorriente          CuentaCorriente?
+  auditoria                AuditoriaPresupuesto[]
+  division                 DivisionProductiva?
+  fechaPrometidaCliente    DateTime?
+  fechaObjetivoProduccion  DateTime?
+  anticipoEsperado         Decimal?           @db.Decimal(14,2)
+  saldoEsperado            Decimal?           @db.Decimal(14,2)
+  probabilidadCobro        Decimal?           @db.Decimal(5,2)
+  motivoRechazo            String?
 }
 
 model Obra {
   id                String            @id @default(cuid())
   nombre            String
+  codigoObra        String?           @unique
   direccion         String?
   descripcion       String?
   clienteId         String
@@ -189,6 +199,7 @@ model LineaPresupuesto {
   subtotal       Decimal                  @db.Decimal(10, 2)
   productoId     String?
   productoNombre String?
+  division       DivisionProductiva?
   opciones       OpcionLineaPresupuesto[]
 }
 
@@ -517,4 +528,75 @@ model AuditoriaPresupuesto {
   createdAt         DateTime    @default(now())
 
   @@index([presupuestoId])
+}
+
+// ─── División productiva ──────────────────────────────────────────────────────
+
+enum DivisionProductiva {
+  MADERA
+  MELAMINA
+  ALUMINIO
+  MIXTO
+}
+
+// ─── Event Sourcing ───────────────────────────────────────────────────────────
+
+model EventLog {
+  id            String             @id @default(cuid())
+  eventId       String             @unique
+  eventType     String
+  version       String             @default("1.0")
+  entityType    String
+  entityId      String
+  correlationId String?
+  causationId   String?
+  hash          String?
+  payload       Json
+  status        String             @default("PENDING")
+  processedAt   DateTime?
+  creadoPorId   String?
+  creadoPor     User?              @relation(fields: [creadoPorId], references: [id])
+  destinatarios EventDestination[]
+  createdAt     DateTime           @default(now())
+
+  @@index([entityId])
+  @@index([eventType])
+  @@index([correlationId])
+}
+
+model EventDestination {
+  id          String   @id @default(cuid())
+  eventLogId  String
+  eventLog    EventLog @relation(fields: [eventLogId], references: [id], onDelete: Cascade)
+  target      String
+  targetUrl   String
+  status      String   @default("PENDING")
+  attempts    Int      @default(0)
+  lastError   String?
+  deliveredAt DateTime?
+  createdAt   DateTime @default(now())
+
+  @@index([eventLogId])
+  @@index([status])
+}
+
+model DecisionLog {
+  id                 String   @id @default(cuid())
+  tipoDecision       String
+  entidadTipo        String
+  entidadId          String
+  aprobadoPorId      String
+  aprobadoPor        User     @relation("DecisionesAprobadas", fields: [aprobadoPorId], references: [id])
+  aprobadoPorRol     String
+  requirioDirector   Boolean  @default(false)
+  motivoEscalamiento String?
+  monto              Decimal? @db.Decimal(14,2)
+  montoAnterior      Decimal? @db.Decimal(14,2)
+  montoNuevo         Decimal? @db.Decimal(14,2)
+  contextoExtra      Json?
+  fechaSolicitud     DateTime
+  fechaResolucion    DateTime @default(now())
+  tiempoResolucionH  Decimal? @db.Decimal(8,2)
+  eventLogId         String?
+  createdAt          DateTime @default(now())
 }

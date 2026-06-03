@@ -88,6 +88,13 @@ export async function POST(req: NextRequest) {
         totalConIva: data.totalConIva ?? 0,
         preciosNetos: data.preciosNetos ?? true,
         fechaEnvio: data.estado === 'ENVIADO' ? new Date() : null,
+        division: data.division ?? null,
+        fechaPrometidaCliente: data.fechaPrometidaCliente ? new Date(data.fechaPrometidaCliente) : null,
+        fechaObjetivoProduccion: data.fechaObjetivoProduccion ? new Date(data.fechaObjetivoProduccion) : null,
+        anticipoEsperado: data.anticipoEsperado != null ? data.anticipoEsperado : null,
+        saldoEsperado: data.saldoEsperado != null ? data.saldoEsperado : null,
+        probabilidadCobro: data.probabilidadCobro != null ? data.probabilidadCobro : null,
+        motivoRechazo: data.motivoRechazo ?? null,
         puertas: {
           create: (data.puertas ?? []).map((p: {
             tipoPuertaId: string; cantidad: number; ancho: number; alto: number;

@@ -3,12 +3,13 @@ import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { EstadoPresupuesto } from '@prisma/client';
 import { registrarAuditoria } from '@/lib/auditoria';
+import { emitEvent, EVENT_TYPES } from '@/lib/events/event-emitter';
 
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
   const session = await auth();
   if (!session?.user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
 
-  const { estado } = await req.json();
+  const { estado, motivoRechazo } = await req.json();
 
   if (!Object.values(EstadoPresupuesto).includes(estado)) {
     return NextResponse.json({ error: 'Estado inválido' }, { status: 400 });
@@ -24,6 +25,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     data: {
       estado,
       fechaEnvio: estado === 'ENVIADO' ? new Date() : undefined,
+      motivoRechazo: estado === 'RECHAZADO' ? (motivoRechazo ?? null) : undefined,
     },
   });
 
@@ -33,6 +35,70 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     accion: 'CAMBIO_ESTADO',
     camposModificados: { estado: { antes: prev?.estado, despues: estado } },
   });
+
+  if (estado === 'APROBADO') {
+    const p = await prisma.presupuesto.findUnique({
+      where: { id: params.id },
+      include: {
+        cliente: { select: { id: true, razonSocial: true, email: true, tipoCliente: true } },
+        obra: { select: { id: true, nombre: true, direccion: true } },
+        creadoPor: { select: { id: true, nombre: true, email: true } },
+        responsable: { select: { id: true, nombre: true, email: true } },
+        lineas: { include: { item: { select: { id: true, nombre: true, categoria: { select: { nombre: true } } } }, opciones: true } },
+      },
+    });
+    if (p) {
+      const divisionGlobal = p.division ?? 'MADERA';
+      const neto = Number(p.precioFinal ?? p.totalFinal ?? 0);
+      const productos = p.lineas.map((l) => ({
+        lineaId: l.id,
+        productoNombre: l.productoNombre ?? l.item?.nombre ?? 'Sin nombre',
+        productoId: l.productoId ?? l.itemId ?? null,
+        categoriaNombre: l.item?.categoria?.nombre ?? null,
+        division: l.division ?? null,
+        cantidad: Number(l.cantidad),
+        precioUnitario: Number(l.precioUnitario),
+        subtotal: Number(l.subtotal),
+        opciones: (l.opciones ?? []).map((o) => ({
+          atributo: o.atributoNombre,
+          opcion: o.opcionNombre,
+          precio: Number(o.precioUnitario),
+        })),
+      }));
+      emitEvent({
+        eventType: EVENT_TYPES.PRESUPUESTO_APROBADO,
+        entityType: 'presupuesto',
+        entityId: p.id,
+        userId: session.user.id,
+        data: {
+          presupuestoId: p.id,
+          numero: p.numero,
+          nombrePresupuesto: p.nombrePresupuesto ?? null,
+          cliente: { id: p.cliente.id, razonSocial: p.cliente.razonSocial, email: p.cliente.email ?? null, tipoCliente: p.cliente.tipoCliente },
+          obra: p.obra ? { id: p.obra.id, nombre: p.obra.nombre, direccion: p.obra.direccion ?? null } : null,
+          responsable: { id: p.responsable?.id ?? p.creadoPor.id, nombre: p.responsable?.nombre ?? p.creadoPor.nombre, email: p.responsable?.email ?? p.creadoPor.email },
+          division: divisionGlobal,
+          monto: {
+            neto,
+            descuentoPorcentaje: Number(p.descuento ?? 0),
+            descuentoMonto: neto > 0 && Number(p.descuento) > 0 ? neto * Number(p.descuento) / (100 - Number(p.descuento)) : 0,
+            tasaIva: Number(p.tasaIva ?? 21),
+            montoIva: Number(p.montoIva ?? 0),
+            totalConIva: Number(p.totalConIva ?? neto),
+          },
+          productos,
+          condicionesComerciales: {
+            observaciones: p.observaciones ?? null,
+            fechaVencimiento: p.fechaVencimiento?.toISOString() ?? null,
+          },
+          fechaCreacion: p.fechaCreacion.toISOString(),
+          fechaAprobacion: new Date().toISOString(),
+          fechaPrometidaCliente: p.fechaPrometidaCliente?.toISOString() ?? null,
+          fechaObjetivoProduccion: p.fechaObjetivoProduccion?.toISOString() ?? null,
+        },
+      }).catch((err: Error) => console.error('[EVENT] Error emitiendo presupuesto.aprobado:', err.message));
+    }
+  }
 
   return NextResponse.json(presupuesto);
 }

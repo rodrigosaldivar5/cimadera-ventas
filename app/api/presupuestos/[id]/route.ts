@@ -65,6 +65,13 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
         montoIva: data.montoIva ?? 0,
         totalConIva: data.totalConIva ?? 0,
         preciosNetos: data.preciosNetos ?? true,
+        division: data.division ?? null,
+        fechaPrometidaCliente: data.fechaPrometidaCliente ? new Date(data.fechaPrometidaCliente) : null,
+        fechaObjetivoProduccion: data.fechaObjetivoProduccion ? new Date(data.fechaObjetivoProduccion) : null,
+        anticipoEsperado: data.anticipoEsperado != null ? data.anticipoEsperado : null,
+        saldoEsperado: data.saldoEsperado != null ? data.saldoEsperado : null,
+        probabilidadCobro: data.probabilidadCobro != null ? data.probabilidadCobro : null,
+        motivoRechazo: data.motivoRechazo ?? null,
         puertas: { create: data.puertas ?? [] },
         lineas: {
           create: (data.lineas ?? []).map((l: LineaInput) => ({
