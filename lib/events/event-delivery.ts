@@ -10,6 +10,29 @@ function hmacSignature(body: string, secret: string): string {
     .digest('hex');
 }
 
+function buildCrmBody(payload: Record<string, unknown>): string {
+  const emittedBy = payload.emittedBy as Record<string, unknown> | null | undefined;
+  return JSON.stringify({
+    eventId: payload.eventId,
+    eventType: payload.eventType,
+    emittedAt: payload.emittedAt,
+    emittedBy: {
+      app: 'ventas',
+      version: String(payload.version ?? '1.0'),
+      user: (emittedBy?.userEmail ?? emittedBy?.userName ?? undefined) as string | undefined,
+    },
+    entidad: {
+      tipo: payload.entityType,
+      id: payload.entityId,
+    },
+    correlationId: payload.correlationId,
+    causationId: payload.causationId,
+    payload: payload.data,
+    hash: payload.hash,
+    origin: 'ventas',
+  });
+}
+
 function buildHeaders(
   target: string,
   payload: Record<string, unknown>,
@@ -69,7 +92,7 @@ export async function deliverEvent(destinationId: string): Promise<void> {
   });
 
   const payload = dest.eventLog.payload as Record<string, unknown>;
-  const body = JSON.stringify(payload);
+  const body = dest.target === 'crm' ? buildCrmBody(payload) : JSON.stringify(payload);
 
   try {
     const res = await fetch(dest.targetUrl, {
@@ -88,7 +111,8 @@ export async function deliverEvent(destinationId: string): Promise<void> {
       return;
     }
 
-    throw new Error(`HTTP ${res.status}`);
+    const errBody = await res.text().catch(() => '');
+    throw new Error(`HTTP ${res.status}${errBody ? ': ' + errBody.slice(0, 300) : ''}`);
   } catch (err) {
     const lastError = err instanceof Error ? err.message : String(err);
     const newStatus = prevAttempts >= MAX_ATTEMPTS ? 'FAILED' : 'RETRYING';
