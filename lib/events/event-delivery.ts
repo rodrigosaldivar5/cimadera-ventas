@@ -19,7 +19,7 @@ function buildHeaders(
     return {
       'Content-Type': 'application/json',
       'X-CIMADERA-Origin': 'ventas',
-      'X-CIMADERA-Signature': hmacSignature(body, process.env.EVENT_TARGET_CRM_SECRET ?? ''),
+      'X-CIMADERA-Signature': hmacSignature(body, process.env.CRM_WEBHOOK_SECRET ?? ''),
     };
   }
   return {
