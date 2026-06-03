@@ -1,68 +1,103 @@
+import crypto from 'crypto';
 import { prisma } from '@/lib/prisma';
 
-export async function deliverEvent(
-  eventLogId: string,
-  destinationId: string,
+const MAX_ATTEMPTS = 3;
+
+function hmacSignature(body: string): string {
+  return 'sha256=' + crypto
+    .createHmac('sha256', process.env.EXTERNAL_API_KEY ?? '')
+    .update(body)
+    .digest('hex');
+}
+
+function buildHeaders(
+  target: string,
   payload: Record<string, unknown>,
-): Promise<void> {
-  const destination = await prisma.eventDestination.findUnique({
-    where: { id: destinationId },
+  body: string,
+): Record<string, string> {
+  if (target === 'crm') {
+    return {
+      'Content-Type': 'application/json',
+      'X-CIMADERA-Origin': 'ventas',
+      'X-CIMADERA-Signature': hmacSignature(body),
+    };
+  }
+  return {
+    'Content-Type': 'application/json',
+    'X-Event-Type': String(payload.eventType ?? ''),
+    'X-Event-Version': String(payload.version ?? '1.0'),
+    'X-Correlation-Id': String(payload.correlationId ?? ''),
+    'X-Payload-Hash': String(payload.hash ?? ''),
+    'X-Source': 'ventas.cimadera.net',
+    'X-Signature': hmacSignature(body),
+    Authorization: `Bearer ${process.env.EXTERNAL_API_KEY ?? ''}`,
+  };
+}
+
+async function syncEventLogStatus(eventLogId: string): Promise<void> {
+  const dests = await prisma.eventDestination.findMany({
+    where: { eventLogId },
+    select: { status: true },
   });
-  if (!destination) return;
+  const allDelivered = dests.every((d) => d.status === 'DELIVERED');
+  const allResolved = dests.every((d) => d.status === 'DELIVERED' || d.status === 'FAILED');
 
-  const maxAttempts = 3;
-  let lastError = '';
+  if (allDelivered) {
+    await prisma.eventLog.update({
+      where: { id: eventLogId },
+      data: { status: 'DELIVERED', processedAt: new Date() },
+    });
+  } else if (allResolved) {
+    await prisma.eventLog.update({
+      where: { id: eventLogId },
+      data: { status: 'FAILED' },
+    });
+  }
+}
 
-  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-    try {
-      const res = await fetch(destination.targetUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Event-Type': String(payload.eventType ?? ''),
-          'X-Event-Version': String(payload.version ?? '1.0'),
-          'X-Correlation-Id': String(payload.correlationId ?? ''),
-          'X-Payload-Hash': String(payload.hash ?? ''),
-          'X-Source': String(payload.source ?? 'ventas.cimadera.net'),
-          Authorization: `Bearer ${process.env.EXTERNAL_API_KEY ?? ''}`,
-        },
-        body: JSON.stringify(payload),
-        signal: AbortSignal.timeout(10000),
+export async function deliverEvent(destinationId: string): Promise<void> {
+  const dest = await prisma.eventDestination.findUnique({
+    where: { id: destinationId },
+    include: { eventLog: { select: { id: true, payload: true } } },
+  });
+  if (!dest) return;
+
+  const { attempts: prevAttempts } = await prisma.eventDestination.update({
+    where: { id: destinationId },
+    data: { attempts: { increment: 1 } },
+    select: { attempts: true },
+  });
+
+  const payload = dest.eventLog.payload as Record<string, unknown>;
+  const body = JSON.stringify(payload);
+
+  try {
+    const res = await fetch(dest.targetUrl, {
+      method: 'POST',
+      headers: buildHeaders(dest.target, payload, body),
+      body,
+      signal: AbortSignal.timeout(10000),
+    });
+
+    if (res.ok) {
+      await prisma.eventDestination.update({
+        where: { id: destinationId },
+        data: { status: 'DELIVERED', deliveredAt: new Date() },
       });
-
-      if (res.ok) {
-        await prisma.eventDestination.update({
-          where: { id: destinationId },
-          data: { status: 'DELIVERED', deliveredAt: new Date(), attempts: attempt },
-        });
-        const allDone = await prisma.eventDestination.findMany({
-          where: { eventLogId },
-          select: { status: true },
-        });
-        if (allDone.every((d) => d.status === 'DELIVERED')) {
-          await prisma.eventLog.update({
-            where: { id: eventLogId },
-            data: { status: 'DELIVERED', processedAt: new Date() },
-          });
-        }
-        return;
-      }
-      lastError = `HTTP ${res.status}`;
-    } catch (err) {
-      lastError = err instanceof Error ? err.message : String(err);
+      await syncEventLogStatus(dest.eventLog.id);
+      return;
     }
 
-    if (attempt < maxAttempts) {
-      await new Promise((resolve) => setTimeout(resolve, attempt * 1000));
+    throw new Error(`HTTP ${res.status}`);
+  } catch (err) {
+    const lastError = err instanceof Error ? err.message : String(err);
+    const newStatus = prevAttempts >= MAX_ATTEMPTS ? 'FAILED' : 'RETRYING';
+    await prisma.eventDestination.update({
+      where: { id: destinationId },
+      data: { status: newStatus, lastError },
+    });
+    if (newStatus === 'FAILED') {
+      await syncEventLogStatus(dest.eventLog.id);
     }
   }
-
-  await prisma.eventDestination.update({
-    where: { id: destinationId },
-    data: { status: 'FAILED', lastError, attempts: maxAttempts },
-  });
-  await prisma.eventLog.update({
-    where: { id: eventLogId },
-    data: { status: 'FAILED' },
-  });
 }
