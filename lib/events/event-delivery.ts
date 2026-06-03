@@ -3,9 +3,9 @@ import { prisma } from '@/lib/prisma';
 
 const MAX_ATTEMPTS = 3;
 
-function hmacSignature(body: string): string {
+function hmacSignature(body: string, secret: string): string {
   return 'sha256=' + crypto
-    .createHmac('sha256', process.env.EXTERNAL_API_KEY ?? '')
+    .createHmac('sha256', secret)
     .update(body)
     .digest('hex');
 }
@@ -19,7 +19,7 @@ function buildHeaders(
     return {
       'Content-Type': 'application/json',
       'X-CIMADERA-Origin': 'ventas',
-      'X-CIMADERA-Signature': hmacSignature(body),
+      'X-CIMADERA-Signature': hmacSignature(body, process.env.EVENT_TARGET_CRM_SECRET ?? ''),
     };
   }
   return {
@@ -29,7 +29,7 @@ function buildHeaders(
     'X-Correlation-Id': String(payload.correlationId ?? ''),
     'X-Payload-Hash': String(payload.hash ?? ''),
     'X-Source': 'ventas.cimadera.net',
-    'X-Signature': hmacSignature(body),
+    'X-Signature': hmacSignature(body, process.env.EXTERNAL_API_KEY ?? ''),
     Authorization: `Bearer ${process.env.EXTERNAL_API_KEY ?? ''}`,
   };
 }
