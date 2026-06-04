@@ -126,15 +126,9 @@ export async function emitEvent({
     return eventId;
   }
 
-  const { deliverEvent } = await import('./event-delivery');
-  for (const dest of eventLog.destinatarios) {
-    deliverEvent(eventLog.id, dest.id, payload).catch((err: Error) => {
-      console.error('[EVENT] Error enviando a ' + dest.target + ':', err.message);
-    });
-  }
-
+  // Entrega delegada al cron /api/events/process-pending (delivery no ocurre aquí)
   console.log(
-    '[EVENT] ' + eventType + ' emitido (' + eventId + ') -> ' +
+    '[EVENT] ' + eventType + ' encolado (' + eventId + ') -> ' +
     eventLog.destinatarios.map((d) => d.target).join(', '),
   );
   return eventId;
