@@ -45,6 +45,17 @@ function buildHeaders(
       'X-CIMADERA-Signature': hmacSignature(body, process.env.CRM_WEBHOOK_SECRET ?? ''),
     };
   }
+  if (target === 'produccion') {
+    const secret = process.env.PRODUCCION_WEBHOOK_SECRET ?? process.env.EXTERNAL_API_KEY ?? '';
+    const hexSignature = crypto.createHmac('sha256', secret).update(body).digest('hex');
+    return {
+      'Content-Type': 'application/json',
+      'X-Event-Id': String(payload.eventId ?? ''),
+      'X-Event-Type': String(payload.eventType ?? ''),
+      'X-Timestamp': String(payload.emittedAt ?? new Date().toISOString()),
+      'X-Signature': hexSignature,
+    };
+  }
   return {
     'Content-Type': 'application/json',
     'X-Event-Id': String(payload.eventId ?? ''),
@@ -107,7 +118,7 @@ export async function deliverEvent(destinationId: string): Promise<void> {
     if (res.ok) {
       await prisma.eventDestination.update({
         where: { id: destinationId },
-        data: { status: 'DELIVERED', deliveredAt: new Date() },
+        data: { status: 'DELIVERED', deliveredAt: new Date(), lastError: null },
       });
       await syncEventLogStatus(dest.eventLog.id);
       return;
