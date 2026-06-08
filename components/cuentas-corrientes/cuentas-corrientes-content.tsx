@@ -19,7 +19,7 @@ import {
 } from '@/components/ui/table';
 import {
   ChevronDown, ChevronUp, Plus, Edit, Trash2, TrendingUp, CreditCard, Loader2,
-  FileText, DollarSign, AlertTriangle, X,
+  FileText, DollarSign, AlertTriangle, X, Download,
 } from 'lucide-react';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import type { CuentaCorriente, MovimientoCuenta, TipoMovimiento, EstadoCuenta } from '@prisma/client';
@@ -698,6 +698,37 @@ export function CuentasCorrientesContent({ cuentasIniciales, clientes, presupues
     }
   };
 
+  // ── PDF consolidado por cliente ───────────────────────────────────────────
+  const [dialogPDFCliente, setDialogPDFCliente] = useState(false);
+  const [clientesConCuentas, setClientesConCuentas] = useState<{ id: string; razonSocial: string; _count: { cuentasCorrientes: number } }[]>([]);
+  const [pdfClienteId, setPdfClienteId] = useState('');
+  const [pdfGenerando, setPdfGenerando] = useState(false);
+
+  useEffect(() => {
+    fetch('/api/cuentas-corrientes/clientes-con-cuentas')
+      .then((r) => r.json())
+      .then((d) => setClientesConCuentas(d))
+      .catch(() => {});
+  }, []);
+
+  const handleGenerarPDFCliente = async () => {
+    if (!pdfClienteId) return;
+    setPdfGenerando(true);
+    try {
+      const res = await fetch(`/api/cuentas-corrientes/pdf-cliente?clienteId=${pdfClienteId}`);
+      if (!res.ok) throw new Error('Error al obtener datos');
+      const { cliente, cuentas } = await res.json();
+      const { generarPDFClienteConsolidado } = await import('@/lib/pdf/generar-cuenta-corriente-cliente');
+      generarPDFClienteConsolidado(cliente, cuentas);
+      setDialogPDFCliente(false);
+      showToast('PDF generado correctamente');
+    } catch {
+      showToast('Error al generar el PDF', true);
+    } finally {
+      setPdfGenerando(false);
+    }
+  };
+
   // ── Vincular obra ─────────────────────────────────────────────────────────
   const [vinObraOpen, setVinObraOpen] = useState(false);
   const [vinObraCuentaId, setVinObraCuentaId] = useState<string | null>(null);
@@ -792,13 +823,23 @@ export function CuentasCorrientesContent({ cuentasIniciales, clientes, presupues
           <h1 className="text-2xl font-bold text-[#1A1A1A]">Cuentas Corrientes</h1>
           <p className="text-sm text-gray-500 mt-1">Seguimiento de saldos y pagos de clientes</p>
         </div>
-        <Button
-          onClick={() => setNuevaOpen(true)}
-          className="bg-[#00ADEF] hover:bg-[#0089C7] text-white"
-        >
-          <Plus className="w-4 h-4 mr-2" />
-          Nueva cuenta
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            onClick={() => { setPdfClienteId(''); setDialogPDFCliente(true); }}
+            className="border-[#00ADEF] text-[#00ADEF] hover:bg-[#00ADEF]/10"
+          >
+            <Download className="w-4 h-4 mr-2" />
+            PDF por cliente
+          </Button>
+          <Button
+            onClick={() => setNuevaOpen(true)}
+            className="bg-[#00ADEF] hover:bg-[#0089C7] text-white"
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            Nueva cuenta
+          </Button>
+        </div>
       </div>
 
       {/* Banner: presupuestos aprobados sin cuenta corriente */}
@@ -1803,6 +1844,48 @@ export function CuentasCorrientesContent({ cuentasIniciales, clientes, presupues
             >
               {vinObraSaving ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : null}
               Vincular
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Dialog: PDF consolidado por cliente ────────────────────────── */}
+      <Dialog open={dialogPDFCliente} onOpenChange={setDialogPDFCliente}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Exportar PDF por cliente</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div>
+              <Label className="mb-1.5 block">Seleccionar cliente</Label>
+              <Select value={pdfClienteId || 'none'} onValueChange={(v) => setPdfClienteId(v === 'none' ? '' : v)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Elegir cliente..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">— Seleccionar —</SelectItem>
+                  {clientesConCuentas.map((c) => (
+                    <SelectItem key={c.id} value={c.id}>
+                      {c.razonSocial}
+                      <span className="ml-2 text-xs text-slate-400">({c._count.cuentasCorrientes})</span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <p className="text-xs text-slate-400">
+              Genera un PDF con el resumen consolidado y el detalle de movimientos de todas las cuentas del cliente.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDialogPDFCliente(false)}>Cancelar</Button>
+            <Button
+              onClick={handleGenerarPDFCliente}
+              disabled={pdfGenerando || !pdfClienteId}
+              className="bg-[#00ADEF] hover:bg-[#0089C7] text-white"
+            >
+              {pdfGenerando ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : <Download className="w-4 h-4 mr-1" />}
+              Generar PDF
             </Button>
           </DialogFooter>
         </DialogContent>
