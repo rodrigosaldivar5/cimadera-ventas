@@ -2,7 +2,7 @@
 
 import { usePathname, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Bell, Plus, Menu, MessageCircle, FileText, AlertTriangle, RefreshCw } from 'lucide-react';
+import { Bell, Plus, Menu, Zap, FileText, AlertTriangle, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { Sidebar } from '@/components/layout/sidebar';
@@ -41,7 +41,7 @@ function getNotifIconBg(tipo: string): string {
 function getNotifIcon(tipo: string) {
   const style = { width: 16, height: 16 };
   switch (tipo) {
-    case 'avance_requerido': return <MessageCircle style={{ ...style, color: '#D97706' }} />;
+    case 'avance_requerido': return <Zap style={{ ...style, color: '#D97706' }} />;
     case 'presupuesto_asignado': return <FileText style={{ ...style, color: '#2563EB' }} />;
     case 'alta_prioridad': return <AlertTriangle style={{ ...style, color: '#DC2626' }} />;
     case 'estado_cambio': return <RefreshCw style={{ ...style, color: '#16A34A' }} />;
@@ -96,7 +96,7 @@ export function Header({ userName, userEmail, rolNombre }: HeaderProps) {
 
   useEffect(() => {
     fetchNotificaciones();
-    const interval = setInterval(fetchNotificaciones, 60000);
+    const interval = setInterval(fetchNotificaciones, 30000);
     return () => clearInterval(interval);
   }, [fetchNotificaciones]);
 
