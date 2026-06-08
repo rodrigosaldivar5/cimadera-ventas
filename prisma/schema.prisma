@@ -44,6 +44,7 @@ model User {
   auditorias            AuditoriaPresupuesto[]
   eventLogs             EventLog[]
   decisionesAprobadas   DecisionLog[] @relation("DecisionesAprobadas")
+  notificaciones        Notificacion[]
 }
 
 model PermisoRol {
@@ -578,6 +579,20 @@ model EventDestination {
 
   @@index([eventLogId])
   @@index([status])
+}
+
+model Notificacion {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  titulo    String
+  mensaje   String
+  tipo      String   @default("general")
+  leida     Boolean  @default(false)
+  linkUrl   String?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
 }
 
 model DecisionLog {

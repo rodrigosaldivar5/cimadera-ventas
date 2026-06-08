@@ -9,8 +9,11 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuCheckboxItem, DropdownMenuSeparator, DropdownMenuItem } from '@/components/ui/dropdown-menu';
-import { Plus, Eye, ChevronLeft, ChevronRight, Filter, AlertTriangle, ChevronDown, ChevronUp, Check } from 'lucide-react';
+import { Plus, Eye, ChevronLeft, ChevronRight, Filter, AlertTriangle, ChevronDown, ChevronUp, Check, MessageCircle } from 'lucide-react';
 import { EliminarPresupuestoBtn } from '@/components/presupuestos/eliminar-presupuesto-btn';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { ESTADO_PRESUPUESTO, PRIORIDAD, estadoLabel, getEstiloEstado, getLabelEstado, type EstadoPresupuesto, type Prioridad } from '@/lib/enums';
 
@@ -134,6 +137,11 @@ export function PresupuestosTable({ presupuestos, total, page, perPage, clientes
   const [editingPrecio, setEditingPrecio] = useState<{ id: string; value: string } | null>(null);
   const [savingPrecio, setSavingPrecio] = useState(false);
   const [savingPrioridad, setSavingPrioridad] = useState<string | null>(null);
+  const [dialogAvanceAbierto, setDialogAvanceAbierto] = useState(false);
+  const [presupuestoAvance, setPresupuestoAvance] = useState<PresupuestoRow | null>(null);
+  const [mensajeAvance, setMensajeAvance] = useState('');
+  const [enviandoAvance, setEnviandoAvance] = useState(false);
+  const [toastAvance, setToastAvance] = useState<{ msg: string; error: boolean } | null>(null);
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>(() => {
     if (typeof window === 'undefined') return {};
     try { const s = localStorage.getItem(COLUMN_WIDTHS_KEY); return s ? JSON.parse(s) : {}; } catch { return {}; }
@@ -222,6 +230,28 @@ export function PresupuestosTable({ presupuestos, total, page, perPage, clientes
     setSavingPrecio(false);
     setEditingPrecio(null);
     router.refresh();
+  };
+
+  const handlePedirAvance = async () => {
+    if (!presupuestoAvance) return;
+    setEnviandoAvance(true);
+    try {
+      const res = await fetch(`/api/presupuestos/${presupuestoAvance.id}/pedir-avance`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mensaje: mensajeAvance }),
+      });
+      if (!res.ok) throw new Error('Error');
+      setToastAvance({ msg: `Notificación enviada a ${presupuestoAvance.responsable?.nombre}`, error: false });
+      setTimeout(() => setToastAvance(null), 3000);
+      setDialogAvanceAbierto(false);
+      setMensajeAvance('');
+    } catch {
+      setToastAvance({ msg: 'Error al enviar la notificación', error: true });
+      setTimeout(() => setToastAvance(null), 3000);
+    } finally {
+      setEnviandoAvance(false);
+    }
   };
 
   const applyFilters = () => {
@@ -553,6 +583,17 @@ export function PresupuestosTable({ presupuestos, total, page, perPage, clientes
                     <Button variant="ghost" size="icon" asChild>
                       <Link href={`/presupuestos/${p.id}`}><Eye className="h-4 w-4" /></Link>
                     </Button>
+                    {p.responsable && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        title="Pedir avance al responsable"
+                        onClick={() => { setPresupuestoAvance(p); setDialogAvanceAbierto(true); }}
+                        className="text-slate-400 hover:text-[#00ADEF]"
+                      >
+                        <MessageCircle className="h-4 w-4" />
+                      </Button>
+                    )}
                     {puedeEliminar && (
                       <EliminarPresupuestoBtn
                         presupuestoId={p.id}
@@ -590,6 +631,41 @@ export function PresupuestosTable({ presupuestos, total, page, perPage, clientes
           </div>
         </div>
       )}
+
+      {toastAvance && (
+        <div className={`fixed bottom-6 right-6 z-50 text-white text-sm px-4 py-2 rounded-lg shadow-lg animate-in fade-in slide-in-from-bottom-2 ${toastAvance.error ? 'bg-red-600' : 'bg-green-600'}`}>
+          {toastAvance.msg}
+        </div>
+      )}
+
+      <Dialog open={dialogAvanceAbierto} onOpenChange={setDialogAvanceAbierto}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Pedir avance</DialogTitle>
+            <DialogDescription>
+              Se enviará una notificación a <strong>{presupuestoAvance?.responsable?.nombre}</strong> pidiendo avance del presupuesto
+              #{presupuestoAvance?.numero}{presupuestoAvance?.nombrePresupuesto ? ` — ${presupuestoAvance.nombrePresupuesto}` : ''}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label>Mensaje (opcional)</Label>
+            <Textarea
+              value={mensajeAvance}
+              onChange={(e) => setMensajeAvance(e.target.value)}
+              placeholder="Ej: ¿Cómo viene este presupuesto? El cliente está esperando respuesta."
+              rows={3}
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDialogAvanceAbierto(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={handlePedirAvance} disabled={enviandoAvance} style={{ background: '#00ADEF' }}>
+              {enviandoAvance ? 'Enviando…' : 'Enviar notificación'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
