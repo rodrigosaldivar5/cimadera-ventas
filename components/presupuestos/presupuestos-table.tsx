@@ -532,7 +532,13 @@ export function PresupuestosTable({ presupuestos, total, page, perPage, clientes
                     </div>
                   </TableCell>
                 )}
-                {colVisible('recepcion') && <TableCell className="text-slate-500 text-sm">{p.fechaRecepcion ? formatDate(p.fechaRecepcion) : '—'}</TableCell>}
+                {colVisible('recepcion') && (
+                  <TableCell className="text-slate-500 text-sm" style={{ width: columnWidths.recepcion ?? 110 }}>
+                    {p.fechaRecepcion
+                      ? new Date(p.fechaRecepcion).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' })
+                      : '—'}
+                  </TableCell>
+                )}
                 {colVisible('total') && (
                   <TableCell className="text-right">
                     <div className="flex flex-col items-end gap-0.5">
