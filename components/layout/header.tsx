@@ -49,6 +49,15 @@ function getNotifIcon(tipo: string) {
   }
 }
 
+function urlBase64ToUint8Array(base64String: string): ArrayBuffer {
+  const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const raw = window.atob(base64);
+  const arr = new Uint8Array(raw.length);
+  for (let i = 0; i < raw.length; i++) arr[i] = raw.charCodeAt(i);
+  return arr.buffer;
+}
+
 function formatRelativeTime(dateStr: string): string {
   const diff = Date.now() - new Date(dateStr).getTime();
   const mins = Math.floor(diff / 60000);
@@ -90,6 +99,30 @@ export function Header({ userName, userEmail, rolNombre }: HeaderProps) {
     const interval = setInterval(fetchNotificaciones, 60000);
     return () => clearInterval(interval);
   }, [fetchNotificaciones]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || !('serviceWorker' in navigator) || !('PushManager' in window)) return;
+    const vapidKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+    if (!vapidKey) return;
+
+    navigator.serviceWorker.ready.then(async (reg) => {
+      try {
+        const existing = await reg.pushManager.getSubscription();
+        if (existing) return;
+        const permission = await Notification.requestPermission();
+        if (permission !== 'granted') return;
+        const sub = await reg.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: urlBase64ToUint8Array(vapidKey),
+        });
+        await fetch('/api/push/subscribe', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(sub.toJSON()),
+        });
+      } catch {}
+    });
+  }, []);
 
   const marcarTodasLeidas = async () => {
     await fetch('/api/notificaciones', { method: 'PATCH' });

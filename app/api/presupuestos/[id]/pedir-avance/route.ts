@@ -50,5 +50,37 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     });
   } catch {}
 
+  try {
+    const suscripciones = await prisma.pushSubscription.findMany({
+      where: { userId: presupuesto.responsableId },
+    });
+    if (suscripciones.length > 0) {
+      const webpush = await import('web-push');
+      webpush.setVapidDetails(
+        'mailto:coordinacion.general@cimadera.net',
+        process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? '',
+        process.env.VAPID_PRIVATE_KEY ?? ''
+      );
+      const pushPayload = JSON.stringify({
+        title: `Avance requerido`,
+        body: `Presupuesto #${presupuesto.numero} — ${presupuesto.cliente?.razonSocial ?? ''}`,
+        url: `/presupuestos/${presupuesto.id}`,
+      });
+      for (const sub of suscripciones) {
+        try {
+          await webpush.sendNotification(
+            { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
+            pushPayload
+          );
+        } catch (err) {
+          console.error('Push failed:', err);
+          if ((err as { statusCode?: number }).statusCode === 410) {
+            await prisma.pushSubscription.delete({ where: { id: sub.id } });
+          }
+        }
+      }
+    }
+  } catch {}
+
   return NextResponse.json({ success: true });
 }
