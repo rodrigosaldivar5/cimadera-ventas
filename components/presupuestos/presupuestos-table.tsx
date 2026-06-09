@@ -176,7 +176,7 @@ export function PresupuestosTable({ presupuestos, total, page, perPage, clientes
   }, []);
   const colVisible = (key: string) => columnasVisibles.includes(key);
 
-  // Cargar desde localStorage si no hay params en URL
+  // Cargar desde localStorage si no hay params en URL; auto-navegar para que el server devuelva datos filtrados
   useEffect(() => {
     const hayUrlFiltros = filters.estados || filters.prioridades || filters.clienteId || filters.desde || filters.hasta;
     if (!hayUrlFiltros) {
@@ -184,11 +184,16 @@ export function PresupuestosTable({ presupuestos, total, page, perPage, clientes
         const saved = localStorage.getItem(FILTROS_KEY);
         if (saved) {
           const f = JSON.parse(saved);
-          if (f.estados?.length)   setEstados(f.estados);
-          if (f.prioridades?.length) setPrioridades(f.prioridades);
-          if (f.clienteId)          setClienteId(f.clienteId);
-          if (f.desde)              setDesde(f.desde);
-          if (f.hasta)              setHasta(f.hasta);
+          const hasFilters = f.estados?.length || f.prioridades?.length || f.clienteId || f.desde || f.hasta;
+          if (hasFilters) {
+            const params = new URLSearchParams();
+            if (f.estados?.length) params.set('estados', f.estados.join(','));
+            if (f.prioridades?.length) params.set('prioridades', f.prioridades.join(','));
+            if (f.clienteId) params.set('clienteId', f.clienteId);
+            if (f.desde) params.set('desde', f.desde);
+            if (f.hasta) params.set('hasta', f.hasta);
+            router.replace(`/presupuestos?${params.toString()}`);
+          }
         }
       } catch {}
     }
@@ -263,6 +268,18 @@ export function PresupuestosTable({ presupuestos, total, page, perPage, clientes
     if (desde) params.set('desde', desde);
     if (hasta) params.set('hasta', hasta);
     router.push(`/presupuestos?${params.toString()}`);
+  };
+
+  const buildPageUrl = (targetPage: number) => {
+    const params = new URLSearchParams();
+    if (estados.length > 0) params.set('estados', estados.join(','));
+    if (prioridades.length > 0) params.set('prioridades', prioridades.join(','));
+    if (clienteId) params.set('clienteId', clienteId);
+    if (obraId) params.set('obraId', obraId);
+    if (desde) params.set('desde', desde);
+    if (hasta) params.set('hasta', hasta);
+    params.set('page', String(targetPage));
+    return `/presupuestos?${params.toString()}`;
   };
 
   const limpiarFiltros = () => {
@@ -627,11 +644,11 @@ export function PresupuestosTable({ presupuestos, total, page, perPage, clientes
         <div className="flex items-center justify-between text-sm text-slate-500">
           <span>{total} en total</span>
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="icon" disabled={page <= 1} onClick={() => router.push(`/presupuestos?page=${page - 1}`)}>
+            <Button variant="outline" size="icon" disabled={page <= 1} onClick={() => router.push(buildPageUrl(page - 1))}>
               <ChevronLeft className="h-4 w-4" />
             </Button>
             <span>Página {page} de {totalPages}</span>
-            <Button variant="outline" size="icon" disabled={page >= totalPages} onClick={() => router.push(`/presupuestos?page=${page + 1}`)}>
+            <Button variant="outline" size="icon" disabled={page >= totalPages} onClick={() => router.push(buildPageUrl(page + 1))}>
               <ChevronRight className="h-4 w-4" />
             </Button>
           </div>
