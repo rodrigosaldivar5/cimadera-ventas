@@ -60,13 +60,13 @@ export function generarPDFClienteConsolidado(
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(74, 74, 74);
     doc.text('ventas.cimadera.net  ·  coordinacion.general@cimadera.net  ·  261 635-0017', M, 20);
-    doc.setDrawColor(204, 204, 204);
+    doc.setDrawColor(0, 173, 239);
     doc.setLineWidth(0.4);
     doc.line(M, 23, W - M, 23);
   }
 
   function drawFooter() {
-    doc.setDrawColor(204, 204, 204);
+    doc.setDrawColor(0, 173, 239);
     doc.setLineWidth(0.4);
     doc.line(M, H - 18, W - M, H - 18);
     doc.setFontSize(7);
