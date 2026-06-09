@@ -1,4 +1,5 @@
 import { jsPDF } from 'jspdf';
+import { loadLogoDataUrl } from './logo';
 
 export type CostoPDF = {
   id: string;
@@ -52,7 +53,7 @@ const CAT_COLORS: [number, number, number][] = [
   [40, 100, 160],  // azul medio
 ];
 
-function drawHeader(doc: jsPDF, titulo: string) {
+function drawHeader(doc: jsPDF, titulo: string, logoDataUrl: string | null) {
   const [nR, nG, nB] = hex(COLORS.negroCimadera);
   const [grR, grG, grB] = hex(COLORS.grisCorporativo);
   const [azR, azG, azB] = hex(COLORS.azulCimadera);
@@ -61,14 +62,18 @@ function drawHeader(doc: jsPDF, titulo: string) {
 
   doc.setFillColor(255, 255, 255);
   doc.rect(0, 0, W, HEADER_H, 'F');
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(20);
-  doc.setTextColor(nR, nG, nB);
-  doc.text('CIMAdera', ML, baseY);
-  const cw = doc.getTextWidth('CIMAdera');
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(12);
-  doc.text(' S.A.', ML + cw, baseY);
+  if (logoDataUrl) {
+    doc.addImage(logoDataUrl, 'PNG', ML, 5, 50, 18);
+  } else {
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(20);
+    doc.setTextColor(nR, nG, nB);
+    doc.text('CIMAdera', ML, baseY);
+    const cw = doc.getTextWidth('CIMAdera');
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(12);
+    doc.text(' S.A.', ML + cw, baseY);
+  }
   doc.setFontSize(7.5);
   doc.setTextColor(grR, grG, grB);
   doc.text('ventas.cimadera.net  ·  coordinacion.general@cimadera.net  ·  261 635-0017', ML, baseY + 5);
@@ -99,10 +104,11 @@ function drawFooter(doc: jsPDF) {
   doc.text(`Página ${pgs}`, W - MR, 288, { align: 'right' });
 }
 
-export function generarPDFCostosFijos(
+export async function generarPDFCostosFijos(
   costos: CostoPDF[],
   prevSnapshot: SnapshotDatos | null,
-): void {
+): Promise<void> {
+  const logoDataUrl = await loadLogoDataUrl();
   const now = new Date();
   const mes = now.getMonth() + 1;
   const anio = now.getFullYear();
@@ -115,14 +121,14 @@ export function generarPDFCostosFijos(
   const [gcR, gcG, gcB] = hex(COLORS.grisClaro);
   const [sepR, sepG, sepB] = hex(COLORS.grisSeparador);
 
-  drawHeader(doc, titulo);
+  drawHeader(doc, titulo, logoDataUrl);
   let y = CS;
 
   const checkPage = (needed: number) => {
     if (y + needed > 275) {
       drawFooter(doc);
       doc.addPage();
-      drawHeader(doc, titulo);
+      drawHeader(doc, titulo, logoDataUrl);
       y = CS;
     }
   };

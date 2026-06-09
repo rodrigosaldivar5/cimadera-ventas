@@ -123,7 +123,7 @@ export function PresupuestoAcciones({ presupuesto, presupuestoPDF, presupuestoDa
       <Button
         variant="outline"
         size="sm"
-        onClick={() => presupuestoPDF ? generarPresupuestoPDF(presupuestoPDF) : window.print()}
+        onClick={async () => presupuestoPDF ? await generarPresupuestoPDF(presupuestoPDF) : window.print()}
       >
         <Download className="mr-1.5 h-4 w-4" /> Exportar PDF
       </Button>

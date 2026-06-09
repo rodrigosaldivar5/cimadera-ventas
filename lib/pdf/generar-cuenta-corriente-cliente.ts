@@ -1,4 +1,5 @@
 import { jsPDF } from 'jspdf';
+import { loadLogoDataUrl } from './logo';
 
 export interface MovimientoClientePDF {
   fecha: string;
@@ -40,10 +41,11 @@ const TIPO_LABELS: Record<string, string> = {
   ACTUALIZACION: 'Actualización',
 };
 
-export function generarPDFClienteConsolidado(
+export async function generarPDFClienteConsolidado(
   cliente: ClienteConsolidadoPDF,
   cuentas: CuentaClientePDF[]
-): void {
+): Promise<void> {
+  const logoDataUrl = await loadLogoDataUrl();
   const doc = new jsPDF('p', 'mm', 'a4');
   const W = doc.internal.pageSize.getWidth();
   const H = doc.internal.pageSize.getHeight();
@@ -52,10 +54,14 @@ export function generarPDFClienteConsolidado(
   let pagina = 1;
 
   function drawHeader() {
-    doc.setFontSize(18);
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(26, 26, 26);
-    doc.text('CIMAdera S.A.', M, 14);
+    if (logoDataUrl) {
+      doc.addImage(logoDataUrl, 'PNG', M, 5, 50, 18);
+    } else {
+      doc.setFontSize(18);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(26, 26, 26);
+      doc.text('CIMAdera S.A.', M, 14);
+    }
     doc.setFontSize(7.5);
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(74, 74, 74);

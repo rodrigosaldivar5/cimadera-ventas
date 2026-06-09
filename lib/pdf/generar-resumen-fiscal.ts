@@ -1,4 +1,5 @@
 import { jsPDF } from 'jspdf';
+import { loadLogoDataUrl } from './logo';
 
 type FilaFiscal = {
   periodo: string;
@@ -56,7 +57,7 @@ const marginR = 12;
 const HEADER_H = 25;
 const CONTENT_START_Y = 35;
 
-function drawHeader(doc: jsPDF, periodo: string) {
+function drawHeader(doc: jsPDF, periodo: string, logoDataUrl: string | null) {
   const [nR, nG, nB] = hexToRgb(COLORS.negroCimadera);
   const [grR, grG, grB] = hexToRgb(COLORS.grisCorporativo);
   const [azR, azG, azB] = hexToRgb(COLORS.azulCimadera);
@@ -67,16 +68,19 @@ function drawHeader(doc: jsPDF, periodo: string) {
 
   const baseY = HEADER_H - 8;
 
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(20);
-  doc.setTextColor(nR, nG, nB);
-  doc.text('CIMAdera', marginL, baseY);
-
-  const cimaderaWidth = doc.getTextWidth('CIMAdera');
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(12);
-  doc.setTextColor(nR, nG, nB);
-  doc.text(' S.A.', marginL + cimaderaWidth, baseY);
+  if (logoDataUrl) {
+    doc.addImage(logoDataUrl, 'PNG', marginL, 5, 50, 18);
+  } else {
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(20);
+    doc.setTextColor(nR, nG, nB);
+    doc.text('CIMAdera', marginL, baseY);
+    const cimaderaWidth = doc.getTextWidth('CIMAdera');
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(12);
+    doc.setTextColor(nR, nG, nB);
+    doc.text(' S.A.', marginL + cimaderaWidth, baseY);
+  }
 
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(7.5);
@@ -118,7 +122,8 @@ function drawFooter(doc: jsPDF) {
   doc.text(`Página ${pageCount}`, W - marginR, 288, { align: 'right' });
 }
 
-export function generarResumenFiscalPDF({ filas, totales, has105, periodo }: ResumenFiscalPDFParams): void {
+export async function generarResumenFiscalPDF({ filas, totales, has105, periodo }: ResumenFiscalPDFParams): Promise<void> {
+  const logoDataUrl = await loadLogoDataUrl();
   const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
   const pageW = 297;
   const contentW = pageW - marginL - marginR;
@@ -128,14 +133,14 @@ export function generarResumenFiscalPDF({ filas, totales, has105, periodo }: Res
   const [grR, grG, grB] = hexToRgb(COLORS.grisCorporativo);
   const [gcR, gcG, gcB] = hexToRgb(COLORS.grisClaro);
 
-  drawHeader(doc, periodo);
+  drawHeader(doc, periodo, logoDataUrl);
   let y = CONTENT_START_Y;
 
   const checkPage = (needed: number) => {
     if (y + needed > 190) {
       drawFooter(doc);
       doc.addPage();
-      drawHeader(doc, periodo);
+      drawHeader(doc, periodo, logoDataUrl);
       y = CONTENT_START_Y;
     }
   };

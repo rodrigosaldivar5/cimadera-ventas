@@ -334,7 +334,7 @@ export function CostosFijosTable({ costosIniciales }: { costosIniciales: Costo[]
         fetch(`/api/tesoreria/costos/informe?anio=${anio}&mesDesde=1&mesHasta=${mes}&tipoCambio=1145`).then((r) => r.json()),
         import('@/lib/pdf/generar-costos-fijos-v2'),
       ]);
-      generarPDFCostosFijosV2(informeRes);
+      await generarPDFCostosFijosV2(informeRes);
     } finally { setExportando(false); }
   }
 

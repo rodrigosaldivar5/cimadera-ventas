@@ -719,7 +719,7 @@ export function CuentasCorrientesContent({ cuentasIniciales, clientes, presupues
       if (!res.ok) throw new Error('Error al obtener datos');
       const { cliente, cuentas } = await res.json();
       const { generarPDFClienteConsolidado } = await import('@/lib/pdf/generar-cuenta-corriente-cliente');
-      generarPDFClienteConsolidado(cliente, cuentas);
+      await generarPDFClienteConsolidado(cliente, cuentas);
       setDialogPDFCliente(false);
       showToast('PDF generado correctamente');
     } catch {
@@ -774,7 +774,7 @@ export function CuentasCorrientesContent({ cuentasIniciales, clientes, presupues
   // ── Exportar PDF ──────────────────────────────────────────────────────────
   const handleExportarPDF = async (cuenta: CuentaConRelaciones) => {
     const { generarCuentaCorrientePDF } = await import('@/lib/pdf/generar-cuenta-corriente');
-    generarCuentaCorrientePDF({
+    await generarCuentaCorrientePDF({
       id: cuenta.id,
       fechaInicio: cuenta.fechaInicio,
       montoOriginal: Number(cuenta.montoOriginal),

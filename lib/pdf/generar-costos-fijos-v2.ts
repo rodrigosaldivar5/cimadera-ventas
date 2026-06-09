@@ -1,4 +1,5 @@
 import { jsPDF } from 'jspdf';
+import { loadLogoDataUrl } from './logo';
 
 const MESES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
   'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
@@ -18,14 +19,18 @@ function hex(h: string): [number, number, number] {
 }
 const AZ = hex('#00ADEF'), NK = hex('#1A1A1A'), GR = hex('#4A4A4A'), GC = hex('#F5F5F5'), SP = hex('#CCCCCC');
 
-function drawHeader(doc: jsPDF, titulo: string) {
+function drawHeader(doc: jsPDF, titulo: string, logoDataUrl: string | null) {
   doc.setFillColor(255, 255, 255);
   doc.rect(0, 0, W, HEADER_H, 'F');
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(20); doc.setTextColor(...NK);
-  doc.text('CIMAdera', ML, HEADER_H - 8);
-  const cw = doc.getTextWidth('CIMAdera');
-  doc.setFont('helvetica', 'normal'); doc.setFontSize(12);
-  doc.text(' S.A.', ML + cw, HEADER_H - 8);
+  if (logoDataUrl) {
+    doc.addImage(logoDataUrl, 'PNG', ML, 5, 50, 18);
+  } else {
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(20); doc.setTextColor(...NK);
+    doc.text('CIMAdera', ML, HEADER_H - 8);
+    const cw = doc.getTextWidth('CIMAdera');
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(12);
+    doc.text(' S.A.', ML + cw, HEADER_H - 8);
+  }
   doc.setFontSize(7.5); doc.setTextColor(...GR);
   doc.text('ventas.cimadera.net  ·  coordinacion.general@cimadera.net  ·  261 635-0017', ML, HEADER_H - 3);
   doc.setFont('helvetica', 'bold'); doc.setFontSize(13); doc.setTextColor(...AZ);
@@ -58,7 +63,8 @@ function pctColor(est: number, real: number): [number, number, number] {
   return d <= -5 ? [39, 120, 10] : d <= 5 ? [180, 130, 0] : [180, 30, 30];
 }
 
-export function generarPDFCostosFijosV2(data: InformeData): void {
+export async function generarPDFCostosFijosV2(data: InformeData): Promise<void> {
+  const logoDataUrl = await loadLogoDataUrl();
   const { anio, mesDesde, mesHasta, tipoCambio, resumenMensual, porCategoria, totalCostos } = data;
   const rango = mesDesde === mesHasta
     ? `${MESES[mesDesde - 1]} ${anio}`
@@ -66,11 +72,11 @@ export function generarPDFCostosFijosV2(data: InformeData): void {
   const titulo = `INFORME DE COSTOS FIJOS — ${rango.toUpperCase()}`;
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
 
-  const newPage = () => { drawFooter(doc); doc.addPage(); drawHeader(doc, titulo); return CS; };
+  const newPage = () => { drawFooter(doc); doc.addPage(); drawHeader(doc, titulo, logoDataUrl); return CS; };
   const check = (y: number, needed: number) => (y + needed > 275 ? newPage() : y);
 
   // ── PORTADA ───────────────────────────────────────────────────────────────
-  drawHeader(doc, titulo);
+  drawHeader(doc, titulo, logoDataUrl);
   let y = CS + 10;
 
   doc.setFillColor(...AZ);

@@ -75,7 +75,7 @@ export function DashboardFiscal() {
       tipoPeriodo === 'anio_actual' ? 'Año actual' :
       tipoPeriodo === 'mes' ? `${['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'][Number(mesEspecifico)-1]} ${anioEspecifico}` :
       `Año ${anioEspecifico}`;
-    generarResumenFiscalPDF({ filas: data.filas, totales: data.totales, has105: data.has105, periodo: periodoStr });
+    await generarResumenFiscalPDF({ filas: data.filas, totales: data.totales, has105: data.has105, periodo: periodoStr });
   };
 
   const t = data?.totales;
