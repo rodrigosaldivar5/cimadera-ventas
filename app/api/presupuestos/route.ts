@@ -77,7 +77,7 @@ export async function POST(req: NextRequest) {
         estado: data.estado ?? 'PENDIENTE',
         prioridad: (data.prioridad as Prioridad) ?? 'MEDIA',
         fechaVencimiento: data.fechaVencimiento ? new Date(data.fechaVencimiento) : null,
-        fechaRecepcion: data.fechaRecepcion ? new Date(data.fechaRecepcion) : null,
+        fechaRecepcion: data.fechaRecepcion ? new Date(data.fechaRecepcion) : new Date(),
         responsableId: data.responsableId || null,
         observaciones: data.observaciones ?? null,
         descuento: data.descuento ?? 0,
