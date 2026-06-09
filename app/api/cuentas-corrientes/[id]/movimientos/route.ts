@@ -24,8 +24,16 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
     if (!cuenta) return NextResponse.json({ error: 'Cuenta no encontrada' }, { status: 404 });
 
     const montoNum = Number(monto);
-    // Para cuenta corriente siempre operamos en ARS
-    const montoParaRestar = montoEnARS != null ? Number(montoEnARS) : montoNum;
+    const tcNum = tipoCambio ? Number(tipoCambio) : null;
+
+    // Siempre calcular el monto en ARS del lado del servidor
+    let montoEnARSCalculado: number;
+    if (caja === 'USD' && tcNum && tcNum > 0) {
+      montoEnARSCalculado = montoNum * tcNum;
+    } else {
+      montoEnARSCalculado = montoEnARS != null ? Number(montoEnARS) : montoNum;
+    }
+    const montoParaRestar = montoEnARSCalculado;
 
     let saldoResultante: number;
     const updateCuenta: Record<string, unknown> = {};
@@ -65,15 +73,15 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
           cuentaId: params.id,
           tipo,
           descripcion,
-          monto: montoNum,
+          monto: montoEnARSCalculado,
           saldoResultante,
           numeroFactura: numeroFactura || null,
           fecha: new Date(fecha),
           indiceValor: indiceValor ? Number(indiceValor) : null,
           caja: caja ?? null,
           tipoCambio: tipoCambio ? Number(tipoCambio) : null,
-          montoEnARS: montoEnARS ? Number(montoEnARS) : null,
-          equivalenteUSD: equivalenteUSD != null ? Number(equivalenteUSD) : null,
+          montoEnARS: montoEnARSCalculado,
+          equivalenteUSD: caja === 'USD' ? montoNum : (equivalenteUSD != null ? Number(equivalenteUSD) : null),
         },
       }),
       prisma.cuentaCorriente.update({
