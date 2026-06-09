@@ -11,12 +11,17 @@ self.addEventListener('push', (event) => {
   }
 
   event.waitUntil(
-    self.registration.showNotification(data.title ?? 'CIMAdera', {
-      body: data.body ?? '',
-      icon: '/icons/icon-192x192.png',
-      badge: '/icons/icon-72x72.png',
-      data: { url: data.url ?? '/' },
-    })
+    (self.registration.showNotification as (title: string, options: object) => Promise<void>)(
+      data.title ?? 'CIMAdera',
+      {
+        body: data.body ?? '',
+        icon: '/icons/icon-192x192.png',
+        badge: '/icons/icon-72x72.png',
+        vibrate: [100, 50, 100],
+        data: { url: data.url ?? '/' },
+        actions: data.url ? [{ action: 'open', title: 'Ver' }] : [],
+      }
+    )
   );
 });
 

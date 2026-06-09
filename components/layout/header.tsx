@@ -107,14 +107,16 @@ export function Header({ userName, userEmail, rolNombre }: HeaderProps) {
 
     navigator.serviceWorker.ready.then(async (reg) => {
       try {
-        const existing = await reg.pushManager.getSubscription();
-        if (existing) return;
-        const permission = await Notification.requestPermission();
-        if (permission !== 'granted') return;
-        const sub = await reg.pushManager.subscribe({
-          userVisibleOnly: true,
-          applicationServerKey: urlBase64ToUint8Array(vapidKey),
-        });
+        let sub = await reg.pushManager.getSubscription();
+        if (!sub) {
+          const permission = await Notification.requestPermission();
+          if (permission !== 'granted') return;
+          sub = await reg.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: urlBase64ToUint8Array(vapidKey),
+          });
+        }
+        // Always save to ensure DB is current (handles DB resets and new logins)
         await fetch('/api/push/subscribe', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
