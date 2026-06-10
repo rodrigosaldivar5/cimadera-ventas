@@ -1242,13 +1242,14 @@ export function CuentasCorrientesContent({ cuentasIniciales, clientes, presupues
                             </TableCell>
                             <TableCell className="text-sm">
                               <div>{mov.descripcion}</div>
-                              {mov.tipoCambio != null && (
+                              {mov.tipoCambio != null && esUSD && mov.caja === 'ARS' && (
                                 <div className="text-xs text-gray-400 mt-0.5">
-                                  {mov.caja === 'USD'
-                                    ? `U$D ${Number(mov.monto).toLocaleString('es-AR', { minimumFractionDigits: 2 })} × $${Number(mov.tipoCambio).toLocaleString('es-AR')}`
-                                    : mov.equivalenteUSD != null
-                                      ? `≈ U$D ${Number(mov.equivalenteUSD).toLocaleString('es-AR', { minimumFractionDigits: 2 })} (TC: $${Number(mov.tipoCambio).toLocaleString('es-AR')})`
-                                      : `TC: $${Number(mov.tipoCambio).toLocaleString('es-AR')}`}
+                                  {`$ ${Number(mov.montoEnARS ?? mov.monto).toLocaleString('es-AR', { minimumFractionDigits: 2 })} ARS ÷ TC $${Number(mov.tipoCambio).toLocaleString('es-AR')}`}
+                                </div>
+                              )}
+                              {mov.tipoCambio != null && !esUSD && mov.caja === 'USD' && (
+                                <div className="text-xs text-gray-400 mt-0.5">
+                                  {`U$D ${Number(mov.monto).toLocaleString('es-AR', { minimumFractionDigits: 2 })} × TC $${Number(mov.tipoCambio).toLocaleString('es-AR')}`}
                                 </div>
                               )}
                             </TableCell>
