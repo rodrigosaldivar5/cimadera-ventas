@@ -3,45 +3,9 @@ export const dynamic = 'force-dynamic';
 import { prisma } from '@/lib/prisma';
 import { auth } from '@/lib/auth';
 import { PresupuestosTable } from '@/components/presupuestos/presupuestos-table';
-import { EstadoPresupuesto } from '@prisma/client';
 
-interface SearchParams {
-  estados?: string;
-  prioridades?: string;
-  clienteId?: string;
-  obraId?: string;
-  desde?: string;
-  hasta?: string;
-  page?: string;
-}
-
-export default async function PresupuestosPage({ searchParams }: { searchParams: SearchParams }) {
-  const page = Math.max(1, Number(searchParams.page ?? 1));
-  const perPage = 10;
-  const skip = (page - 1) * perPage;
-
-  const where: Record<string, unknown> = {};
-  const estadosArr = searchParams.estados?.split(',').filter((e) => Object.values(EstadoPresupuesto).includes(e as EstadoPresupuesto)) ?? [];
-  if (estadosArr.length > 0) where.estado = { in: estadosArr };
-  const prioridadesArr = searchParams.prioridades?.split(',').filter(Boolean) ?? [];
-  if (prioridadesArr.length > 0) where.prioridad = { in: prioridadesArr };
-  if (searchParams.clienteId) where.clienteId = searchParams.clienteId;
-  if (searchParams.obraId) where.obraId = searchParams.obraId;
-  if (searchParams.desde || searchParams.hasta) {
-    where.fechaCreacion = {};
-    if (searchParams.desde) (where.fechaCreacion as Record<string, unknown>).gte = new Date(searchParams.desde);
-    if (searchParams.hasta) (where.fechaCreacion as Record<string, unknown>).lte = new Date(searchParams.hasta);
-  }
-
-  const [presupuestos, total, clientes, usuarios, criticos, session] = await Promise.all([
-    prisma.presupuesto.findMany({
-      where,
-      skip,
-      take: perPage,
-      orderBy: { fechaCreacion: 'desc' },
-      include: { cliente: true, creadoPor: true, responsable: true, obra: true, archivos: { select: { id: true } } },
-    }),
-    prisma.presupuesto.count({ where }),
+export default async function PresupuestosPage() {
+  const [clientes, usuarios, criticos, session] = await Promise.all([
     prisma.cliente.findMany({ where: { activo: true }, orderBy: { razonSocial: 'asc' }, select: { id: true, razonSocial: true } }),
     prisma.user.findMany({ where: { aprobado: true }, select: { id: true, nombre: true }, orderBy: { nombre: 'asc' } }),
     prisma.presupuesto.findMany({
@@ -55,15 +19,10 @@ export default async function PresupuestosPage({ searchParams }: { searchParams:
 
   return (
     <PresupuestosTable
-      presupuestos={presupuestos}
-      total={total}
-      page={page}
-      perPage={perPage}
       clientes={clientes}
       usuarios={usuarios}
       criticos={criticos}
       userEmail={session?.user?.email ?? ''}
-      filters={{ estados: searchParams.estados, prioridades: searchParams.prioridades, clienteId: searchParams.clienteId, obraId: searchParams.obraId, desde: searchParams.desde, hasta: searchParams.hasta }}
     />
   );
 }

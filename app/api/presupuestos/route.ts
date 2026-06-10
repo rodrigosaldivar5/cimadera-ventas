@@ -11,7 +11,8 @@ export async function GET(req: NextRequest) {
 
   const { searchParams } = new URL(req.url);
   const page = Math.max(1, Number(searchParams.get('page') ?? 1));
-  const perPage = 10;
+  const limitParam = searchParams.get('limit');
+  const perPage = limitParam ? Math.min(Number(limitParam), 1000) : 10;
   const clienteId = searchParams.get('clienteId');
   const desde = searchParams.get('desde');
   const hasta = searchParams.get('hasta');

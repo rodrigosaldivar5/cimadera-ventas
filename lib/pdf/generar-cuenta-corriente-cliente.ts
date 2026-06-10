@@ -6,6 +6,7 @@ export interface MovimientoClientePDF {
   tipo: string;
   descripcion: string;
   monto: number;
+  montoEnARS?: number | null;
   saldoResultante: number;
   numeroFactura?: string | null;
   tipoCambio?: number | null;
@@ -134,7 +135,7 @@ export async function generarPDFClienteConsolidado(
   const totalFacturado = cuentas.reduce((s, c) =>
     s + c.movimientos.filter(m => m.tipo === 'CARGO_INICIAL').reduce((sum, m) => sum + Math.abs(m.monto), 0), 0);
   const totalCobrado = cuentas.reduce((s, c) =>
-    s + c.movimientos.filter(m => m.tipo === 'ANTICIPO' || m.tipo === 'PAGO_PARCIAL').reduce((sum, m) => sum + Math.abs(m.monto), 0), 0);
+    s + c.movimientos.filter(m => m.tipo === 'ANTICIPO' || m.tipo === 'PAGO_PARCIAL').reduce((sum, m) => sum + Number(m.montoEnARS ?? m.monto), 0), 0);
   const saldoTotal = cuentas.filter(c => c.estado !== 'CANCELADO').reduce((s, c) => s + c.saldoActualizado, 0);
   const activas = cuentas.filter(c => c.estado !== 'CANCELADO').length;
   const saldadas = cuentas.filter(c => c.estado === 'CANCELADO').length;
@@ -186,7 +187,7 @@ export async function generarPDFClienteConsolidado(
     if (y > H - 30) { nuevaPagina(); y = 32; }
     const cobrado = c.movimientos
       .filter(m => m.tipo === 'ANTICIPO' || m.tipo === 'PAGO_PARCIAL')
-      .reduce((sum, m) => sum + Math.abs(m.monto), 0);
+      .reduce((sum, m) => sum + Number(m.montoEnARS ?? m.monto), 0);
 
     if (i % 2 === 0) {
       doc.setFillColor(248, 248, 248);
@@ -253,7 +254,7 @@ export async function generarPDFClienteConsolidado(
     const variacion = idxInicio > 0 ? ((idxActual / idxInicio - 1) * 100).toFixed(2) : '0.00';
     const cobradoObra = cuenta.movimientos
       .filter(m => m.tipo === 'ANTICIPO' || m.tipo === 'PAGO_PARCIAL')
-      .reduce((sum, m) => sum + Math.abs(m.monto), 0);
+      .reduce((sum, m) => sum + Number(m.montoEnARS ?? m.monto), 0);
     const montoAjustado = idxInicio > 0
       ? cuenta.montoOriginal * (idxActual / idxInicio)
       : cuenta.montoOriginal;
@@ -332,7 +333,7 @@ export async function generarPDFClienteConsolidado(
 
       const esPositivo = mov.tipo === 'CARGO_INICIAL' || mov.tipo === 'ACTUALIZACION';
       doc.setTextColor(esPositivo ? 153 : 22, esPositivo ? 27 : 101, esPositivo ? 27 : 52);
-      doc.text((esPositivo ? '+' : '-') + formatPesos(Math.abs(mov.monto)), M + 128, y);
+      doc.text((esPositivo ? '+' : '-') + formatPesos(Math.abs(Number(mov.montoEnARS ?? mov.monto))), M + 128, y);
 
       doc.setTextColor(26, 26, 26);
       doc.text(formatPesos(mov.saldoResultante), M + 158, y);
@@ -344,7 +345,7 @@ export async function generarPDFClienteConsolidado(
         doc.setTextColor(148, 163, 184);
         const moneda = mov.caja === 'USD' ? 'U$D' : '$';
         doc.text(
-          moneda + ' ' + (Math.abs(mov.monto) / mov.tipoCambio).toFixed(2) + ' × $' + mov.tipoCambio.toFixed(2),
+          moneda + ' ' + (Number(mov.montoEnARS ?? mov.monto) / mov.tipoCambio).toFixed(2) + ' × $' + mov.tipoCambio.toFixed(2),
           M + 50, y
         );
         y += 4;

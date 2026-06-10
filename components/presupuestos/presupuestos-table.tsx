@@ -1,27 +1,20 @@
-﻿'use client';
+'use client';
 
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuCheckboxItem, DropdownMenuSeparator, DropdownMenuItem } from '@/components/ui/dropdown-menu';
-import { Plus, Eye, ChevronLeft, ChevronRight, Filter, AlertTriangle, ChevronDown, ChevronUp, Check, MessageCircle } from 'lucide-react';
+import { Plus, Eye, ChevronLeft, ChevronRight, AlertTriangle, ChevronDown, ChevronUp, Check, MessageCircle } from 'lucide-react';
 import { EliminarPresupuestoBtn } from '@/components/presupuestos/eliminar-presupuesto-btn';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { formatCurrency, formatDate } from '@/lib/utils';
-import { ESTADO_PRESUPUESTO, PRIORIDAD, estadoLabel, getEstiloEstado, getLabelEstado, type EstadoPresupuesto, type Prioridad } from '@/lib/enums';
-
-const prioridadVariant: Record<Prioridad, 'destructive' | 'warning' | 'success'> = {
-  ALTA: 'destructive',
-  MEDIA: 'warning',
-  BAJA: 'success',
-};
+import { formatCurrency } from '@/lib/utils';
+import { ESTADO_PRESUPUESTO, PRIORIDAD, getEstiloEstado, getLabelEstado, type EstadoPresupuesto, type Prioridad } from '@/lib/enums';
 
 const prioridadBadgeClass: Record<string, string> = {
   ALTA:  'bg-red-100 text-red-700 border-red-300',
@@ -45,10 +38,12 @@ type PresupuestoRow = {
   tasaIva: unknown;
   totalConIva: unknown;
   precioFinal: unknown;
-  cliente: { razonSocial: string };
+  clienteId?: string;
+  obraId?: string;
+  cliente: { id?: string; razonSocial: string };
   creadoPor: { nombre: string };
   responsable: { nombre: string } | null;
-  obra: { nombre: string } | null;
+  obra: { id?: string; nombre: string } | null;
   archivos: { id: string }[];
 };
 
@@ -63,6 +58,7 @@ type PresupuestoCritico = {
 
 const EMAILS_AUTORIZADOS_BORRAR = ['coordinacion.general@cimadera.net', 'admin@cimadera.net'];
 const COLUMN_WIDTHS_KEY = 'presupuestos_column_widths';
+const ITEMS_POR_PAGINA = 20;
 
 function ResizableHead({
   colKey, defaultWidth, width, onResize, children, className = '',
@@ -113,15 +109,10 @@ function ResizableHead({
 }
 
 interface Props {
-  presupuestos: PresupuestoRow[];
-  total: number;
-  page: number;
-  perPage: number;
   clientes: { id: string; razonSocial: string }[];
   usuarios: { id: string; nombre: string }[];
   criticos: PresupuestoCritico[];
   userEmail: string;
-  filters: { estados?: string; prioridades?: string; clienteId?: string; obraId?: string; desde?: string; hasta?: string };
 }
 
 function diasDesde(fecha: Date | null): number {
@@ -129,14 +120,88 @@ function diasDesde(fecha: Date | null): number {
   return Math.floor((Date.now() - new Date(fecha).getTime()) / 86_400_000);
 }
 
-export function PresupuestosTable({ presupuestos, total, page, perPage, clientes, criticos, userEmail, filters }: Props) {
+export function PresupuestosTable({ clientes, criticos, userEmail }: Props) {
   const puedeEliminar = EMAILS_AUTORIZADOS_BORRAR.includes(userEmail);
-  const router = useRouter();
-  const totalPages = Math.ceil(total / perPage);
+
+  // ── Datos ─────────────────────────────────────────────────────────
+  const [todosLosPresupuestos, setTodosLosPresupuestos] = useState<PresupuestoRow[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const fetchPresupuestos = () => {
+    setLoading(true);
+    fetch('/api/presupuestos?limit=1000')
+      .then(r => r.json())
+      .then(data => { setTodosLosPresupuestos(data.presupuestos ?? []); setLoading(false); })
+      .catch(() => setLoading(false));
+  };
+
+  useEffect(() => { fetchPresupuestos(); }, []);
+
+  // ── Filtros (con localStorage) ────────────────────────────────────
+  const [filtroEstados, setFiltroEstados] = useState<string[]>(() => {
+    if (typeof window === 'undefined') return [];
+    try { const s = localStorage.getItem('pres_f_estados'); return s ? JSON.parse(s) : []; } catch { return []; }
+  });
+  const [filtroPrioridades, setFiltroPrioridades] = useState<string[]>(() => {
+    if (typeof window === 'undefined') return [];
+    try { const s = localStorage.getItem('pres_f_prioridades'); return s ? JSON.parse(s) : []; } catch { return []; }
+  });
+  const [filtroClienteId, setFiltroClienteId] = useState<string>(() => {
+    if (typeof window === 'undefined') return '';
+    try { return localStorage.getItem('pres_f_clienteId') ?? ''; } catch { return ''; }
+  });
+  const [filtroDesde, setFiltroDesde] = useState<string>(() => {
+    if (typeof window === 'undefined') return '';
+    try { return localStorage.getItem('pres_f_desde') ?? ''; } catch { return ''; }
+  });
+  const [filtroHasta, setFiltroHasta] = useState<string>(() => {
+    if (typeof window === 'undefined') return '';
+    try { return localStorage.getItem('pres_f_hasta') ?? ''; } catch { return ''; }
+  });
+
+  useEffect(() => { try { localStorage.setItem('pres_f_estados', JSON.stringify(filtroEstados)); } catch {} }, [filtroEstados]);
+  useEffect(() => { try { localStorage.setItem('pres_f_prioridades', JSON.stringify(filtroPrioridades)); } catch {} }, [filtroPrioridades]);
+  useEffect(() => { try { localStorage.setItem('pres_f_clienteId', filtroClienteId); } catch {} }, [filtroClienteId]);
+  useEffect(() => { try { localStorage.setItem('pres_f_desde', filtroDesde); } catch {} }, [filtroDesde]);
+  useEffect(() => { try { localStorage.setItem('pres_f_hasta', filtroHasta); } catch {} }, [filtroHasta]);
+
+  // ── Paginación ────────────────────────────────────────────────────
+  const [paginaActual, setPaginaActual] = useState(1);
+  useEffect(() => { setPaginaActual(1); }, [filtroEstados, filtroPrioridades, filtroClienteId, filtroDesde, filtroHasta]);
+
+  // ── Obras del cliente ─────────────────────────────────────────────
+  const [filtroObraId, setFiltroObraId] = useState('');
+  const [obrasCliente, setObrasCliente] = useState<{ id: string; nombre: string }[]>([]);
+  useEffect(() => {
+    if (!filtroClienteId) { setObrasCliente([]); setFiltroObraId(''); return; }
+    fetch(`/api/clientes/${filtroClienteId}/obras`).then(r => r.json()).then(d => setObrasCliente(d.obras ?? []));
+  }, [filtroClienteId]);
+
+  // ── Filtrado cliente-side ─────────────────────────────────────────
+  const presupuestosFiltrados = useMemo(() => {
+    let r = [...todosLosPresupuestos];
+    if (filtroEstados.length > 0)     r = r.filter(p => filtroEstados.includes(p.estado));
+    if (filtroPrioridades.length > 0) r = r.filter(p => filtroPrioridades.includes(p.prioridad));
+    if (filtroClienteId) r = r.filter(p => p.cliente?.id === filtroClienteId || p.clienteId === filtroClienteId);
+    if (filtroObraId)    r = r.filter(p => p.obra?.id === filtroObraId || p.obraId === filtroObraId);
+    if (filtroDesde) { const d = new Date(filtroDesde); r = r.filter(p => new Date(p.fechaCreacion) >= d); }
+    if (filtroHasta) { const h = new Date(filtroHasta); h.setHours(23, 59, 59); r = r.filter(p => new Date(p.fechaCreacion) <= h); }
+    return r;
+  }, [todosLosPresupuestos, filtroEstados, filtroPrioridades, filtroClienteId, filtroObraId, filtroDesde, filtroHasta]);
+
+  const totalPaginas = Math.ceil(presupuestosFiltrados.length / ITEMS_POR_PAGINA);
+  const presupuestosPagina = presupuestosFiltrados.slice(
+    (paginaActual - 1) * ITEMS_POR_PAGINA,
+    paginaActual * ITEMS_POR_PAGINA,
+  );
+
+  // ── UI state ─────────────────────────────────────────────────────
   const [criticosOpen, setCriticosOpen] = useState(true);
   const [editingPrecio, setEditingPrecio] = useState<{ id: string; value: string } | null>(null);
   const [savingPrecio, setSavingPrecio] = useState(false);
   const [savingPrioridad, setSavingPrioridad] = useState<string | null>(null);
+  const [estadosOpen, setEstadosOpen] = useState(false);
+  const [prioridadesOpen, setPrioridadesOpen] = useState(false);
   const [dialogAvanceAbierto, setDialogAvanceAbierto] = useState(false);
   const [presupuestoAvance, setPresupuestoAvance] = useState<PresupuestoRow | null>(null);
   const [mensajeAvance, setMensajeAvance] = useState('');
@@ -146,6 +211,7 @@ export function PresupuestosTable({ presupuestos, total, page, perPage, clientes
     if (typeof window === 'undefined') return {};
     try { const s = localStorage.getItem(COLUMN_WIDTHS_KEY); return s ? JSON.parse(s) : {}; } catch { return {}; }
   });
+
   const handleResize = (colKey: string, width: number) => {
     setColumnWidths((prev) => {
       const next = { ...prev, [colKey]: width };
@@ -154,64 +220,17 @@ export function PresupuestosTable({ presupuestos, total, page, perPage, clientes
     });
   };
 
-  const FILTROS_KEY = 'presupuestos_filtros';
-
-  const [estados, setEstados] = useState<string[]>(filters.estados?.split(',').filter(Boolean) ?? []);
-  const [prioridades, setPrioridades] = useState<string[]>(filters.prioridades?.split(',').filter(Boolean) ?? []);
-  const [estadosOpen, setEstadosOpen] = useState(false);
-  const [prioridadesOpen, setPrioridadesOpen] = useState(false);
-  const [clienteId, setClienteId] = useState(filters.clienteId ?? '');
-  const [obraId, setObraId] = useState(filters.obraId ?? '');
-  const [obrasCliente, setObrasCliente] = useState<{ id: string; nombre: string }[]>([]);
-  const [desde, setDesde] = useState(filters.desde ?? '');
-  const [hasta, setHasta] = useState(filters.hasta ?? '');
-
   const ALL_COLUMNS = ['numero', 'nombre', 'cliente', 'obra', 'responsable', 'prioridad', 'estado', 'recepcion', 'total', 'precio_final'];
   const [columnasVisibles, setColumnasVisibles] = useState<string[]>(ALL_COLUMNS);
   useEffect(() => {
     fetch('/api/admin/mis-columnas?modulo=presupuestos')
-      .then((r) => r.json())
-      .then((d) => { if (Array.isArray(d.columnas) && d.columnas.length > 0) setColumnasVisibles(d.columnas); })
+      .then(r => r.json())
+      .then(d => { if (Array.isArray(d.columnas) && d.columnas.length > 0) setColumnasVisibles(d.columnas); })
       .catch(() => {});
   }, []);
   const colVisible = (key: string) => columnasVisibles.includes(key);
 
-  // Cargar desde localStorage si no hay params en URL; auto-navegar para que el server devuelva datos filtrados
-  useEffect(() => {
-    const hayUrlFiltros = filters.estados || filters.prioridades || filters.clienteId || filters.desde || filters.hasta;
-    if (!hayUrlFiltros) {
-      try {
-        const saved = localStorage.getItem(FILTROS_KEY);
-        if (saved) {
-          const f = JSON.parse(saved);
-          const hasFilters = f.estados?.length || f.prioridades?.length || f.clienteId || f.desde || f.hasta;
-          if (hasFilters) {
-            const params = new URLSearchParams();
-            if (f.estados?.length) params.set('estados', f.estados.join(','));
-            if (f.prioridades?.length) params.set('prioridades', f.prioridades.join(','));
-            if (f.clienteId) params.set('clienteId', f.clienteId);
-            if (f.desde) params.set('desde', f.desde);
-            if (f.hasta) params.set('hasta', f.hasta);
-            router.replace(`/presupuestos?${params.toString()}`);
-          }
-        }
-      } catch {}
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // Guardar en localStorage al cambiar cualquier filtro
-  useEffect(() => {
-    try {
-      localStorage.setItem(FILTROS_KEY, JSON.stringify({ estados, prioridades, clienteId, desde, hasta }));
-    } catch {}
-  }, [estados, prioridades, clienteId, desde, hasta]);
-
-  useEffect(() => {
-    if (!clienteId) { setObrasCliente([]); setObraId(''); return; }
-    fetch(`/api/clientes/${clienteId}/obras`).then((r) => r.json()).then((d) => setObrasCliente(d.obras ?? []));
-  }, [clienteId]);
-
+  // ── Acciones ─────────────────────────────────────────────────────
   const changePrioridad = async (id: string, prioridad: Prioridad) => {
     setSavingPrioridad(id);
     await fetch(`/api/presupuestos/${id}/prioridad`, {
@@ -220,7 +239,7 @@ export function PresupuestosTable({ presupuestos, total, page, perPage, clientes
       body: JSON.stringify({ prioridad }),
     });
     setSavingPrioridad(null);
-    router.refresh();
+    setTodosLosPresupuestos(prev => prev.map(p => p.id === id ? { ...p, prioridad } : p));
   };
 
   const savePrecioFinal = async () => {
@@ -233,8 +252,9 @@ export function PresupuestosTable({ presupuestos, total, page, perPage, clientes
       body: JSON.stringify({ precioFinal: valor }),
     });
     setSavingPrecio(false);
+    const id = editingPrecio.id;
+    setTodosLosPresupuestos(prev => prev.map(p => p.id === id ? { ...p, precioFinal: valor } : p));
     setEditingPrecio(null);
-    router.refresh();
   };
 
   const handlePedirAvance = async () => {
@@ -259,44 +279,24 @@ export function PresupuestosTable({ presupuestos, total, page, perPage, clientes
     }
   };
 
-  const applyFilters = () => {
-    const params = new URLSearchParams();
-    if (estados.length > 0) params.set('estados', estados.join(','));
-    if (prioridades.length > 0) params.set('prioridades', prioridades.join(','));
-    if (clienteId) params.set('clienteId', clienteId);
-    if (obraId) params.set('obraId', obraId);
-    if (desde) params.set('desde', desde);
-    if (hasta) params.set('hasta', hasta);
-    router.push(`/presupuestos?${params.toString()}`);
-  };
-
-  const buildPageUrl = (targetPage: number) => {
-    const params = new URLSearchParams();
-    if (estados.length > 0) params.set('estados', estados.join(','));
-    if (prioridades.length > 0) params.set('prioridades', prioridades.join(','));
-    if (clienteId) params.set('clienteId', clienteId);
-    if (obraId) params.set('obraId', obraId);
-    if (desde) params.set('desde', desde);
-    if (hasta) params.set('hasta', hasta);
-    params.set('page', String(targetPage));
-    return `/presupuestos?${params.toString()}`;
-  };
-
   const limpiarFiltros = () => {
-    try { localStorage.removeItem(FILTROS_KEY); } catch {}
-    setEstados([]);
-    setPrioridades([]);
-    setClienteId('');
-    setObraId('');
-    setDesde('');
-    setHasta('');
-    router.push('/presupuestos');
+    setFiltroEstados([]);
+    setFiltroPrioridades([]);
+    setFiltroClienteId('');
+    setFiltroObraId('');
+    setFiltroDesde('');
+    setFiltroHasta('');
+    try {
+      ['pres_f_estados', 'pres_f_prioridades', 'pres_f_clienteId', 'pres_f_desde', 'pres_f_hasta']
+        .forEach(k => localStorage.removeItem(k));
+    } catch {}
   };
 
+  // ── Render ────────────────────────────────────────────────────────
   return (
     <div className="space-y-4">
 
-      {/* Sección Críticos */}
+      {/* Críticos */}
       {criticos.length > 0 && (
         <div className="rounded-lg border border-red-200 bg-red-50 overflow-hidden">
           <button
@@ -340,7 +340,9 @@ export function PresupuestosTable({ presupuestos, total, page, perPage, clientes
       {/* Toolbar */}
       <div className="flex flex-col gap-3">
         <div className="flex justify-between items-center">
-          <h2 className="text-sm text-slate-500">{total} presupuestos encontrados</h2>
+          <h2 className="text-sm text-slate-500">
+            {loading ? 'Cargando…' : `${presupuestosFiltrados.length} presupuestos encontrados`}
+          </h2>
           <Button asChild className="bg-[#00ADEF] hover:bg-[#0089C7]">
             <Link href="/presupuestos/nuevo">
               <Plus className="mr-2 h-4 w-4" />
@@ -351,16 +353,16 @@ export function PresupuestosTable({ presupuestos, total, page, perPage, clientes
 
         {/* Filtros */}
         <div className="flex flex-wrap gap-3 p-4 bg-white rounded-lg border">
-          {/* Filtro multi-select: Estado */}
+          {/* Estado */}
           <DropdownMenu open={estadosOpen} onOpenChange={setEstadosOpen}>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" className="w-44 justify-between font-normal">
                 <span className="truncate">
-                  {estados.length === 0
+                  {filtroEstados.length === 0
                     ? 'Todos los estados'
-                    : estados.length === 1
-                      ? estadoLabel[estados[0]]
-                      : `${estados.length} estados`}
+                    : filtroEstados.length === 1
+                      ? getLabelEstado(filtroEstados[0])
+                      : `${filtroEstados.length} estados`}
                 </span>
                 <ChevronDown className="ml-2 h-4 w-4 opacity-50 shrink-0" />
               </Button>
@@ -369,9 +371,9 @@ export function PresupuestosTable({ presupuestos, total, page, perPage, clientes
               {Object.values(ESTADO_PRESUPUESTO).map((e) => (
                 <DropdownMenuCheckboxItem
                   key={e}
-                  checked={estados.includes(e)}
+                  checked={filtroEstados.includes(e)}
                   onCheckedChange={(checked) =>
-                    setEstados((prev) => checked ? [...prev, e] : prev.filter((x) => x !== e))
+                    setFiltroEstados(prev => checked ? [...prev, e] : prev.filter(x => x !== e))
                   }
                   onSelect={(ev) => ev.preventDefault()}
                 >
@@ -380,13 +382,13 @@ export function PresupuestosTable({ presupuestos, total, page, perPage, clientes
               ))}
               <DropdownMenuSeparator />
               <div className="flex gap-2 p-2">
-                <Button variant="ghost" size="sm" className="flex-1 h-7 text-xs" onClick={() => setEstados([])}>
+                <Button variant="ghost" size="sm" className="flex-1 h-7 text-xs" onClick={() => setFiltroEstados([])}>
                   Limpiar
                 </Button>
                 <Button
                   size="sm"
                   className="flex-1 h-7 text-xs bg-[#00ADEF] hover:bg-[#0089C7]"
-                  onClick={() => { setEstadosOpen(false); applyFilters(); }}
+                  onClick={() => setEstadosOpen(false)}
                 >
                   Aplicar
                 </Button>
@@ -394,16 +396,16 @@ export function PresupuestosTable({ presupuestos, total, page, perPage, clientes
             </DropdownMenuContent>
           </DropdownMenu>
 
-          {/* Filtro multi-select: Prioridad */}
+          {/* Prioridad */}
           <DropdownMenu open={prioridadesOpen} onOpenChange={setPrioridadesOpen}>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" className="w-44 justify-between font-normal">
                 <span className="truncate">
-                  {prioridades.length === 0
+                  {filtroPrioridades.length === 0
                     ? 'Todas las prioridades'
-                    : prioridades.length === 1
-                      ? prioridadLabel[prioridades[0]]
-                      : `${prioridades.length} prioridades`}
+                    : filtroPrioridades.length === 1
+                      ? prioridadLabel[filtroPrioridades[0]]
+                      : `${filtroPrioridades.length} prioridades`}
                 </span>
                 <ChevronDown className="ml-2 h-4 w-4 opacity-50 shrink-0" />
               </Button>
@@ -412,9 +414,9 @@ export function PresupuestosTable({ presupuestos, total, page, perPage, clientes
               {Object.values(PRIORIDAD).map((p) => (
                 <DropdownMenuCheckboxItem
                   key={p}
-                  checked={prioridades.includes(p)}
+                  checked={filtroPrioridades.includes(p)}
                   onCheckedChange={(checked) =>
-                    setPrioridades((prev) => checked ? [...prev, p] : prev.filter((x) => x !== p))
+                    setFiltroPrioridades(prev => checked ? [...prev, p] : prev.filter(x => x !== p))
                   }
                   onSelect={(ev) => ev.preventDefault()}
                 >
@@ -425,13 +427,13 @@ export function PresupuestosTable({ presupuestos, total, page, perPage, clientes
               ))}
               <DropdownMenuSeparator />
               <div className="flex gap-2 p-2">
-                <Button variant="ghost" size="sm" className="flex-1 h-7 text-xs" onClick={() => setPrioridades([])}>
+                <Button variant="ghost" size="sm" className="flex-1 h-7 text-xs" onClick={() => setFiltroPrioridades([])}>
                   Limpiar
                 </Button>
                 <Button
                   size="sm"
                   className="flex-1 h-7 text-xs bg-[#00ADEF] hover:bg-[#0089C7]"
-                  onClick={() => { setPrioridadesOpen(false); applyFilters(); }}
+                  onClick={() => setPrioridadesOpen(false)}
                 >
                   Aplicar
                 </Button>
@@ -439,7 +441,7 @@ export function PresupuestosTable({ presupuestos, total, page, perPage, clientes
             </DropdownMenuContent>
           </DropdownMenu>
 
-          <Select value={clienteId || '__all__'} onValueChange={(v) => setClienteId(v === '__all__' ? '' : v)}>
+          <Select value={filtroClienteId || '__all__'} onValueChange={(v) => setFiltroClienteId(v === '__all__' ? '' : v)}>
             <SelectTrigger className="w-48">
               <SelectValue placeholder="Cliente" />
             </SelectTrigger>
@@ -452,7 +454,7 @@ export function PresupuestosTable({ presupuestos, total, page, perPage, clientes
           </Select>
 
           {obrasCliente.length > 0 && (
-            <Select value={obraId || '__all__'} onValueChange={(v) => setObraId(v === '__all__' ? '' : v)}>
+            <Select value={filtroObraId || '__all__'} onValueChange={(v) => setFiltroObraId(v === '__all__' ? '' : v)}>
               <SelectTrigger className="w-44">
                 <SelectValue placeholder="Obra" />
               </SelectTrigger>
@@ -465,14 +467,10 @@ export function PresupuestosTable({ presupuestos, total, page, perPage, clientes
             </Select>
           )}
 
-          <Input type="date" value={desde} onChange={(e) => setDesde(e.target.value)} className="w-36" />
-          <Input type="date" value={hasta} onChange={(e) => setHasta(e.target.value)} className="w-36" />
+          <Input type="date" value={filtroDesde} onChange={(e) => setFiltroDesde(e.target.value)} className="w-36" />
+          <Input type="date" value={filtroHasta} onChange={(e) => setFiltroHasta(e.target.value)} className="w-36" />
 
-          <Button onClick={applyFilters} variant="outline">
-            <Filter className="mr-2 h-4 w-4" />
-            Filtrar
-          </Button>
-          {(estados.length > 0 || prioridades.length > 0 || clienteId || desde || hasta) && (
+          {(filtroEstados.length > 0 || filtroPrioridades.length > 0 || filtroClienteId || filtroDesde || filtroHasta) && (
             <Button onClick={limpiarFiltros} variant="ghost" className="text-slate-400 hover:text-slate-600">
               Limpiar
             </Button>
@@ -481,174 +479,181 @@ export function PresupuestosTable({ presupuestos, total, page, perPage, clientes
       </div>
 
       {/* Tabla */}
-      <div className="rounded-lg border bg-white shadow-sm overflow-hidden [&_td]:py-3.5">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              {colVisible('numero') && <ResizableHead colKey="nro" defaultWidth={72} width={columnWidths.nro} onResize={handleResize}>Nro</ResizableHead>}
-              {colVisible('nombre') && <ResizableHead colKey="nombre" defaultWidth={140} width={columnWidths.nombre} onResize={handleResize}>Nombre</ResizableHead>}
-              {colVisible('cliente') && <ResizableHead colKey="cliente" defaultWidth={150} width={columnWidths.cliente} onResize={handleResize}>Cliente</ResizableHead>}
-              {colVisible('obra') && <ResizableHead colKey="obra" defaultWidth={120} width={columnWidths.obra} onResize={handleResize}>Obra</ResizableHead>}
-              {colVisible('responsable') && <ResizableHead colKey="responsable" defaultWidth={120} width={columnWidths.responsable} onResize={handleResize}>Responsable</ResizableHead>}
-              {colVisible('prioridad') && <ResizableHead colKey="prioridad" defaultWidth={90} width={columnWidths.prioridad} onResize={handleResize}>Prioridad</ResizableHead>}
-              {colVisible('estado') && <ResizableHead colKey="estado" defaultWidth={120} width={columnWidths.estado} onResize={handleResize}>Estado</ResizableHead>}
-              {colVisible('recepcion') && <ResizableHead colKey="recepcion" defaultWidth={100} width={columnWidths.recepcion} onResize={handleResize}>Recepción</ResizableHead>}
-              {colVisible('total') && <ResizableHead colKey="total" defaultWidth={110} width={columnWidths.total} onResize={handleResize} className="text-right">Total</ResizableHead>}
-              {colVisible('precio_final') && <ResizableHead colKey="pfinal" defaultWidth={110} width={columnWidths.pfinal} onResize={handleResize} className="text-right">P. Final</ResizableHead>}
-              <TableHead className="w-16"></TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {presupuestos.map((p) => (
-              <TableRow
-                key={p.id}
-                className={`border-b border-slate-200 hover:bg-slate-50/50 ${p.estado === 'ENVIADO' && p.archivos.length === 0 ? 'bg-amber-50' : ''}`}
-              >
-                {colVisible('numero') && <TableCell className="font-medium">#{p.numero}</TableCell>}
-                {colVisible('nombre') && <TableCell className="max-w-[140px] truncate text-slate-600">{p.nombrePresupuesto ?? '—'}</TableCell>}
-                {colVisible('cliente') && <TableCell className="max-w-[150px] truncate">{p.cliente.razonSocial}</TableCell>}
-                {colVisible('obra') && <TableCell className="text-slate-500 text-sm max-w-[120px] truncate">{p.obra?.nombre ?? '—'}</TableCell>}
-                {colVisible('responsable') && <TableCell className="text-slate-500 text-sm">{p.responsable?.nombre ?? p.creadoPor.nombre}</TableCell>}
-                {colVisible('prioridad') && (
-                  <TableCell>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <button className="focus:outline-none" disabled={savingPrioridad === p.id}>
-                          <Badge variant="outline" className={`cursor-pointer ${prioridadBadgeClass[p.prioridad]}`}>
-                            {prioridadLabel[p.prioridad]}
-                          </Badge>
-                        </button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="start" className="w-28">
-                        {Object.values(PRIORIDAD).map((pr) => (
-                          <DropdownMenuItem
-                            key={pr}
-                            onSelect={() => changePrioridad(p.id, pr)}
-                            disabled={pr === p.prioridad}
-                            className="gap-2 cursor-pointer"
-                          >
-                            <Badge variant="outline" className={`${prioridadBadgeClass[pr]} pointer-events-none`}>
-                              {prioridadLabel[pr]}
+      {loading ? (
+        <div className="rounded-lg border bg-white p-10 text-center text-slate-400 text-sm">
+          Cargando presupuestos…
+        </div>
+      ) : (
+        <div className="rounded-lg border bg-white shadow-sm overflow-hidden [&_td]:py-3.5">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                {colVisible('numero') && <ResizableHead colKey="nro" defaultWidth={72} width={columnWidths.nro} onResize={handleResize}>Nro</ResizableHead>}
+                {colVisible('nombre') && <ResizableHead colKey="nombre" defaultWidth={140} width={columnWidths.nombre} onResize={handleResize}>Nombre</ResizableHead>}
+                {colVisible('cliente') && <ResizableHead colKey="cliente" defaultWidth={150} width={columnWidths.cliente} onResize={handleResize}>Cliente</ResizableHead>}
+                {colVisible('obra') && <ResizableHead colKey="obra" defaultWidth={120} width={columnWidths.obra} onResize={handleResize}>Obra</ResizableHead>}
+                {colVisible('responsable') && <ResizableHead colKey="responsable" defaultWidth={120} width={columnWidths.responsable} onResize={handleResize}>Responsable</ResizableHead>}
+                {colVisible('prioridad') && <ResizableHead colKey="prioridad" defaultWidth={90} width={columnWidths.prioridad} onResize={handleResize}>Prioridad</ResizableHead>}
+                {colVisible('estado') && <ResizableHead colKey="estado" defaultWidth={120} width={columnWidths.estado} onResize={handleResize}>Estado</ResizableHead>}
+                {colVisible('recepcion') && <ResizableHead colKey="recepcion" defaultWidth={100} width={columnWidths.recepcion} onResize={handleResize}>Recepción</ResizableHead>}
+                {colVisible('total') && <ResizableHead colKey="total" defaultWidth={110} width={columnWidths.total} onResize={handleResize} className="text-right">Total</ResizableHead>}
+                {colVisible('precio_final') && <ResizableHead colKey="pfinal" defaultWidth={110} width={columnWidths.pfinal} onResize={handleResize} className="text-right">P. Final</ResizableHead>}
+                <TableHead className="w-16"></TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {presupuestosPagina.map((p) => (
+                <TableRow
+                  key={p.id}
+                  className={`border-b border-slate-200 hover:bg-slate-50/50 ${p.estado === 'ENVIADO' && p.archivos.length === 0 ? 'bg-amber-50' : ''}`}
+                >
+                  {colVisible('numero') && <TableCell className="font-medium">#{p.numero}</TableCell>}
+                  {colVisible('nombre') && <TableCell className="max-w-[140px] truncate text-slate-600">{p.nombrePresupuesto ?? '—'}</TableCell>}
+                  {colVisible('cliente') && <TableCell className="max-w-[150px] truncate">{p.cliente.razonSocial}</TableCell>}
+                  {colVisible('obra') && <TableCell className="text-slate-500 text-sm max-w-[120px] truncate">{p.obra?.nombre ?? '—'}</TableCell>}
+                  {colVisible('responsable') && <TableCell className="text-slate-500 text-sm">{p.responsable?.nombre ?? p.creadoPor.nombre}</TableCell>}
+                  {colVisible('prioridad') && (
+                    <TableCell>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <button className="focus:outline-none" disabled={savingPrioridad === p.id}>
+                            <Badge variant="outline" className={`cursor-pointer ${prioridadBadgeClass[p.prioridad]}`}>
+                              {prioridadLabel[p.prioridad]}
                             </Badge>
-                            {pr === p.prioridad && <Check className="h-3 w-3 ml-auto shrink-0" />}
-                          </DropdownMenuItem>
-                        ))}
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </TableCell>
-                )}
-                {colVisible('estado') && (
-                  <TableCell>
-                    <div className="flex items-center gap-1.5">
-                      <span style={getEstiloEstado(p.estado)}>{getLabelEstado(p.estado)}</span>
-                      {p.estado === 'ENVIADO' && p.archivos.length === 0 && (
-                        <span title="Sin adjuntos">
-                          <AlertTriangle className="h-3.5 w-3.5 text-amber-500 shrink-0" />
+                          </button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="start" className="w-28">
+                          {Object.values(PRIORIDAD).map((pr) => (
+                            <DropdownMenuItem
+                              key={pr}
+                              onSelect={() => changePrioridad(p.id, pr)}
+                              disabled={pr === p.prioridad}
+                              className="gap-2 cursor-pointer"
+                            >
+                              <Badge variant="outline" className={`${prioridadBadgeClass[pr]} pointer-events-none`}>
+                                {prioridadLabel[pr]}
+                              </Badge>
+                              {pr === p.prioridad && <Check className="h-3 w-3 ml-auto shrink-0" />}
+                            </DropdownMenuItem>
+                          ))}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
+                  )}
+                  {colVisible('estado') && (
+                    <TableCell>
+                      <div className="flex items-center gap-1.5">
+                        <span style={getEstiloEstado(p.estado)}>{getLabelEstado(p.estado)}</span>
+                        {p.estado === 'ENVIADO' && p.archivos.length === 0 && (
+                          <span title="Sin adjuntos">
+                            <AlertTriangle className="h-3.5 w-3.5 text-amber-500 shrink-0" />
+                          </span>
+                        )}
+                      </div>
+                    </TableCell>
+                  )}
+                  {colVisible('recepcion') && (
+                    <TableCell className="text-slate-500 text-sm" style={{ width: columnWidths.recepcion ?? 110 }}>
+                      {p.fechaRecepcion
+                        ? new Date(p.fechaRecepcion).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' })
+                        : '—'}
+                    </TableCell>
+                  )}
+                  {colVisible('total') && (
+                    <TableCell className="text-right">
+                      <div className="flex flex-col items-end gap-0.5">
+                        <span className="font-medium">
+                          {formatCurrency(
+                            Number(p.totalConIva) > 0 ? Number(p.totalConIva) :
+                            Number(p.precioFinal) > 0 ? Number(p.precioFinal) :
+                            Number(p.totalFinal)
+                          )}
                         </span>
+                        <Badge variant="outline" className="text-xs px-1 py-0 font-normal">
+                          {Number(p.tasaIva) === 0 ? 'Exento' : `${Number(p.tasaIva)}%`}
+                        </Badge>
+                      </div>
+                    </TableCell>
+                  )}
+                  {colVisible('precio_final') && (
+                    <TableCell className="text-right">
+                      {editingPrecio?.id === p.id ? (
+                        <div className="flex items-center gap-1 justify-end">
+                          <Input
+                            type="number"
+                            value={editingPrecio.value}
+                            onChange={(e) => setEditingPrecio({ id: p.id, value: e.target.value })}
+                            className="w-28 h-7 text-xs"
+                            autoFocus
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') savePrecioFinal();
+                              if (e.key === 'Escape') setEditingPrecio(null);
+                            }}
+                          />
+                          <Button size="icon" variant="ghost" className="h-6 w-6" onClick={savePrecioFinal} disabled={savingPrecio}>
+                            <Check className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      ) : (
+                        <button
+                          className="text-right w-full text-sm font-medium hover:text-[#00ADEF] transition-colors"
+                          onClick={() => setEditingPrecio({ id: p.id, value: p.precioFinal != null ? String(Number(p.precioFinal)) : '' })}
+                        >
+                          {p.precioFinal != null ? formatCurrency(Number(p.precioFinal)) : <span className="text-slate-300 text-xs">—</span>}
+                        </button>
+                      )}
+                    </TableCell>
+                  )}
+                  <TableCell>
+                    <div className="flex items-center gap-1">
+                      <Button variant="ghost" size="icon" asChild>
+                        <Link href={`/presupuestos/${p.id}`}><Eye className="h-4 w-4" /></Link>
+                      </Button>
+                      {p.responsable && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          title="Pedir avance al responsable"
+                          onClick={() => { setPresupuestoAvance(p); setDialogAvanceAbierto(true); }}
+                          className="text-slate-400 hover:text-[#00ADEF]"
+                        >
+                          <MessageCircle className="h-4 w-4" />
+                        </Button>
+                      )}
+                      {puedeEliminar && (
+                        <EliminarPresupuestoBtn
+                          presupuestoId={p.id}
+                          numero={p.numero}
+                          clienteNombre={p.cliente.razonSocial}
+                          onDeleted={() => setTodosLosPresupuestos(prev => prev.filter(p2 => p2.id !== p.id))}
+                        />
                       )}
                     </div>
                   </TableCell>
-                )}
-                {colVisible('recepcion') && (
-                  <TableCell className="text-slate-500 text-sm" style={{ width: columnWidths.recepcion ?? 110 }}>
-                    {p.fechaRecepcion
-                      ? new Date(p.fechaRecepcion).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' })
-                      : '—'}
+                </TableRow>
+              ))}
+              {presupuestosPagina.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={11} className="text-center text-slate-400 py-10">
+                    No hay presupuestos con los filtros aplicados
                   </TableCell>
-                )}
-                {colVisible('total') && (
-                  <TableCell className="text-right">
-                    <div className="flex flex-col items-end gap-0.5">
-                      <span className="font-medium">
-                        {formatCurrency(
-                          Number(p.totalConIva) > 0 ? Number(p.totalConIva) :
-                          Number(p.precioFinal) > 0 ? Number(p.precioFinal) :
-                          Number(p.totalFinal)
-                        )}
-                      </span>
-                      <Badge variant="outline" className="text-xs px-1 py-0 font-normal">
-                        {Number(p.tasaIva) === 0 ? 'Exento' : `${Number(p.tasaIva)}%`}
-                      </Badge>
-                    </div>
-                  </TableCell>
-                )}
-                {colVisible('precio_final') && (
-                  <TableCell className="text-right">
-                    {editingPrecio?.id === p.id ? (
-                      <div className="flex items-center gap-1 justify-end">
-                        <Input
-                          type="number"
-                          value={editingPrecio.value}
-                          onChange={(e) => setEditingPrecio({ id: p.id, value: e.target.value })}
-                          className="w-28 h-7 text-xs"
-                          autoFocus
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') savePrecioFinal();
-                            if (e.key === 'Escape') setEditingPrecio(null);
-                          }}
-                        />
-                        <Button size="icon" variant="ghost" className="h-6 w-6" onClick={savePrecioFinal} disabled={savingPrecio}>
-                          <Check className="h-3 w-3" />
-                        </Button>
-                      </div>
-                    ) : (
-                      <button
-                        className="text-right w-full text-sm font-medium hover:text-[#00ADEF] transition-colors"
-                        onClick={() => setEditingPrecio({ id: p.id, value: p.precioFinal != null ? String(Number(p.precioFinal)) : '' })}
-                      >
-                        {p.precioFinal != null ? formatCurrency(Number(p.precioFinal)) : <span className="text-slate-300 text-xs">—</span>}
-                      </button>
-                    )}
-                  </TableCell>
-                )}
-                <TableCell>
-                  <div className="flex items-center gap-1">
-                    <Button variant="ghost" size="icon" asChild>
-                      <Link href={`/presupuestos/${p.id}`}><Eye className="h-4 w-4" /></Link>
-                    </Button>
-                    {p.responsable && (
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        title="Pedir avance al responsable"
-                        onClick={() => { setPresupuestoAvance(p); setDialogAvanceAbierto(true); }}
-                        className="text-slate-400 hover:text-[#00ADEF]"
-                      >
-                        <MessageCircle className="h-4 w-4" />
-                      </Button>
-                    )}
-                    {puedeEliminar && (
-                      <EliminarPresupuestoBtn
-                        presupuestoId={p.id}
-                        numero={p.numero}
-                        clienteNombre={p.cliente.razonSocial}
-                      />
-                    )}
-                  </div>
-                </TableCell>
-              </TableRow>
-            ))}
-            {presupuestos.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={11} className="text-center text-slate-400 py-10">
-                  No hay presupuestos con los filtros aplicados
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
-      </div>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </div>
+      )}
 
       {/* Paginación */}
-      {totalPages > 1 && (
+      {totalPaginas > 1 && (
         <div className="flex items-center justify-between text-sm text-slate-500">
-          <span>{total} en total</span>
+          <span>{presupuestosFiltrados.length} en total</span>
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="icon" disabled={page <= 1} onClick={() => router.push(buildPageUrl(page - 1))}>
+            <Button variant="outline" size="icon" disabled={paginaActual <= 1} onClick={() => setPaginaActual(p => p - 1)}>
               <ChevronLeft className="h-4 w-4" />
             </Button>
-            <span>Página {page} de {totalPages}</span>
-            <Button variant="outline" size="icon" disabled={page >= totalPages} onClick={() => router.push(buildPageUrl(page + 1))}>
+            <span>Página {paginaActual} de {totalPaginas}</span>
+            <Button variant="outline" size="icon" disabled={paginaActual >= totalPaginas} onClick={() => setPaginaActual(p => p + 1)}>
               <ChevronRight className="h-4 w-4" />
             </Button>
           </div>

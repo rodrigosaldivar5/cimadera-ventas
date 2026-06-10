@@ -1,4 +1,5 @@
 import { jsPDF } from 'jspdf';
+import { loadLogoDataUrl } from './logo';
 
 export type MovimientoPDF = {
   fecha: Date | string;
@@ -6,6 +7,7 @@ export type MovimientoPDF = {
   descripcion: string;
   numeroFactura?: string | null;
   monto: number;
+  montoEnARS?: number | null;
   saldoResultante: number;
 };
 
@@ -56,7 +58,7 @@ const marginR = 15;
 const HEADER_H = 25;
 const CONTENT_START_Y = 35;
 
-function drawHeader(doc: jsPDF, titulo: string) {
+function drawHeader(doc: jsPDF, titulo: string, logoDataUrl: string | null) {
   const [nR, nG, nB] = hexToRgb(COLORS.negroCimadera);
   const [grR, grG, grB] = hexToRgb(COLORS.grisCorporativo);
   const [azR, azG, azB] = hexToRgb(COLORS.azulCimadera);
@@ -67,18 +69,19 @@ function drawHeader(doc: jsPDF, titulo: string) {
 
   const baseY = HEADER_H - 8;
 
-  // "CIMAdera" bold 20pt negro
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(20);
-  doc.setTextColor(nR, nG, nB);
-  doc.text('CIMAdera', marginL, baseY);
-
-  // "S.A." normal 12pt
-  const cimaderaWidth = doc.getTextWidth('CIMAdera');
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(12);
-  doc.setTextColor(nR, nG, nB);
-  doc.text(' S.A.', marginL + cimaderaWidth, baseY);
+  if (logoDataUrl) {
+    doc.addImage(logoDataUrl, 'PNG', marginL, 5, 50, 18);
+  } else {
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(20);
+    doc.setTextColor(nR, nG, nB);
+    doc.text('CIMAdera', marginL, baseY);
+    const cimaderaWidth = doc.getTextWidth('CIMAdera');
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(12);
+    doc.setTextColor(nR, nG, nB);
+    doc.text(' S.A.', marginL + cimaderaWidth, baseY);
+  }
 
   // Contacto
   doc.setFont('helvetica', 'normal');
@@ -124,7 +127,8 @@ function drawFooter(doc: jsPDF) {
   doc.text(`Página ${pageCount}`, W - marginR, 288, { align: 'right' });
 }
 
-export function generarCuentaCorrientePDF(cuenta: CuentaPDF): void {
+export async function generarCuentaCorrientePDF(cuenta: CuentaPDF): Promise<void> {
+  const logoDataUrl = await loadLogoDataUrl();
   const contentW = W - marginL - marginR;
   const titulo = cuenta.presupuesto
     ? `CUENTA CORRIENTE N° ${String(cuenta.presupuesto.numero).padStart(4, '0')}`
@@ -138,13 +142,13 @@ export function generarCuentaCorrientePDF(cuenta: CuentaPDF): void {
   const [grR, grG, grB] = hexToRgb(COLORS.grisCorporativo);
   const [gcR, gcG, gcB] = hexToRgb(COLORS.grisClaro);
 
-  drawHeader(doc, titulo);
+  drawHeader(doc, titulo, logoDataUrl);
 
   const checkPage = (needed: number) => {
     if (y + needed > 275) {
       drawFooter(doc);
       doc.addPage();
-      drawHeader(doc, titulo);
+      drawHeader(doc, titulo, logoDataUrl);
       y = CONTENT_START_Y;
     }
   };
@@ -272,7 +276,7 @@ export function generarCuentaCorrientePDF(cuenta: CuentaPDF): void {
   const colW2 = contentW / 3;
   const totalCobrado = cuenta.movimientos
     .filter((m) => m.tipo === 'ANTICIPO' || m.tipo === 'PAGO_PARCIAL')
-    .reduce((sum, m) => sum + Number(m.monto), 0);
+    .reduce((sum, m) => sum + Number(m.montoEnARS ?? m.monto), 0);
 
   const finLabels = ['Monto original', 'Total cobrado', 'Saldo actualizado'];
   const finValues = [
@@ -378,7 +382,7 @@ export function generarCuentaCorrientePDF(cuenta: CuentaPDF): void {
     // Monto: negative for ANTICIPO/PAGO_PARCIAL, positive for others
     const isReduccion = mov.tipo === 'ANTICIPO' || mov.tipo === 'PAGO_PARCIAL';
     doc.setTextColor(isReduccion ? 22 : nR, isReduccion ? 101 : nG, isReduccion ? 52 : nB);
-    const montoStr = (isReduccion ? '-' : '+') + fmtCurrency(Math.abs(Number(mov.monto)));
+    const montoStr = (isReduccion ? '-' : '+') + fmtCurrency(Math.abs(Number(mov.montoEnARS ?? mov.monto)));
     doc.text(montoStr, colX.monto + cols.monto - 2, y + 4.5, { align: 'right' });
 
     doc.setTextColor(nR, nG, nB);

@@ -798,6 +798,7 @@ export function CuentasCorrientesContent({ cuentasIniciales, clientes, presupues
         descripcion: m.descripcion,
         numeroFactura: m.numeroFactura,
         monto: Number(m.monto),
+        montoEnARS: m.montoEnARS != null ? Number(m.montoEnARS) : Number(m.monto),
         saldoResultante: Number(m.saldoResultante),
       })),
     });
