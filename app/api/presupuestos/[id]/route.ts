@@ -72,6 +72,7 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
         saldoEsperado: data.saldoEsperado != null ? data.saldoEsperado : null,
         probabilidadCobro: data.probabilidadCobro != null ? data.probabilidadCobro : null,
         motivoRechazo: data.motivoRechazo ?? null,
+        ...(data.moneda ? { moneda: data.moneda === 'USD' ? 'USD' : 'ARS' } : {}),
         puertas: { create: data.puertas ?? [] },
         lineas: {
           create: (data.lineas ?? []).map((l: LineaInput) => ({

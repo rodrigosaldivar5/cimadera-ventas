@@ -96,6 +96,7 @@ export async function POST(req: NextRequest) {
         saldoEsperado: data.saldoEsperado != null ? data.saldoEsperado : null,
         probabilidadCobro: data.probabilidadCobro != null ? data.probabilidadCobro : null,
         motivoRechazo: data.motivoRechazo ?? null,
+        moneda: data.moneda === 'USD' ? 'USD' : 'ARS',
         puertas: {
           create: (data.puertas ?? []).map((p: {
             tipoPuertaId: string; cantidad: number; ancho: number; alto: number;

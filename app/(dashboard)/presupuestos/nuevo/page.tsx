@@ -114,6 +114,7 @@ export default function NuevoPresupuestoPage() {
   const [saldoEsperado, setSaldoEsperado] = useState<string>('');
   const [probabilidadCobro, setProbabilidadCobro] = useState<string>('');
   const [usuarios, setUsuarios] = useState<{ id: string; nombre: string }[]>([]);
+  const [moneda, setMoneda] = useState<'ARS' | 'USD'>('ARS');
 
   const { register, handleSubmit, watch, setValue, formState: { errors } } = useForm<Paso1Data>({
     resolver: zodResolver(paso1Schema),
@@ -161,13 +162,14 @@ export default function NuevoPresupuestoPage() {
     const formData = watch();
     localStorage.setItem(DRAFT_KEY, JSON.stringify({
       formData,
+      moneda,
       itemsProducto,
       lineas,
       lineasLibres,
       paso,
       savedAt: new Date().toISOString(),
     }));
-  }, [watch, itemsProducto, lineas, lineasLibres, paso]);
+  }, [watch, moneda, itemsProducto, lineas, lineasLibres, paso]);
 
   useEffect(() => {
     const interval = setInterval(saveDraft, 30000);
@@ -188,6 +190,7 @@ export default function NuevoPresupuestoPage() {
       const parsed = JSON.parse(saved);
       const fd = parsed.formData ?? {};
       Object.entries(fd).forEach(([k, v]) => setValue(k as keyof Paso1Data, v as never));
+      if (parsed.moneda) setMoneda(parsed.moneda);
       setItemsProducto(parsed.itemsProducto ?? []);
       setLineas(parsed.lineas ?? []);
       setLineasLibres(parsed.lineasLibres ?? []);
@@ -290,6 +293,7 @@ export default function NuevoPresupuestoPage() {
         fechaPrometidaCliente: watch('fechaPrometidaCliente') || null,
         fechaObjetivoProduccion: watch('fechaObjetivoProduccion') || null,
         estado: 'PENDIENTE',
+        moneda,
         descuento: 0,
         subtotal: 0,
         totalFinal: 0,
@@ -380,6 +384,7 @@ export default function NuevoPresupuestoPage() {
       body: JSON.stringify({
         ...data,
         numero,
+        moneda,
         puertas: [],
         lineas: lineasPayload,
         subtotal,
@@ -492,6 +497,29 @@ export default function NuevoPresupuestoPage() {
                     </Button>
                   </div>
                   {errors.clienteId && <p className="text-xs text-red-500">{errors.clienteId.message}</p>}
+                </div>
+
+                {/* Moneda */}
+                <div className="col-span-2 space-y-2">
+                  <Label>Moneda del presupuesto</Label>
+                  <div className="flex gap-3">
+                    {(['ARS', 'USD'] as const).map((m) => (
+                      <button
+                        key={m}
+                        type="button"
+                        onClick={() => setMoneda(m)}
+                        className={`flex-1 py-2 px-4 rounded-md border text-sm font-medium transition-colors ${
+                          moneda === m
+                            ? m === 'USD'
+                              ? 'border-green-500 bg-green-50 text-green-700'
+                              : 'border-[#00ADEF] bg-[#E6F1FB] text-[#0C447C]'
+                            : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+                        }`}
+                      >
+                        {m === 'ARS' ? '$ ARS — Pesos' : 'U$D USD — Dólares'}
+                      </button>
+                    ))}
+                  </div>
                 </div>
 
                 {/* Banner criterios */}

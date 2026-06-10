@@ -25,15 +25,29 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
 
     const montoNum = Number(monto);
     const tcNum = tipoCambio ? Number(tipoCambio) : null;
+    const monedaCuenta = cuenta.moneda ?? 'ARS';
 
-    // Siempre calcular el monto en ARS del lado del servidor
+    // Calcular el monto en ARS del lado del servidor
     let montoEnARSCalculado: number;
     if (caja === 'USD' && tcNum && tcNum > 0) {
       montoEnARSCalculado = montoNum * tcNum;
     } else {
       montoEnARSCalculado = montoEnARS != null ? Number(montoEnARS) : montoNum;
     }
-    const montoParaRestar = montoEnARSCalculado;
+
+    // montoParaRestar: en la moneda de la cuenta
+    let montoParaRestar: number;
+    if (monedaCuenta === 'USD') {
+      if (caja === 'USD') {
+        montoParaRestar = montoNum;
+      } else if (tcNum && tcNum > 0) {
+        montoParaRestar = montoNum / tcNum; // ARS → USD
+      } else {
+        montoParaRestar = montoNum;
+      }
+    } else {
+      montoParaRestar = montoEnARSCalculado;
+    }
 
     let saldoResultante: number;
     const updateCuenta: Record<string, unknown> = {};
@@ -44,7 +58,12 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
       const montoOriginal = parseFloat(cuenta.montoOriginal.toString());
       const totalPagadoAnterior = cuenta.movimientos
         .filter((m) => m.tipo === 'ANTICIPO' || m.tipo === 'PAGO_PARCIAL')
-        .reduce((sum, m) => sum + parseFloat((m.montoEnARS ?? m.monto).toString()), 0);
+        .reduce((sum, m) => {
+          if (monedaCuenta === 'USD') {
+            return sum + parseFloat((m.equivalenteUSD ?? m.monto).toString());
+          }
+          return sum + parseFloat((m.montoEnARS ?? m.monto).toString());
+        }, 0);
       const totalPagadoNuevo = totalPagadoAnterior + montoParaRestar;
       // fórmula: (montoOriginal - totalPagado) × (idxActual / idxInicio)
       const saldoBase  = montoOriginal - totalPagadoNuevo;

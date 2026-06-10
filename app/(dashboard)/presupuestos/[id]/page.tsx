@@ -136,7 +136,12 @@ export default async function PresupuestoDetallePage({ params }: { params: { id:
               <p className="text-slate-500 text-sm mt-1">Carpintería Industrial</p>
             </div>
             <div className="text-right">
-              <div className="text-2xl font-bold text-sky-500">Presupuesto #{presupuesto.numero}</div>
+              <div className="flex items-center gap-2">
+                <div className="text-2xl font-bold text-sky-500">Presupuesto #{presupuesto.numero}</div>
+                <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold ${presupuesto.moneda === 'USD' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}`}>
+                  {presupuesto.moneda === 'USD' ? 'U$D USD' : '$ ARS'}
+                </span>
+              </div>
               <div className="flex items-center gap-1 text-sm text-slate-500 justify-end mt-1">
                 <Calendar className="h-4 w-4" />
                 {formatDate(presupuesto.fechaCreacion)}

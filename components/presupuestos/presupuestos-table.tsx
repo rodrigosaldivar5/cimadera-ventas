@@ -38,6 +38,7 @@ type PresupuestoRow = {
   tasaIva: unknown;
   totalConIva: unknown;
   precioFinal: unknown;
+  moneda?: string;
   clienteId?: string;
   obraId?: string;
   cliente: { id?: string; razonSocial: string };
@@ -562,13 +563,18 @@ export function PresupuestosTable({ clientes, criticos, userEmail }: Props) {
                   {colVisible('total') && (
                     <TableCell className="text-right">
                       <div className="flex flex-col items-end gap-0.5">
-                        <span className="font-medium">
-                          {formatCurrency(
-                            Number(p.totalConIva) > 0 ? Number(p.totalConIva) :
-                            Number(p.precioFinal) > 0 ? Number(p.precioFinal) :
-                            Number(p.totalFinal)
+                        <div className="flex items-center gap-1">
+                          {p.moneda === 'USD' && (
+                            <span className="text-xs font-semibold text-green-700 bg-green-100 px-1 rounded">U$D</span>
                           )}
-                        </span>
+                          <span className="font-medium">
+                            {formatCurrency(
+                              Number(p.totalConIva) > 0 ? Number(p.totalConIva) :
+                              Number(p.precioFinal) > 0 ? Number(p.precioFinal) :
+                              Number(p.totalFinal)
+                            )}
+                          </span>
+                        </div>
                         <Badge variant="outline" className="text-xs px-1 py-0 font-normal">
                           {Number(p.tasaIva) === 0 ? 'Exento' : `${Number(p.tasaIva)}%`}
                         </Badge>
@@ -599,7 +605,12 @@ export function PresupuestosTable({ clientes, criticos, userEmail }: Props) {
                           className="text-right w-full text-sm font-medium hover:text-[#00ADEF] transition-colors"
                           onClick={() => setEditingPrecio({ id: p.id, value: p.precioFinal != null ? String(Number(p.precioFinal)) : '' })}
                         >
-                          {p.precioFinal != null ? formatCurrency(Number(p.precioFinal)) : <span className="text-slate-300 text-xs">—</span>}
+                          {p.precioFinal != null ? (
+                            <span className="flex items-center gap-1 justify-end">
+                              {p.moneda === 'USD' && <span className="text-xs font-semibold text-green-700 bg-green-100 px-1 rounded">U$D</span>}
+                              {formatCurrency(Number(p.precioFinal))}
+                            </span>
+                          ) : <span className="text-slate-300 text-xs">—</span>}
                         </button>
                       )}
                     </TableCell>

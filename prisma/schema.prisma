@@ -146,6 +146,7 @@ model Presupuesto {
   saldoEsperado            Decimal?           @db.Decimal(14,2)
   probabilidadCobro        Decimal?           @db.Decimal(5,2)
   motivoRechazo            String?
+  moneda                   String             @default("ARS")
 }
 
 model Obra {
@@ -353,6 +354,7 @@ model CuentaCorriente {
   fechaEstimadaCobro   DateTime?
   montoEstimadoCobro   Decimal?           @db.Decimal(14, 2)
   notasCobro           String?
+  moneda               String             @default("ARS")
   movimientos          MovimientoCuenta[]
   createdAt            DateTime           @default(now())
   updatedAt            DateTime           @updatedAt

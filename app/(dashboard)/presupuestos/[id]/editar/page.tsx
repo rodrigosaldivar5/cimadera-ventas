@@ -60,6 +60,7 @@ export default async function EditarPresupuestoPage({ params }: { params: { id: 
         observaciones: presupuesto.observaciones ?? '',
         descuento: Number(presupuesto.descuento),
         estado: presupuesto.estado,
+        moneda: presupuesto.moneda,
         itemsProducto,
         lineas: catalogLineas,
       }}

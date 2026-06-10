@@ -53,6 +53,7 @@ export async function POST(req: NextRequest) {
       indiceActual,
       fechaInicio,
       observaciones,
+      moneda,
     } = data;
 
     if (!clienteId || !montoOriginal || !indiceInicio || !indiceActual || !fechaInicio) {
@@ -77,6 +78,7 @@ export async function POST(req: NextRequest) {
         estado: EstadoCuenta.SALDO_PENDIENTE,
         fechaInicio: new Date(fechaInicio),
         observaciones: observaciones || null,
+        moneda: moneda === 'USD' ? 'USD' : 'ARS',
         movimientos: {
           create: {
             tipo: TipoMovimiento.CARGO_INICIAL,

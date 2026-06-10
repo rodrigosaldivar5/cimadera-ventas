@@ -36,6 +36,7 @@ type Presupuesto = {
   totalFinal: unknown;
   precioFinal?: number | null;
   nombrePresupuesto?: string | null;
+  moneda?: string;
 };
 
 type PresupuestoSinCuenta = {
@@ -49,6 +50,7 @@ type PresupuestoSinCuenta = {
   cliente: { razonSocial: string };
   obraId?: string | null;
   obra?: { nombre: string } | null;
+  moneda?: string;
 };
 
 type MovimientoSerializado = Omit<MovimientoCuenta, 'monto' | 'saldoResultante' | 'indiceValor' | 'tipoCambio' | 'montoEnARS' | 'equivalenteUSD'> & {
@@ -66,6 +68,7 @@ type CuentaConRelaciones = Omit<CuentaCorriente, 'montoOriginal' | 'indiceInicio
   indiceActual: number;
   saldoActualizado: number;
   montoEstimadoCobro: number | null;
+  moneda?: string;
   cliente: { id: string; razonSocial: string; cuit?: string | null; email?: string | null; telefono?: string | null };
   obra?: { id: string; nombre: string; direccion?: string | null } | null;
   presupuesto?: { id: string; numero: number; totalFinal: number; nombrePresupuesto?: string | null } | null;
@@ -250,8 +253,13 @@ export function CuentasCorrientesContent({ cuentasIniciales, clientes, presupues
   });
 
   // ── Metrics ───────────────────────────────────────────────────────────────
-  const totalFacturado = cuentas.reduce((sum, c) => sum + Number(c.montoOriginal), 0);
-  const totalCobrado = cuentas.reduce((sum, c) => {
+  const arsCuentas = cuentas.filter((c) => (c.moneda ?? 'ARS') === 'ARS');
+  const usdCuentas = cuentas.filter((c) => c.moneda === 'USD');
+
+  const totalFacturado = arsCuentas.reduce((sum, c) => sum + Number(c.montoOriginal), 0);
+  const totalFacturadoUSD = usdCuentas.reduce((sum, c) => sum + Number(c.montoOriginal), 0);
+
+  const totalCobrado = arsCuentas.reduce((sum, c) => {
     return (
       sum +
       c.movimientos
@@ -259,9 +267,22 @@ export function CuentasCorrientesContent({ cuentasIniciales, clientes, presupues
         .reduce((s, m) => s + Number(m.montoEnARS ?? m.monto), 0)
     );
   }, 0);
-  const saldoPendienteTotal = cuentas
+  const totalCobradoUSD = usdCuentas.reduce((sum, c) => {
+    return (
+      sum +
+      c.movimientos
+        .filter((m) => m.tipo === 'ANTICIPO' || m.tipo === 'PAGO_PARCIAL')
+        .reduce((s, m) => s + Number(m.equivalenteUSD ?? m.monto), 0)
+    );
+  }, 0);
+
+  const saldoPendienteTotal = arsCuentas
     .filter((c) => c.estado !== 'CANCELADO')
     .reduce((sum, c) => sum + Number(c.saldoActualizado), 0);
+  const saldoPendienteTotalUSD = usdCuentas
+    .filter((c) => c.estado !== 'CANCELADO')
+    .reduce((sum, c) => sum + Number(c.saldoActualizado), 0);
+
   const cuentasActivas = cuentas.filter((c) => c.estado !== 'CANCELADO').length;
 
   // ── Nueva cuenta form state ───────────────────────────────────────────────
@@ -276,6 +297,7 @@ export function CuentasCorrientesContent({ cuentasIniciales, clientes, presupues
   const [nfIndiceActual, setNfIndiceActual] = useState('');
   const [nfFechaInicio, setNfFechaInicio] = useState('');
   const [nfObservaciones, setNfObservaciones] = useState('');
+  const [nfMoneda, setNfMoneda] = useState<'ARS' | 'USD'>('ARS');
   const [nfSaving, setNfSaving] = useState(false);
 
   const handleClienteChange = async (clienteId: string) => {
@@ -306,6 +328,7 @@ export function CuentasCorrientesContent({ cuentasIniciales, clientes, presupues
     if (pres) {
       const monto = pres.precioFinal ?? pres.totalFinal ?? 0;
       setNfMonto(Number(monto).toFixed(2));
+      if (pres.moneda === 'USD' || pres.moneda === 'ARS') setNfMoneda(pres.moneda);
     }
   };
 
@@ -329,6 +352,7 @@ export function CuentasCorrientesContent({ cuentasIniciales, clientes, presupues
           indiceActual: parseFloat(nfIndiceActual),
           fechaInicio: nfFechaInicio,
           observaciones: nfObservaciones || null,
+          moneda: nfMoneda,
         }),
       });
       if (!res.ok) {
@@ -360,6 +384,7 @@ export function CuentasCorrientesContent({ cuentasIniciales, clientes, presupues
     setNfIndiceActual('');
     setNfFechaInicio('');
     setNfObservaciones('');
+    setNfMoneda('ARS');
   };
 
   const handleAbrirDesdeBanner = async (ps: PresupuestoSinCuenta) => {
@@ -386,6 +411,7 @@ export function CuentasCorrientesContent({ cuentasIniciales, clientes, presupues
       setNfPresupuestos(list);
       setNfPresupuestoId(ps.id);
     }
+    if (ps.moneda === 'USD' || ps.moneda === 'ARS') setNfMoneda(ps.moneda);
     setBannerLoadingId(null);
     setNuevaOpen(true);
   };
@@ -456,24 +482,47 @@ export function CuentasCorrientesContent({ cuentasIniciales, clientes, presupues
     if (!activeCuentaId || !pfMonto) return null;
     const cuenta = cuentas.find((c) => c.id === activeCuentaId);
     if (!cuenta) return null;
+    const monedaCuenta = cuenta.moneda ?? 'ARS';
+
+    let montoParaRestar: number;
     let montoEnARS: number;
-    if (pfCaja === 'USD') {
-      const tc = parseFloat(pfTipoCambio || '0');
-      if (!tc) return null;
-      montoEnARS = parseFloat(pfMonto) * tc;
+
+    if (monedaCuenta === 'USD') {
+      // USD account: track in USD
+      if (pfCaja === 'USD') {
+        montoParaRestar = parseFloat(pfMonto);
+        montoEnARS = pfTipoCambio ? parseFloat(pfMonto) * parseFloat(pfTipoCambio) : parseFloat(pfMonto);
+      } else {
+        const tc = parseFloat(pfTipoCambio || '0');
+        if (!tc) return null;
+        montoParaRestar = parseFloat(pfMonto) / tc; // ARS → USD
+        montoEnARS = parseFloat(pfMonto);
+      }
     } else {
-      montoEnARS = parseFloat(pfMonto);
+      // ARS account
+      if (pfCaja === 'USD') {
+        const tc = parseFloat(pfTipoCambio || '0');
+        if (!tc) return null;
+        montoEnARS = parseFloat(pfMonto) * tc;
+      } else {
+        montoEnARS = parseFloat(pfMonto);
+      }
+      montoParaRestar = montoEnARS;
     }
+
     const idxActual     = Number(cuenta.indiceActual);
     const idxInicio     = Number(cuenta.indiceInicio);
     const montoOriginal = Number(cuenta.montoOriginal);
     const totalPagadoHasta = cuenta.movimientos
       .filter((m) => m.tipo === 'ANTICIPO' || m.tipo === 'PAGO_PARCIAL')
-      .reduce((sum, m) => sum + Number(m.montoEnARS ?? m.monto), 0);
-    const totalPagadoNuevo = totalPagadoHasta + montoEnARS;
+      .reduce((sum, m) => {
+        if (monedaCuenta === 'USD') return sum + Number(m.equivalenteUSD ?? m.monto);
+        return sum + Number(m.montoEnARS ?? m.monto);
+      }, 0);
+    const totalPagadoNuevo = totalPagadoHasta + montoParaRestar;
     const saldoBase       = montoOriginal - totalPagadoNuevo;
     const saldoResultante = saldoBase * (idxActual / idxInicio);
-    return { saldoResultante, montoEnARS };
+    return { saldoResultante, montoEnARS, montoParaRestar, monedaCuenta };
   };
 
   const handleRegistrarPago = async () => {
@@ -481,8 +530,10 @@ export function CuentasCorrientesContent({ cuentasIniciales, clientes, presupues
       showToast('Completá los campos requeridos', true);
       return;
     }
-    if (pfCaja === 'USD' && !pfTipoCambio) {
-      showToast('Ingresá el tipo de cambio para pagos en USD', true);
+    const cuentaParaPago = cuentas.find((c) => c.id === activeCuentaId);
+    const esUSDAccount = cuentaParaPago?.moneda === 'USD';
+    if ((pfCaja === 'USD' || (esUSDAccount && pfCaja === 'ARS')) && !pfTipoCambio) {
+      showToast('Ingresá el tipo de cambio', true);
       return;
     }
     setPfSaving(true);
@@ -963,6 +1014,9 @@ export function CuentasCorrientesContent({ cuentasIniciales, clientes, presupues
             Total facturado
           </div>
           <p className="text-xl font-bold text-[#1A1A1A]">{formatCurrency(totalFacturado)}</p>
+          {totalFacturadoUSD > 0 && (
+            <p className="text-xs text-green-700 mt-0.5">+ U$D {totalFacturadoUSD.toLocaleString('es-AR', { minimumFractionDigits: 2 })}</p>
+          )}
         </div>
         <div className="bg-white rounded-lg border p-4 shadow-sm">
           <div className="flex items-center gap-2 text-sm text-gray-500 mb-1">
@@ -970,6 +1024,9 @@ export function CuentasCorrientesContent({ cuentasIniciales, clientes, presupues
             Total cobrado
           </div>
           <p className="text-xl font-bold text-[#1A1A1A]">{formatCurrency(totalCobrado)}</p>
+          {totalCobradoUSD > 0 && (
+            <p className="text-xs text-green-700 mt-0.5">+ U$D {totalCobradoUSD.toLocaleString('es-AR', { minimumFractionDigits: 2 })}</p>
+          )}
         </div>
         <div className="bg-white rounded-lg border p-4 shadow-sm">
           <div className="flex items-center gap-2 text-sm text-gray-500 mb-1">
@@ -977,6 +1034,9 @@ export function CuentasCorrientesContent({ cuentasIniciales, clientes, presupues
             Saldo pendiente
           </div>
           <p className="text-xl font-bold text-red-600">{formatCurrency(saldoPendienteTotal)}</p>
+          {saldoPendienteTotalUSD > 0 && (
+            <p className="text-xs text-red-600 mt-0.5">+ U$D {saldoPendienteTotalUSD.toLocaleString('es-AR', { minimumFractionDigits: 2 })}</p>
+          )}
         </div>
         <div className="bg-white rounded-lg border p-4 shadow-sm">
           <div className="flex items-center gap-2 text-sm text-gray-500 mb-1">
@@ -1022,9 +1082,13 @@ export function CuentasCorrientesContent({ cuentasIniciales, clientes, presupues
             ? Number(movsSorted[movsSorted.length - 1].saldoResultante)
             : Number(cuenta.montoOriginal);
 
+          const esUSD = cuenta.moneda === 'USD';
           const totalCobradoCuenta = movsSorted
             .filter((m) => m.tipo === 'ANTICIPO' || m.tipo === 'PAGO_PARCIAL')
-            .reduce((s, m) => s + Number(m.montoEnARS ?? m.monto), 0);
+            .reduce((s, m) => {
+              if (esUSD) return s + Number(m.equivalenteUSD ?? m.monto);
+              return s + Number(m.montoEnARS ?? m.monto);
+            }, 0);
 
           const progresoPct =
             Number(cuenta.saldoActualizado) > 0
@@ -1048,6 +1112,9 @@ export function CuentasCorrientesContent({ cuentasIniciales, clientes, presupues
                     <span className="font-semibold text-[#1A1A1A]">
                       {cuenta.cliente.razonSocial}
                     </span>
+                    {cuenta.moneda === 'USD' && (
+                      <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-semibold bg-green-100 text-green-700">U$D</span>
+                    )}
                     {cuenta.obra && (
                       <span className="text-gray-400">—</span>
                     )}
@@ -1068,6 +1135,10 @@ export function CuentasCorrientesContent({ cuentasIniciales, clientes, presupues
                 <div className="flex items-center gap-3 shrink-0 ml-4">
                   {cancelado ? (
                     <span className="text-sm font-semibold text-green-700">Saldado</span>
+                  ) : esUSD ? (
+                    <span className="text-sm font-semibold text-red-600">
+                      Saldo: U$D {Number(cuenta.saldoActualizado).toLocaleString('es-AR', { minimumFractionDigits: 2 })}
+                    </span>
                   ) : (
                     <span className="text-sm font-semibold text-red-600">
                       Saldo: {formatCurrency(Number(cuenta.saldoActualizado))}
@@ -1098,24 +1169,30 @@ export function CuentasCorrientesContent({ cuentasIniciales, clientes, presupues
                     <div className="bg-gray-50 rounded-md p-3">
                       <p className="text-xs text-gray-400">Monto contrato</p>
                       <p className="text-sm font-semibold text-[#1A1A1A] mt-0.5">
-                        {formatCurrency(Number(cuenta.montoOriginal))}
+                        {esUSD
+                          ? `U$D ${Number(cuenta.montoOriginal).toLocaleString('es-AR', { minimumFractionDigits: 2 })}`
+                          : formatCurrency(Number(cuenta.montoOriginal))}
                       </p>
                     </div>
                     <div className="bg-gray-50 rounded-md p-3">
                       <p className="text-xs text-gray-400">Saldo pendiente actualizado</p>
                       <p className="text-sm font-semibold text-red-600 mt-0.5">
-                        {formatCurrency(Number(cuenta.saldoActualizado))}
+                        {esUSD
+                          ? `U$D ${Number(cuenta.saldoActualizado).toLocaleString('es-AR', { minimumFractionDigits: 2 })}`
+                          : formatCurrency(Number(cuenta.saldoActualizado))}
                       </p>
-                      <p className="text-xs text-gray-400 mt-1">
-                        Monto ajustado: {formatCurrency(Number(cuenta.montoOriginal) * (Number(cuenta.indiceActual) / Number(cuenta.indiceInicio)))}
-                      </p>
+                      {!esUSD && (
+                        <p className="text-xs text-gray-400 mt-1">
+                          Monto ajustado: {formatCurrency(Number(cuenta.montoOriginal) * (Number(cuenta.indiceActual) / Number(cuenta.indiceInicio)))}
+                        </p>
+                      )}
                     </div>
                   </div>
 
                   {/* Progress bar */}
                   <div className="space-y-1">
                     <div className="flex justify-between text-xs text-gray-400">
-                      <span>Cobrado: {formatCurrency(totalCobradoCuenta)}</span>
+                      <span>Cobrado: {esUSD ? `U$D ${totalCobradoCuenta.toLocaleString('es-AR', { minimumFractionDigits: 2 })}` : formatCurrency(totalCobradoCuenta)}</span>
                       <span>{progresoPct.toFixed(1)}%</span>
                     </div>
                     <div className="w-full bg-gray-100 rounded-full h-2">
@@ -1396,6 +1473,27 @@ export function CuentasCorrientesContent({ cuentasIniciales, clientes, presupues
               </div>
             )}
             <div>
+              <Label className="mb-1.5 block">Moneda de la cuenta</Label>
+              <div className="flex gap-3">
+                {(['ARS', 'USD'] as const).map((m) => (
+                  <button
+                    key={m}
+                    type="button"
+                    onClick={() => setNfMoneda(m)}
+                    className={`flex-1 py-2 px-4 rounded-md border text-sm font-medium transition-colors ${
+                      nfMoneda === m
+                        ? m === 'USD'
+                          ? 'border-green-500 bg-green-50 text-green-700'
+                          : 'border-[#00ADEF] bg-[#E6F1FB] text-[#0C447C]'
+                        : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+                    }`}
+                  >
+                    {m === 'ARS' ? '$ ARS — Pesos' : 'U$D USD — Dólares'}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div>
               <Label>Monto original *</Label>
               <Input
                 type="number"
@@ -1558,7 +1656,7 @@ export function CuentasCorrientesContent({ cuentasIniciales, clientes, presupues
               )}
             </div>
             <div>
-              <Label>Tipo de cambio {pfCaja === 'USD' ? '*' : '(opcional)'}</Label>
+              <Label>Tipo de cambio {(pfCaja === 'USD' || (activeCuenta?.moneda === 'USD' && pfCaja === 'ARS')) ? '*' : '(opcional)'}</Label>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '6px' }}>
                 <span style={{ fontSize: '13px', color: '#4A4A4A', whiteSpace: 'nowrap' }}>$ 1 U$D =</span>
                 <Input
@@ -1598,17 +1696,25 @@ export function CuentasCorrientesContent({ cuentasIniciales, clientes, presupues
             {pfMonto && (() => {
               const calc = calcSaldoPago();
               if (!calc) return null;
+              const isUSDAccount = calc.monedaCuenta === 'USD';
               return (
                 <div className="bg-gray-50 rounded-md p-3 text-sm space-y-1">
-                  {pfCaja === 'USD' && pfTipoCambio && (
+                  {pfCaja === 'USD' && pfTipoCambio && !isUSDAccount && (
                     <div className="text-xs text-gray-500">
                       Monto: U$D {parseFloat(pfMonto).toLocaleString('es-AR', { minimumFractionDigits: 2 })} × ${parseFloat(pfTipoCambio).toLocaleString('es-AR')} = {formatCurrency(calc.montoEnARS)} ARS
+                    </div>
+                  )}
+                  {isUSDAccount && pfCaja === 'ARS' && pfTipoCambio && (
+                    <div className="text-xs text-gray-500">
+                      Monto ARS: {formatCurrency(calc.montoEnARS)} ÷ ${parseFloat(pfTipoCambio).toLocaleString('es-AR')} = U$D {calc.montoParaRestar.toLocaleString('es-AR', { minimumFractionDigits: 2 })}
                     </div>
                   )}
                   <div>
                     <span className="text-gray-500">Saldo resultante: </span>
                     <span className={`font-semibold ${calc.saldoResultante < 0 ? 'text-red-600' : 'text-[#1A1A1A]'}`}>
-                      {formatCurrency(calc.saldoResultante)}
+                      {isUSDAccount
+                        ? `U$D ${calc.saldoResultante.toLocaleString('es-AR', { minimumFractionDigits: 2 })}`
+                        : formatCurrency(calc.saldoResultante)}
                     </span>
                   </div>
                 </div>

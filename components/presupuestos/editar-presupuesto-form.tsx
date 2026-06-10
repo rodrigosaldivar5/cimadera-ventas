@@ -63,6 +63,7 @@ interface PresupuestoInicial {
   observaciones: string;
   descuento: number;
   estado: EstadoPresupuesto;
+  moneda?: string;
   itemsProducto: ItemProducto[];
   lineas: LineaAdicional[];
 }
@@ -79,6 +80,7 @@ export function EditarPresupuestoForm({ presupuesto }: { presupuesto: Presupuest
   const [lineas, setLineas] = useState<LineaAdicional[]>(presupuesto.lineas);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [obraId, setObraId] = useState(presupuesto.obraId);
+  const [moneda, setMoneda] = useState<'ARS' | 'USD'>((presupuesto.moneda as 'ARS' | 'USD') ?? 'ARS');
   const [obras, setObras] = useState<{ id: string; nombre: string }[]>([]);
 
   const { register, handleSubmit, watch, setValue, formState: { errors } } = useForm<Paso1Data>({
@@ -182,6 +184,7 @@ export function EditarPresupuestoForm({ presupuesto }: { presupuesto: Presupuest
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         ...data,
+        moneda,
         obraId: obraId || null,
         puertas: [],
         lineas: lineasPayload,
@@ -263,6 +266,28 @@ export function EditarPresupuestoForm({ presupuesto }: { presupuesto: Presupuest
                   </SelectContent>
                 </Select>
                 {errors.clienteId && <p className="text-xs text-red-500">{errors.clienteId.message}</p>}
+              </div>
+
+              <div className="space-y-2">
+                <Label>Moneda del presupuesto</Label>
+                <div className="flex gap-3">
+                  {(['ARS', 'USD'] as const).map((m) => (
+                    <button
+                      key={m}
+                      type="button"
+                      onClick={() => setMoneda(m)}
+                      className={`flex-1 py-2 px-4 rounded-md border text-sm font-medium transition-colors ${
+                        moneda === m
+                          ? m === 'USD'
+                            ? 'border-green-500 bg-green-50 text-green-700'
+                            : 'border-[#00ADEF] bg-[#E6F1FB] text-[#0C447C]'
+                          : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+                      }`}
+                    >
+                      {m === 'ARS' ? '$ ARS — Pesos' : 'U$D USD — Dólares'}
+                    </button>
+                  ))}
+                </div>
               </div>
 
               <div className="space-y-2">

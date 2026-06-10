@@ -22,6 +22,7 @@ export async function GET() {
       cliente: { select: { razonSocial: true } },
       obraId: true,
       obra: { select: { nombre: true } },
+      moneda: true,
     },
     orderBy: { fechaCreacion: 'desc' },
   });
