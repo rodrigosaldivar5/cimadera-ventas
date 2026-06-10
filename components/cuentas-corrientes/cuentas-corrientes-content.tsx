@@ -843,13 +843,17 @@ export function CuentasCorrientesContent({ cuentasIniciales, clientes, presupues
             nombrePresupuesto: cuenta.presupuesto.nombrePresupuesto ?? null,
           }
         : null,
+      moneda: cuenta.moneda ?? 'ARS',
       movimientos: cuenta.movimientos.map((m) => ({
         fecha: m.fecha,
         tipo: m.tipo,
         descripcion: m.descripcion,
         numeroFactura: m.numeroFactura,
         monto: Number(m.monto),
-        montoEnARS: m.montoEnARS != null ? Number(m.montoEnARS) : Number(m.monto),
+        montoEnARS: m.montoEnARS != null ? Number(m.montoEnARS) : null,
+        equivalenteUSD: m.equivalenteUSD != null ? Number(m.equivalenteUSD) : null,
+        caja: m.caja ?? null,
+        tipoCambio: m.tipoCambio != null ? Number(m.tipoCambio) : null,
         saldoResultante: Number(m.saldoResultante),
       })),
     });

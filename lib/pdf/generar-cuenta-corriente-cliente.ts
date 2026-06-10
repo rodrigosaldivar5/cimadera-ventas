@@ -7,6 +7,7 @@ export interface MovimientoClientePDF {
   descripcion: string;
   monto: number;
   montoEnARS?: number | null;
+  equivalenteUSD?: number | null;
   saldoResultante: number;
   numeroFactura?: string | null;
   tipoCambio?: number | null;
@@ -15,6 +16,7 @@ export interface MovimientoClientePDF {
 
 export interface CuentaClientePDF {
   id: string;
+  moneda?: string;
   montoOriginal: number;
   indiceInicio: number;
   indiceActual: number;
@@ -41,6 +43,20 @@ const TIPO_LABELS: Record<string, string> = {
   PAGO_PARCIAL: 'Pago parcial',
   ACTUALIZACION: 'Actualización',
 };
+
+function fmtCuenta(cuenta: CuentaClientePDF, n: number): string {
+  const prefijo = cuenta.moneda === 'USD' ? 'U$D ' : '$ ';
+  return prefijo + Math.abs(n).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function cobradoCuenta(cuenta: CuentaClientePDF): number {
+  return cuenta.movimientos
+    .filter(m => m.tipo === 'ANTICIPO' || m.tipo === 'PAGO_PARCIAL')
+    .reduce((sum, m) => {
+      if (cuenta.moneda === 'USD' && m.equivalenteUSD != null) return sum + Math.abs(m.equivalenteUSD);
+      return sum + Math.abs(Number(m.montoEnARS ?? m.monto));
+    }, 0);
+}
 
 export async function generarPDFClienteConsolidado(
   cliente: ClienteConsolidadoPDF,
@@ -86,10 +102,6 @@ export async function generarPDFClienteConsolidado(
     doc.text('Página ' + pagina, W - M, H - 13, { align: 'right' });
   }
 
-  function formatPesos(n: number): string {
-    return '$ ' + n.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  }
-
   function nuevaPagina() {
     drawFooter();
     doc.addPage();
@@ -101,7 +113,6 @@ export async function generarPDFClienteConsolidado(
   drawHeader();
   let y = 30;
 
-  // Título
   doc.setFontSize(13);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(0, 173, 239);
@@ -126,19 +137,25 @@ export async function generarPDFClienteConsolidado(
 
   y += 6;
 
-  // Separador
   doc.setDrawColor(0, 173, 239);
   doc.setLineWidth(0.5);
   doc.line(M, y, W - M, y); y += 8;
 
-  // Cálculos del resumen
-  const totalFacturado = cuentas.reduce((s, c) =>
-    s + c.movimientos.filter(m => m.tipo === 'CARGO_INICIAL').reduce((sum, m) => sum + Math.abs(m.monto), 0), 0);
-  const totalCobrado = cuentas.reduce((s, c) =>
-    s + c.movimientos.filter(m => m.tipo === 'ANTICIPO' || m.tipo === 'PAGO_PARCIAL').reduce((sum, m) => sum + Number(m.montoEnARS ?? m.monto), 0), 0);
-  const saldoTotal = cuentas.filter(c => c.estado !== 'CANCELADO').reduce((s, c) => s + c.saldoActualizado, 0);
+  // Separar cuentas por moneda
+  const arsCuentas = cuentas.filter(c => (c.moneda ?? 'ARS') === 'ARS');
+  const usdCuentas = cuentas.filter(c => c.moneda === 'USD');
+
+  const totalFacturadoARS = arsCuentas.reduce((s, c) => s + c.montoOriginal, 0);
+  const totalFacturadoUSD = usdCuentas.reduce((s, c) => s + c.montoOriginal, 0);
+  const totalCobradoARS = arsCuentas.reduce((s, c) => s + cobradoCuenta(c), 0);
+  const totalCobradoUSD = usdCuentas.reduce((s, c) => s + cobradoCuenta(c), 0);
+  const saldoTotalARS = arsCuentas.filter(c => c.estado !== 'CANCELADO').reduce((s, c) => s + c.saldoActualizado, 0);
+  const saldoTotalUSD = usdCuentas.filter(c => c.estado !== 'CANCELADO').reduce((s, c) => s + c.saldoActualizado, 0);
   const activas = cuentas.filter(c => c.estado !== 'CANCELADO').length;
   const saldadas = cuentas.filter(c => c.estado === 'CANCELADO').length;
+
+  const fmtARS = (n: number) => '$ ' + n.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const fmtUSD = (n: number) => 'U$D ' + n.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
   // Resumen general
   doc.setFontSize(11);
@@ -148,19 +165,37 @@ export async function generarPDFClienteConsolidado(
 
   doc.setFontSize(10);
   doc.setFont('helvetica', 'normal');
+
   doc.setTextColor(26, 26, 26);
   doc.text('Total facturado:', M, y);
-  doc.text(formatPesos(totalFacturado), W - M, y, { align: 'right' }); y += 5;
+  doc.text(fmtARS(totalFacturadoARS), W - M, y, { align: 'right' }); y += 5;
+  if (totalFacturadoUSD > 0) {
+    doc.setFontSize(9);
+    doc.setTextColor(74, 74, 74);
+    doc.text(fmtUSD(totalFacturadoUSD), W - M, y, { align: 'right' }); y += 5;
+    doc.setFontSize(10);
+  }
 
   doc.setTextColor(26, 26, 26);
   doc.text('Total cobrado:', M, y);
   doc.setTextColor(22, 101, 52);
-  doc.text(formatPesos(totalCobrado), W - M, y, { align: 'right' }); y += 5;
+  doc.text(fmtARS(totalCobradoARS), W - M, y, { align: 'right' }); y += 5;
+  if (totalCobradoUSD > 0) {
+    doc.setFontSize(9);
+    doc.setTextColor(22, 101, 52);
+    doc.text(fmtUSD(totalCobradoUSD), W - M, y, { align: 'right' }); y += 5;
+    doc.setFontSize(10);
+  }
 
   doc.setTextColor(153, 27, 27);
   doc.setFont('helvetica', 'bold');
   doc.text('Saldo pendiente:', M, y);
-  doc.text(formatPesos(saldoTotal), W - M, y, { align: 'right' }); y += 5;
+  doc.text(fmtARS(saldoTotalARS), W - M, y, { align: 'right' }); y += 5;
+  if (saldoTotalUSD > 0) {
+    doc.setFontSize(9);
+    doc.text(fmtUSD(saldoTotalUSD), W - M, y, { align: 'right' }); y += 5;
+    doc.setFontSize(10);
+  }
 
   doc.setTextColor(74, 74, 74);
   doc.setFont('helvetica', 'normal');
@@ -185,9 +220,7 @@ export async function generarPDFClienteConsolidado(
   // Tabla resumen — filas
   cuentas.forEach((c, i) => {
     if (y > H - 30) { nuevaPagina(); y = 32; }
-    const cobrado = c.movimientos
-      .filter(m => m.tipo === 'ANTICIPO' || m.tipo === 'PAGO_PARCIAL')
-      .reduce((sum, m) => sum + Number(m.montoEnARS ?? m.monto), 0);
+    const cobrado = cobradoCuenta(c);
 
     if (i % 2 === 0) {
       doc.setFillColor(248, 248, 248);
@@ -200,41 +233,63 @@ export async function generarPDFClienteConsolidado(
     doc.text(String(i + 1), M + 2, y);
     doc.text((c.obra?.nombre ?? 'Sin obra').slice(0, 28), M + 10, y);
     doc.text('#' + (c.presupuesto?.numero ?? '—'), M + 65, y);
-    doc.text(formatPesos(c.montoOriginal), M + 85, y);
+    doc.text(fmtCuenta(c, c.montoOriginal), M + 85, y);
     doc.setTextColor(22, 101, 52);
-    doc.text(formatPesos(cobrado), M + 115, y);
+    doc.text(fmtCuenta(c, cobrado), M + 115, y);
     doc.setTextColor(153, 27, 27);
-    doc.text(formatPesos(c.saldoActualizado), M + 140, y);
+    doc.text(fmtCuenta(c, c.saldoActualizado), M + 140, y);
     doc.setTextColor(74, 74, 74);
     doc.text(c.estado === 'CANCELADO' ? 'Saldado' : 'Pendiente', M + 165, y);
     y += 6;
   });
 
-  // Fila total
+  // Fila totales
   y += 2;
   doc.setDrawColor(0, 173, 239);
   doc.setLineWidth(0.5);
   doc.line(M, y, W - M, y); y += 5;
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(9);
+
   doc.setTextColor(26, 26, 26);
-  doc.text('TOTAL', M + 10, y);
-  doc.text(formatPesos(totalFacturado), M + 85, y);
+  doc.text('TOTAL ARS', M + 10, y);
+  doc.text(fmtARS(totalFacturadoARS), M + 85, y);
   doc.setTextColor(22, 101, 52);
-  doc.text(formatPesos(totalCobrado), M + 115, y);
+  doc.text(fmtARS(totalCobradoARS), M + 115, y);
   doc.setTextColor(153, 27, 27);
-  doc.text(formatPesos(saldoTotal), M + 140, y);
+  doc.text(fmtARS(saldoTotalARS), M + 140, y);
+
+  if (totalFacturadoUSD > 0) {
+    y += 6;
+    doc.setTextColor(26, 26, 26);
+    doc.text('TOTAL USD', M + 10, y);
+    doc.text(fmtUSD(totalFacturadoUSD), M + 85, y);
+    doc.setTextColor(22, 101, 52);
+    doc.text(fmtUSD(totalCobradoUSD), M + 115, y);
+    doc.setTextColor(153, 27, 27);
+    doc.text(fmtUSD(saldoTotalUSD), M + 140, y);
+  }
 
   // === PÁGINAS SIGUIENTES: DETALLE POR OBRA ===
   for (const cuenta of cuentas) {
     nuevaPagina();
     y = 32;
 
+    const cuentaMoneda = cuenta.moneda ?? 'ARS';
+    const cuentaPrefijo = cuentaMoneda === 'USD' ? 'U$D ' : '$ ';
+    const fmt = (n: number) =>
+      cuentaPrefijo + Math.abs(n).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
     // Encabezado de obra
     doc.setFontSize(12);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(0, 173, 239);
     doc.text('OBRA: ' + (cuenta.obra?.nombre ?? 'Sin obra').toUpperCase(), M, y);
+    if (cuentaMoneda === 'USD') {
+      doc.setFontSize(9);
+      doc.setTextColor(22, 163, 74);
+      doc.text('U$D', W - M, y, { align: 'right' });
+    }
     y += 5;
     doc.setFontSize(9);
     doc.setTextColor(74, 74, 74);
@@ -248,13 +303,10 @@ export async function generarPDFClienteConsolidado(
     doc.setLineWidth(0.3);
     doc.line(M, y, W - M, y); y += 6;
 
-    // Datos del índice y montos
     const idxInicio = cuenta.indiceInicio;
     const idxActual = cuenta.indiceActual;
     const variacion = idxInicio > 0 ? ((idxActual / idxInicio - 1) * 100).toFixed(2) : '0.00';
-    const cobradoObra = cuenta.movimientos
-      .filter(m => m.tipo === 'ANTICIPO' || m.tipo === 'PAGO_PARCIAL')
-      .reduce((sum, m) => sum + Number(m.montoEnARS ?? m.monto), 0);
+    const cobradoObra = cobradoCuenta(cuenta);
     const montoAjustado = idxInicio > 0
       ? cuenta.montoOriginal * (idxActual / idxInicio)
       : cuenta.montoOriginal;
@@ -271,15 +323,14 @@ export async function generarPDFClienteConsolidado(
 
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(26, 26, 26);
-    doc.text('Monto contrato:', M, y); doc.text(formatPesos(cuenta.montoOriginal), M + 70, y); y += 4;
-    doc.text('Monto ajustado:', M, y); doc.text(formatPesos(montoAjustado), M + 70, y); y += 4;
+    doc.text('Monto contrato:', M, y); doc.text(fmt(cuenta.montoOriginal), M + 70, y); y += 4;
+    doc.text('Monto ajustado:', M, y); doc.text(fmt(montoAjustado), M + 70, y); y += 4;
     doc.setTextColor(22, 101, 52);
-    doc.text('Total cobrado:', M, y); doc.text(formatPesos(cobradoObra), M + 70, y); y += 4;
+    doc.text('Total cobrado:', M, y); doc.text(fmt(cobradoObra), M + 70, y); y += 4;
     doc.setTextColor(153, 27, 27);
     doc.setFont('helvetica', 'bold');
-    doc.text('Saldo pendiente:', M, y); doc.text(formatPesos(cuenta.saldoActualizado), M + 70, y); y += 4;
+    doc.text('Saldo pendiente:', M, y); doc.text(fmt(cuenta.saldoActualizado), M + 70, y); y += 4;
 
-    // Barra de cobranza
     doc.setTextColor(74, 74, 74);
     doc.setFont('helvetica', 'normal');
     const pct = cuenta.montoOriginal > 0 ? (cobradoObra / cuenta.montoOriginal * 100) : 0;
@@ -290,7 +341,7 @@ export async function generarPDFClienteConsolidado(
     doc.rect(M + 35, y - 3, Math.min(60, 60 * pct / 100), 4, 'F');
     y += 10;
 
-    // Tabla de movimientos — encabezado
+    // Tabla de movimientos
     doc.setFontSize(9);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(26, 26, 26);
@@ -308,13 +359,16 @@ export async function generarPDFClienteConsolidado(
     doc.text('Saldo', M + 158, y);
     y += 5;
 
-    // Filas de movimientos
     const movsSorted = [...cuenta.movimientos].sort(
       (a, b) => new Date(a.fecha).getTime() - new Date(b.fecha).getTime()
     );
 
     for (let i = 0; i < movsSorted.length; i++) {
       const mov = movsSorted[i];
+      const hasTCDetail = !!(mov.tipoCambio && mov.caja && (
+        (cuentaMoneda === 'USD' && mov.caja === 'ARS') ||
+        (cuentaMoneda === 'ARS' && mov.caja === 'USD')
+      ));
       if (y > H - 30) { nuevaPagina(); y = 32; }
 
       if (i % 2 === 1) {
@@ -332,23 +386,39 @@ export async function generarPDFClienteConsolidado(
       doc.text(mov.numeroFactura ?? '—', M + 105, y);
 
       const esPositivo = mov.tipo === 'CARGO_INICIAL' || mov.tipo === 'ACTUALIZACION';
+      const isReduccion = !esPositivo;
+      const montoDisplay = isReduccion
+        ? (cuentaMoneda === 'USD' && mov.equivalenteUSD != null
+            ? Math.abs(mov.equivalenteUSD)
+            : Math.abs(Number(mov.montoEnARS ?? mov.monto)))
+        : Math.abs(Number(mov.monto));
+      const montoStr = (esPositivo ? '+' : '-') + cuentaPrefijo +
+        montoDisplay.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
       doc.setTextColor(esPositivo ? 153 : 22, esPositivo ? 27 : 101, esPositivo ? 27 : 52);
-      doc.text((esPositivo ? '+' : '-') + formatPesos(Math.abs(Number(mov.montoEnARS ?? mov.monto))), M + 128, y);
+      doc.text(montoStr, M + 128, y);
 
       doc.setTextColor(26, 26, 26);
-      doc.text(formatPesos(mov.saldoResultante), M + 158, y);
+      doc.text(fmt(mov.saldoResultante), M + 158, y);
       y += 5;
 
-      if (mov.tipoCambio) {
+      if (hasTCDetail) {
         if (y > H - 30) { nuevaPagina(); y = 32; }
         doc.setFontSize(6.5);
         doc.setTextColor(148, 163, 184);
-        const moneda = mov.caja === 'USD' ? 'U$D' : '$';
-        doc.text(
-          moneda + ' ' + (Number(mov.montoEnARS ?? mov.monto) / mov.tipoCambio).toFixed(2) + ' × $' + mov.tipoCambio.toFixed(2),
-          M + 50, y
-        );
-        y += 4;
+        const tcVal = Number(mov.tipoCambio);
+        let tcLine = '';
+        if (cuentaMoneda === 'USD' && mov.caja === 'ARS') {
+          const arsAmt = Math.abs(Number(mov.montoEnARS ?? mov.monto));
+          tcLine = `$ ${arsAmt.toLocaleString('es-AR', { minimumFractionDigits: 2 })} ARS ÷ TC $${tcVal.toLocaleString('es-AR')}`;
+        } else if (cuentaMoneda === 'ARS' && mov.caja === 'USD') {
+          const usdAmt = Math.abs(Number(mov.monto));
+          tcLine = `U$D ${usdAmt.toLocaleString('es-AR', { minimumFractionDigits: 2 })} × TC $${tcVal.toLocaleString('es-AR')}`;
+        }
+        if (tcLine) {
+          doc.text(tcLine, M + 50, y);
+          y += 4;
+        }
       }
     }
   }

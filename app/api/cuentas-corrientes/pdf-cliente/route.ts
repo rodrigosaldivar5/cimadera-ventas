@@ -28,6 +28,7 @@ export async function GET(request: NextRequest) {
 
   const cuentas = rawCuentas.map((c) => ({
     id: c.id,
+    moneda: c.moneda ?? 'ARS',
     montoOriginal: Number(c.montoOriginal),
     indiceInicio: Number(c.indiceInicio),
     indiceActual: Number(c.indiceActual),
@@ -42,7 +43,8 @@ export async function GET(request: NextRequest) {
       tipo: m.tipo,
       descripcion: m.descripcion,
       monto: Number(m.monto),
-      montoEnARS: m.montoEnARS != null ? Number(m.montoEnARS) : Number(m.monto),
+      montoEnARS: m.montoEnARS != null ? Number(m.montoEnARS) : null,
+      equivalenteUSD: m.equivalenteUSD != null ? Number(m.equivalenteUSD) : null,
       saldoResultante: Number(m.saldoResultante),
       numeroFactura: m.numeroFactura ?? null,
       tipoCambio: m.tipoCambio != null ? Number(m.tipoCambio) : null,

@@ -8,11 +8,15 @@ export type MovimientoPDF = {
   numeroFactura?: string | null;
   monto: number;
   montoEnARS?: number | null;
+  equivalenteUSD?: number | null;
+  caja?: string | null;
+  tipoCambio?: number | null;
   saldoResultante: number;
 };
 
 export type CuentaPDF = {
   id: string;
+  moneda?: string;
   fechaInicio: Date | string;
   montoOriginal: number;
   indiceInicio: number;
@@ -43,9 +47,6 @@ const COLORS = {
 function hexToRgb(hex: string): [number, number, number] {
   return [parseInt(hex.slice(1, 3), 16), parseInt(hex.slice(3, 5), 16), parseInt(hex.slice(5, 7), 16)];
 }
-
-const fmtCurrency = (n: number) =>
-  new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', minimumFractionDigits: 2 }).format(n);
 
 const fmtDate = (d: Date | string | null | undefined) => {
   if (!d) return '—';
@@ -83,7 +84,6 @@ function drawHeader(doc: jsPDF, titulo: string, logoDataUrl: string | null) {
     doc.text(' S.A.', marginL + cimaderaWidth, baseY);
   }
 
-  // Contacto
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(7.5);
   doc.setTextColor(grR, grG, grB);
@@ -92,19 +92,16 @@ function drawHeader(doc: jsPDF, titulo: string, logoDataUrl: string | null) {
     marginL, baseY + 5,
   );
 
-  // Título del documento (derecha) en azul
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(16);
   doc.setTextColor(azR, azG, azB);
   doc.text(titulo, W - marginR, baseY, { align: 'right' });
 
-  // Ubicación
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(7.5);
   doc.setTextColor(grR, grG, grB);
   doc.text('Las Heras, Mendoza, Argentina', W - marginR, baseY + 5, { align: 'right' });
 
-  // Línea separadora
   doc.setDrawColor(sepR, sepG, sepB);
   doc.setLineWidth(0.4);
   doc.line(marginL, HEADER_H + 2, W - marginR, HEADER_H + 2);
@@ -137,6 +134,11 @@ export async function generarCuentaCorrientePDF(cuenta: CuentaPDF): Promise<void
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
   let y = CONTENT_START_Y;
 
+  const moneda = cuenta.moneda ?? 'ARS';
+  const prefijo = moneda === 'USD' ? 'U$D ' : '$ ';
+  const formatMonto = (n: number): string =>
+    prefijo + Math.abs(n).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
   const [azR, azG, azB] = hexToRgb(COLORS.azulCimadera);
   const [nR, nG, nB] = hexToRgb(COLORS.negroCimadera);
   const [grR, grG, grB] = hexToRgb(COLORS.grisCorporativo);
@@ -162,7 +164,6 @@ export async function generarCuentaCorrientePDF(cuenta: CuentaPDF): Promise<void
   doc.setLineWidth(0.5);
   doc.line(colMid, y, colMid, y + 32);
 
-  // Izquierda: cliente
   doc.setTextColor(grR, grG, grB);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(7);
@@ -181,11 +182,14 @@ export async function generarCuentaCorrientePDF(cuenta: CuentaPDF): Promise<void
   if (cuenta.cliente.email) { doc.text(cuenta.cliente.email, col1, clienteY); clienteY += 4.5; }
   if (cuenta.cliente.telefono) { doc.text(cuenta.cliente.telefono, col1, clienteY); }
 
-  // Derecha: obra / presupuesto / fecha
   doc.setTextColor(grR, grG, grB);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(7);
   doc.text('DETALLE', col2, y + 4);
+  if (moneda === 'USD') {
+    doc.setTextColor(22, 163, 74);
+    doc.text('U$D USD', col2 + 22, y + 4);
+  }
 
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(8.5);
@@ -243,7 +247,6 @@ export async function generarCuentaCorrientePDF(cuenta: CuentaPDF): Promise<void
     `${variacion}%`,
   ];
 
-  // Header row
   doc.setFillColor(azR, azG, azB);
   doc.rect(marginL, y, contentW, 6, 'F');
   doc.setFont('helvetica', 'bold');
@@ -254,7 +257,6 @@ export async function generarCuentaCorrientePDF(cuenta: CuentaPDF): Promise<void
   });
   y += 6;
 
-  // Data row
   doc.setFillColor(gcR, gcG, gcB);
   doc.rect(marginL, y, contentW, 7, 'F');
   doc.setFont('helvetica', 'normal');
@@ -276,18 +278,21 @@ export async function generarCuentaCorrientePDF(cuenta: CuentaPDF): Promise<void
   const colW2 = contentW / 3;
   const totalCobrado = cuenta.movimientos
     .filter((m) => m.tipo === 'ANTICIPO' || m.tipo === 'PAGO_PARCIAL')
-    .reduce((sum, m) => sum + Number(m.montoEnARS ?? m.monto), 0);
+    .reduce((sum, m) => {
+      if (moneda === 'USD' && m.equivalenteUSD != null) return sum + Math.abs(m.equivalenteUSD);
+      return sum + Math.abs(Number(m.montoEnARS ?? m.monto));
+    }, 0);
 
   const finLabels = ['Monto original', 'Total cobrado', 'Saldo actualizado'];
   const finValues = [
-    fmtCurrency(Number(cuenta.montoOriginal)),
-    fmtCurrency(totalCobrado),
-    fmtCurrency(Number(cuenta.saldoActualizado)),
+    formatMonto(Number(cuenta.montoOriginal)),
+    formatMonto(totalCobrado),
+    formatMonto(Number(cuenta.saldoActualizado)),
   ];
   const finColors: Array<[number, number, number]> = [
     hexToRgb(COLORS.negroCimadera),
-    [22, 101, 52],   // green-800
-    [153, 27, 27],   // red-800
+    [22, 101, 52],
+    [153, 27, 27],
   ];
 
   doc.setFillColor(azR, azG, azB);
@@ -318,7 +323,6 @@ export async function generarCuentaCorrientePDF(cuenta: CuentaPDF): Promise<void
   doc.text('MOVIMIENTOS', marginL, y);
   y += 4;
 
-  // Column widths
   const cols = {
     fecha: 22,
     tipo: 28,
@@ -327,7 +331,6 @@ export async function generarCuentaCorrientePDF(cuenta: CuentaPDF): Promise<void
     monto: 30,
     saldo: 28,
   };
-  // total = 180 = contentW exactly with marginL=15
   const colX = {
     fecha: marginL,
     tipo: marginL + cols.fecha,
@@ -337,7 +340,6 @@ export async function generarCuentaCorrientePDF(cuenta: CuentaPDF): Promise<void
     saldo: marginL + cols.fecha + cols.tipo + cols.descripcion + cols.factura + cols.monto,
   };
 
-  // Header
   doc.setFillColor(azR, azG, azB);
   doc.rect(marginL, y, contentW, 6.5, 'F');
   doc.setFont('helvetica', 'bold');
@@ -360,7 +362,11 @@ export async function generarCuentaCorrientePDF(cuenta: CuentaPDF): Promise<void
 
   let altBg = false;
   for (const mov of cuenta.movimientos) {
-    checkPage(8);
+    const hasTCDetail = !!(mov.tipoCambio && mov.caja && (
+      (moneda === 'USD' && mov.caja === 'ARS') ||
+      (moneda === 'ARS' && mov.caja === 'USD')
+    ));
+    checkPage(hasTCDetail ? 12 : 8);
     const rowH = 6.5;
     const [bgR, bgG, bgB] = altBg ? [248, 248, 248] : [255, 255, 255];
     doc.setFillColor(bgR, bgG, bgB);
@@ -373,25 +379,46 @@ export async function generarCuentaCorrientePDF(cuenta: CuentaPDF): Promise<void
     doc.text(fmtDate(mov.fecha), colX.fecha + 1, y + 4.5);
     doc.text(tipoLabel[mov.tipo] ?? mov.tipo, colX.tipo + 1, y + 4.5);
 
-    // Descripción truncada
     const descLines = doc.splitTextToSize(mov.descripcion, cols.descripcion - 2);
     doc.text(descLines[0] ?? '', colX.descripcion + 1, y + 4.5);
-
     doc.text(mov.numeroFactura ?? '—', colX.factura + 1, y + 4.5);
 
-    // Monto: negative for ANTICIPO/PAGO_PARCIAL, positive for others
     const isReduccion = mov.tipo === 'ANTICIPO' || mov.tipo === 'PAGO_PARCIAL';
+    const montoDisplay = isReduccion
+      ? (moneda === 'USD' && mov.equivalenteUSD != null
+          ? Math.abs(mov.equivalenteUSD)
+          : Math.abs(Number(mov.montoEnARS ?? mov.monto)))
+      : Math.abs(Number(mov.monto));
+    const montoStr = (isReduccion ? '-' : '+') + prefijo +
+      montoDisplay.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
     doc.setTextColor(isReduccion ? 22 : nR, isReduccion ? 101 : nG, isReduccion ? 52 : nB);
-    const montoStr = (isReduccion ? '-' : '+') + fmtCurrency(Math.abs(Number(mov.montoEnARS ?? mov.monto)));
     doc.text(montoStr, colX.monto + cols.monto - 2, y + 4.5, { align: 'right' });
 
     doc.setTextColor(nR, nG, nB);
-    doc.text(fmtCurrency(Number(mov.saldoResultante)), colX.saldo + cols.saldo - 2, y + 4.5, { align: 'right' });
+    doc.text(formatMonto(Number(mov.saldoResultante)), colX.saldo + cols.saldo - 2, y + 4.5, { align: 'right' });
 
     y += rowH;
+
+    if (hasTCDetail) {
+      doc.setFontSize(6.5);
+      doc.setTextColor(148, 163, 184);
+      const tcVal = Number(mov.tipoCambio);
+      let tcLine = '';
+      if (moneda === 'USD' && mov.caja === 'ARS') {
+        const arsAmt = Math.abs(Number(mov.montoEnARS ?? mov.monto));
+        tcLine = `$ ${arsAmt.toLocaleString('es-AR', { minimumFractionDigits: 2 })} ARS ÷ TC $${tcVal.toLocaleString('es-AR')}`;
+      } else if (moneda === 'ARS' && mov.caja === 'USD') {
+        const usdAmt = Math.abs(Number(mov.monto));
+        tcLine = `U$D ${usdAmt.toLocaleString('es-AR', { minimumFractionDigits: 2 })} × TC $${tcVal.toLocaleString('es-AR')}`;
+      }
+      if (tcLine) {
+        doc.text(tcLine, colX.descripcion + 1, y);
+        y += 3.5;
+      }
+    }
   }
 
-  // Bottom border for table
   const [sepR, sepG, sepB] = hexToRgb(COLORS.grisSeparador);
   doc.setDrawColor(sepR, sepG, sepB);
   doc.setLineWidth(0.3);
