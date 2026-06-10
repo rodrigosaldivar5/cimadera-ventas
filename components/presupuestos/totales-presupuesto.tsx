@@ -14,9 +14,15 @@ interface Props {
   totalFinal: number;
   precioFinal: number | null;
   tasaIvaInicial: number;
+  moneda?: string;
 }
 
-export function TotalesPresupuesto({ presupuestoId, totalFinal, precioFinal, tasaIvaInicial }: Props) {
+export function TotalesPresupuesto({ presupuestoId, totalFinal, precioFinal, tasaIvaInicial, moneda }: Props) {
+  const fmtAmt = (n: number): string =>
+    moneda === 'USD'
+      ? `U$D ${n.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+      : formatCurrency(n);
+
   const [neto, setNeto] = useState(String(precioFinal ?? totalFinal));
   const [editingNeto, setEditingNeto] = useState(false);
   const [tasa, setTasa] = useState(String(tasaIvaInicial));
@@ -47,7 +53,7 @@ export function TotalesPresupuesto({ presupuestoId, totalFinal, precioFinal, tas
         {showSubtotalCalc && (
           <div className="flex justify-between text-xs text-slate-400">
             <span>Subtotal calculado</span>
-            <span>{formatCurrency(totalFinal)}</span>
+            <span>{fmtAmt(totalFinal)}</span>
           </div>
         )}
 
@@ -73,7 +79,7 @@ export function TotalesPresupuesto({ presupuestoId, totalFinal, precioFinal, tas
             </div>
           ) : (
             <div className="flex items-center gap-1">
-              <span className="font-medium text-slate-700">{formatCurrency(netoNum)}</span>
+              <span className="font-medium text-slate-700">{fmtAmt(netoNum)}</span>
               <Button
                 size="icon"
                 variant="ghost"
@@ -103,7 +109,7 @@ export function TotalesPresupuesto({ presupuestoId, totalFinal, precioFinal, tas
         {tasaNum > 0 && (
           <div className="flex justify-between text-sm text-slate-500">
             <span>IVA ({tasaNum}%)</span>
-            <span>{formatCurrency(montoIva)}</span>
+            <span>{fmtAmt(montoIva)}</span>
           </div>
         )}
 
@@ -116,7 +122,7 @@ export function TotalesPresupuesto({ presupuestoId, totalFinal, precioFinal, tas
               {tasaNum === 0 ? 'Exento' : `IVA ${tasaNum}%`}
             </Badge>
           </div>
-          <span>{formatCurrency(total)}</span>
+          <span>{fmtAmt(total)}</span>
         </div>
 
         {dirty && (

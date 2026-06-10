@@ -49,6 +49,11 @@ export default async function PresupuestoDetallePage({ params }: { params: { id:
 
   if (!presupuesto) notFound();
 
+  const fmtAmt = (n: number) =>
+    presupuesto.moneda === 'USD'
+      ? `U$D ${n.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+      : formatCurrency(n);
+
   return (
     <div className="max-w-4xl mx-auto space-y-6">
       {/* Toolbar */}
@@ -207,8 +212,8 @@ export default async function PresupuestoDetallePage({ params }: { params: { id:
                       <TableCell>{Number(p.ancho).toFixed(2)}m × {Number(p.alto).toFixed(2)}m</TableCell>
                       <TableCell>{p.colorMarca ?? '—'}</TableCell>
                       <TableCell className="text-center">{p.cantidad}</TableCell>
-                      <TableCell className="text-right">{formatCurrency(Number(p.precioUnitario))}</TableCell>
-                      <TableCell className="text-right font-medium">{formatCurrency(Number(p.subtotal))}</TableCell>
+                      <TableCell className="text-right">{fmtAmt(Number(p.precioUnitario))}</TableCell>
+                      <TableCell className="text-right font-medium">{fmtAmt(Number(p.subtotal))}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -234,8 +239,8 @@ export default async function PresupuestoDetallePage({ params }: { params: { id:
                     <TableRow key={l.id}>
                       <TableCell>{l.item?.nombre ?? l.productoNombre ?? '—'}</TableCell>
                       <TableCell className="text-center">{Number(l.cantidad).toFixed(2)} {l.item?.unidad ?? 'u.'}</TableCell>
-                      <TableCell className="text-right">{formatCurrency(Number(l.precioUnitario))}</TableCell>
-                      <TableCell className="text-right font-medium">{formatCurrency(Number(l.subtotal))}</TableCell>
+                      <TableCell className="text-right">{fmtAmt(Number(l.precioUnitario))}</TableCell>
+                      <TableCell className="text-right font-medium">{fmtAmt(Number(l.subtotal))}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -251,6 +256,7 @@ export default async function PresupuestoDetallePage({ params }: { params: { id:
             totalFinal={Number(presupuesto.totalFinal)}
             precioFinal={presupuesto.precioFinal != null ? Number(presupuesto.precioFinal) : null}
             tasaIvaInicial={Number(presupuesto.tasaIva)}
+            moneda={presupuesto.moneda}
           />
 
           {/* Observaciones */}

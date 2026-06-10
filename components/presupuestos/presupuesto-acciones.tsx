@@ -173,7 +173,9 @@ export function PresupuestoAcciones({ presupuesto, presupuestoPDF, presupuestoDa
           </p>
           {presupuestoDatos && (
             <p className="text-2xl font-bold text-[#00ADEF] text-center">
-              {formatCurrency(Number(presupuestoDatos.precioFinal ?? presupuestoDatos.totalFinal))}
+              {presupuestoDatos.moneda === 'USD'
+                ? `U$D ${Number(presupuestoDatos.precioFinal ?? presupuestoDatos.totalFinal).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                : formatCurrency(Number(presupuestoDatos.precioFinal ?? presupuestoDatos.totalFinal))}
             </p>
           )}
           <DialogFooter className="flex-col gap-2 sm:flex-row sm:justify-center">

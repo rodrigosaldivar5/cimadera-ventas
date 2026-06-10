@@ -918,7 +918,9 @@ export function CuentasCorrientesContent({ cuentasIniciales, clientes, presupues
                   </p>
                   <div className="flex items-center gap-3 mt-0.5">
                     <span className="text-sm font-bold text-[#633806]">
-                      {formatCurrency(Number(ps.precioFinal ?? ps.totalFinal))}
+                      {ps.moneda === 'USD'
+                        ? `U$D ${Number(ps.precioFinal ?? ps.totalFinal).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                        : formatCurrency(Number(ps.precioFinal ?? ps.totalFinal))}
                     </span>
                     <span className="text-xs text-[#8a6030]">
                       Aprobado el {formatDate(new Date(ps.fechaCreacion))}
@@ -1260,13 +1262,23 @@ export function CuentasCorrientesContent({ cuentasIniciales, clientes, presupues
                             </TableCell>
                             <TableCell className="text-sm text-right font-medium">
                               {mov.tipo === 'ANTICIPO' || mov.tipo === 'PAGO_PARCIAL' ? (
-                                <span className="text-red-600">−{formatCurrency(Number(mov.monto))}</span>
+                                <span className="text-red-600">
+                                  −{mov.caja === 'USD'
+                                    ? `U$D ${Number(mov.monto).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                                    : formatCurrency(Number(mov.monto))}
+                                </span>
                               ) : (
-                                <span className="text-green-700">+{formatCurrency(Number(mov.monto))}</span>
+                                <span className="text-green-700">
+                                  +{esUSD
+                                    ? `U$D ${Number(mov.monto).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                                    : formatCurrency(Number(mov.monto))}
+                                </span>
                               )}
                             </TableCell>
                             <TableCell className="text-sm text-right font-semibold">
-                              {formatCurrency(Number(mov.saldoResultante))}
+                              {esUSD
+                                ? `U$D ${Number(mov.saldoResultante).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                                : formatCurrency(Number(mov.saldoResultante))}
                             </TableCell>
                             <TableCell>
                               <div className="flex items-center gap-1">
