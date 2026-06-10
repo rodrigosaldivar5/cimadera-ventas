@@ -24,6 +24,7 @@ interface PresupuestoDatos {
   precioFinal?: number | null;
   totalFinal: number;
   cuentaCorrienteId?: string | null;
+  moneda?: string | null;
 }
 
 interface Props {
@@ -99,6 +100,7 @@ export function PresupuestoAcciones({ presupuesto, presupuestoPDF, presupuestoDa
           indiceActual: parseFloat(ccIndiceActual),
           fechaInicio: ccFechaInicio,
           observaciones: ccObservaciones || null,
+          moneda: presupuestoDatos!.moneda ?? 'ARS',
         }),
       });
       if (res.ok) {

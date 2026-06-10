@@ -81,6 +81,7 @@ export default async function PresupuestoDetallePage({ params }: { params: { id:
               precioFinal: presupuesto.precioFinal != null ? Number(presupuesto.precioFinal) : null,
               totalFinal: Number(presupuesto.totalFinal),
               cuentaCorrienteId: presupuesto.cuentaCorriente?.id ?? null,
+              moneda: presupuesto.moneda,
             }}
             presupuestoPDF={{
               numero: presupuesto.numero,
