@@ -11,26 +11,27 @@ export default async function DashboardLayout({ children }: { children: React.Re
   if (!session.user.aprobado) redirect('/pendiente');
 
   return (
-    <div className="flex h-screen overflow-hidden bg-slate-100">
-      <PushProvider />
-      {/* Sidebar desktop */}
-      <div className="hidden lg:flex lg:flex-shrink-0">
-        <Sidebar
-          userName={session.user.nombre}
-          userEmail={session.user.email ?? ''}
-          rolNombre={session.user.rolNombre}
-        />
-      </div>
+    <PushProvider>
+      <div className="flex h-screen overflow-hidden bg-slate-100">
+        {/* Sidebar desktop */}
+        <div className="hidden lg:flex lg:flex-shrink-0">
+          <Sidebar
+            userName={session.user.nombre}
+            userEmail={session.user.email ?? ''}
+            rolNombre={session.user.rolNombre}
+          />
+        </div>
 
-      {/* Contenido principal */}
-      <div className="flex flex-1 flex-col overflow-hidden">
-        <Header
-          userName={session.user.nombre}
-          userEmail={session.user.email ?? ''}
-          rolNombre={session.user.rolNombre}
-        />
-        <main className="flex-1 overflow-y-auto p-4 lg:p-6">{children}</main>
+        {/* Contenido principal */}
+        <div className="flex flex-1 flex-col overflow-hidden">
+          <Header
+            userName={session.user.nombre}
+            userEmail={session.user.email ?? ''}
+            rolNombre={session.user.rolNombre}
+          />
+          <main className="flex-1 overflow-y-auto p-4 lg:p-6">{children}</main>
+        </div>
       </div>
-    </div>
+    </PushProvider>
   );
 }

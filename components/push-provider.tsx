@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
+import React from 'react';
 
 function urlBase64ToUint8Array(base64String: string): ArrayBuffer {
   const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
@@ -11,7 +12,7 @@ function urlBase64ToUint8Array(base64String: string): ArrayBuffer {
   return arr.buffer as ArrayBuffer;
 }
 
-export function PushProvider() {
+export function PushProvider({ children }: { children?: React.ReactNode }) {
   useEffect(() => {
     if (typeof window === 'undefined') return;
     if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
@@ -48,5 +49,6 @@ export function PushProvider() {
     return () => clearTimeout(t);
   }, []);
 
-  return null;
+  // En el return, envolver los children:
+  return <>{children}</>;
 }
