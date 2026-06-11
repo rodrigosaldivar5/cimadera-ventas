@@ -38,6 +38,7 @@ export function PushPermissionBanner() {
 
   const registrarSW = async () => {
     console.log('[PUSH BANNER] Registrando Service Worker...');
+    // Verificar VAPID key
     const vapidKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
     console.log('[PUSH BANNER] VAPID key presente:', !!vapidKey);
     console.log('[PUSH BANNER] VAPID key valor:', vapidKey ? vapidKey.slice(0, 20) + '...' : 'undefined');
