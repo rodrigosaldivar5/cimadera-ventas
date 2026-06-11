@@ -49,6 +49,7 @@ export function PushPermissionBanner() {
       return;
     }
 
+    // Registrar SW
     console.log('[PUSH BANNER] navigator.serviceWorker.register(/push-sw.js)...');
     const registration = await navigator.serviceWorker.register('/push-sw.js');
     console.log('[PUSH BANNER] SW registrado, scope:', registration.scope);
