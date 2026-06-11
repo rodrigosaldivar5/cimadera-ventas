@@ -127,6 +127,7 @@ export function PushPermissionBanner() {
         return;
       }
 
+      // Pedir permiso
       console.log('[PUSH BANNER] Permiso actual:', Notification.permission);
       console.log('[PUSH BANNER] Pidiendo permiso...');
       const permission = await Notification.requestPermission();
