@@ -86,6 +86,7 @@ export function PushPermissionBanner() {
       }
     }
 
+    // Extraer keys
     const subJSON = subscription.toJSON();
     console.log('[PUSH BANNER] Endpoint:', subJSON.endpoint ? subJSON.endpoint.slice(0, 50) + '...' : 'none');
     console.log('[PUSH BANNER] Keys presentes:', !!subJSON.keys?.p256dh, !!subJSON.keys?.auth);
