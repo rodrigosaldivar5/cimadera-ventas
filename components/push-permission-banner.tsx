@@ -115,6 +115,7 @@ export function PushPermissionBanner() {
     console.log('[PUSH BANNER] === INICIO ACTIVACIÓN ===');
 
     try {
+      // Verificar soporte
       if (!('Notification' in window)) {
         console.error('[PUSH BANNER] Notification API no soportada');
         alert('Tu navegador no soporta notificaciones push.');
