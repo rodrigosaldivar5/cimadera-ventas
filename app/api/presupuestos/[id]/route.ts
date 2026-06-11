@@ -122,6 +122,7 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
     if (data.estado && prev?.estado !== data.estado) {
       try {
         const { crearYEnviarNotificacion } = await import('@/lib/notificaciones');
+        // Buscar usuario coordinacion.general
         const coordUser = await prisma.user.findUnique({
           where: { email: 'coordinacion.general@cimadera.net' },
           select: { id: true },
