@@ -43,7 +43,9 @@ export function PushProvider() {
       }
     };
 
-    register();
+    // Delay para no bloquear el render inicial
+    const t = setTimeout(register, 3000);
+    return () => clearTimeout(t);
   }, []);
 
   return null;
