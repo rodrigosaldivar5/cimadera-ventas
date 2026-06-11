@@ -27,9 +27,11 @@ export function PushPermissionBanner() {
       registrarSW();
       return;
     }
-    if (Notification.permission !== 'default') return;
-    const descartado = localStorage.getItem('push_banner_dismissed');
-    if (!descartado) setMostrar(true);
+    // Si es 'default' (no pidió aún), mostrar el banner
+    if (Notification.permission === 'default') {
+      const descartado = localStorage.getItem('push_banner_dismissed');
+      if (!descartado) setMostrar(true);
+    }
   }, []);
 
   const registrarSW = async () => {
