@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import { NextRequest, NextResponse } from 'next/server';
 
 export function validateApiKey(request: NextRequest): NextResponse | null {
@@ -19,7 +20,13 @@ export function validateApiKey(request: NextRequest): NextResponse | null {
     );
   }
 
-  if (apiKey !== validKey) {
+  const apiKeyBuf = Buffer.from(apiKey);
+  const validKeyBuf = Buffer.from(validKey);
+  const invalid =
+    apiKeyBuf.length !== validKeyBuf.length ||
+    !crypto.timingSafeEqual(apiKeyBuf, validKeyBuf);
+
+  if (invalid) {
     return NextResponse.json(
       { error: 'Invalid API key' },
       { status: 403 },

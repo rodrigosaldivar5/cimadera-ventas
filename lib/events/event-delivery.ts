@@ -39,14 +39,17 @@ function buildHeaders(
   body: string,
 ): Record<string, string> {
   if (target === 'crm') {
+    const secret = process.env.CRM_WEBHOOK_SECRET;
+    if (!secret) throw new Error('CRM_WEBHOOK_SECRET no configurado');
     return {
       'Content-Type': 'application/json',
       'X-CIMADERA-Origin': 'ventas',
-      'X-CIMADERA-Signature': hmacSignature(body, process.env.CRM_WEBHOOK_SECRET ?? ''),
+      'X-CIMADERA-Signature': hmacSignature(body, secret),
     };
   }
   if (target === 'produccion') {
-    const secret = process.env.PRODUCCION_WEBHOOK_SECRET ?? process.env.EXTERNAL_API_KEY ?? '';
+    const secret = process.env.PRODUCCION_WEBHOOK_SECRET ?? process.env.EXTERNAL_API_KEY;
+    if (!secret) throw new Error('PRODUCCION_WEBHOOK_SECRET ni EXTERNAL_API_KEY configurados');
     const hexSignature = crypto.createHmac('sha256', secret).update(body).digest('hex');
     return {
       'Content-Type': 'application/json',
@@ -56,6 +59,10 @@ function buildHeaders(
       'X-Signature': hexSignature,
     };
   }
+  const signingSecret = process.env.PRODUCCION_WEBHOOK_SECRET ?? process.env.EXTERNAL_API_KEY;
+  if (!signingSecret) throw new Error('PRODUCCION_WEBHOOK_SECRET ni EXTERNAL_API_KEY configurados');
+  const apiKey = process.env.EXTERNAL_API_KEY;
+  if (!apiKey) throw new Error('EXTERNAL_API_KEY no configurado');
   return {
     'Content-Type': 'application/json',
     'X-Event-Id': String(payload.eventId ?? ''),
@@ -65,8 +72,8 @@ function buildHeaders(
     'X-Correlation-Id': String(payload.correlationId ?? ''),
     'X-Payload-Hash': String(payload.hash ?? ''),
     'X-Source': 'ventas.cimadera.net',
-    'X-Signature': hmacSignature(body, process.env.PRODUCCION_WEBHOOK_SECRET ?? process.env.EXTERNAL_API_KEY ?? ''),
-    Authorization: `Bearer ${process.env.EXTERNAL_API_KEY ?? ''}`,
+    'X-Signature': hmacSignature(body, signingSecret),
+    Authorization: `Bearer ${apiKey}`,
   };
 }
 

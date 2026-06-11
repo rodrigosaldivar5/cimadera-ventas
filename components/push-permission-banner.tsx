@@ -37,25 +37,17 @@ export function PushPermissionBanner() {
   }, []);
 
   const registrarSW = async () => {
-    console.log('[PUSH BANNER] Registrando Service Worker...');
-    // Verificar VAPID key
     const vapidKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
-    console.log('[PUSH BANNER] VAPID key presente:', !!vapidKey);
-    console.log('[PUSH BANNER] VAPID key valor:', vapidKey ? vapidKey.slice(0, 20) + '...' : 'undefined');
 
     if (!vapidKey) {
-      console.error('[PUSH BANNER] NEXT_PUBLIC_VAPID_PUBLIC_KEY no está configurada');
+      console.error('[PUSH] NEXT_PUBLIC_VAPID_PUBLIC_KEY no está configurada');
       alert('Error: VAPID key no configurada. Contactar al administrador.');
       return;
     }
 
-    // Registrar SW
-    console.log('[PUSH BANNER] navigator.serviceWorker.register(/push-sw.js)...');
     const registration = await navigator.serviceWorker.register('/push-sw.js');
-    console.log('[PUSH BANNER] SW registrado, scope:', registration.scope);
 
-    // Esperar a que el SW esté activo usando la registration directa, con timeout
-    console.log('[PUSH BANNER] Esperando SW activo...');
+    // Esperar SW activo usando la registration directa (evita navigator.serviceWorker.ready que cuelga)
     await new Promise<void>((resolve) => {
       if (registration.active) { resolve(); return; }
       const sw = registration.installing ?? registration.waiting;
@@ -65,34 +57,23 @@ export function PushPermissionBanner() {
       });
       setTimeout(resolve, 3000);
     });
-    console.log('[PUSH BANNER] SW activo OK');
 
-    // Obtener suscripción existente
     let subscription = await registration.pushManager.getSubscription();
-    console.log('[PUSH BANNER] Suscripción existente:', !!subscription);
 
     if (!subscription) {
-      console.log('[PUSH BANNER] Creando nueva suscripción...');
       try {
         subscription = await registration.pushManager.subscribe({
           userVisibleOnly: true,
           applicationServerKey: urlBase64ToUint8Array(vapidKey),
         });
-        console.log('[PUSH BANNER] Suscripción creada OK');
       } catch (subErr) {
-        console.error('[PUSH BANNER] Error creando suscripción:', subErr);
+        console.error('[PUSH] Error creando suscripción:', subErr);
         alert('Error al suscribirse a push: ' + (subErr as Error).message);
         return;
       }
     }
 
-    // Extraer keys
     const subJSON = subscription.toJSON();
-    console.log('[PUSH BANNER] Endpoint:', subJSON.endpoint ? subJSON.endpoint.slice(0, 50) + '...' : 'none');
-    console.log('[PUSH BANNER] Keys presentes:', !!subJSON.keys?.p256dh, !!subJSON.keys?.auth);
-
-    // Enviar al servidor
-    console.log('[PUSH BANNER] Enviando suscripción al servidor...');
     const res = await fetch('/api/push/subscribe', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -101,45 +82,29 @@ export function PushPermissionBanner() {
         keys: { p256dh: subJSON.keys?.p256dh ?? '', auth: subJSON.keys?.auth ?? '' },
       }),
     });
-    console.log('[PUSH BANNER] Response status:', res.status);
-    const resData = await res.json();
-    console.log('[PUSH BANNER] Response data:', resData);
 
     if (res.ok) {
-      console.log('[PUSH BANNER] === SUSCRIPCIÓN COMPLETA ===');
-      // Test: enviar notificación de prueba para confirmar que llega
-      console.log('[PUSH BANNER] Enviando push de prueba...');
       fetch('/api/push/test', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({}) })
-        .then((r) => console.log('[PUSH BANNER] Test push enviado, status:', r.status))
-        .catch((e) => console.error('[PUSH BANNER] Test push error:', e));
+        .catch((e) => console.error('[PUSH] Test push error:', e));
     }
   };
 
   const handleActivar = async () => {
     setPidiendo(true);
-    console.log('[PUSH BANNER] === INICIO ACTIVACIÓN ===');
 
     try {
-      // Verificar soporte
       if (!('Notification' in window)) {
-        console.error('[PUSH BANNER] Notification API no soportada');
         alert('Tu navegador no soporta notificaciones push.');
         return;
       }
       if (!('serviceWorker' in navigator)) {
-        console.error('[PUSH BANNER] Service Workers no soportados');
         alert('Tu navegador no soporta Service Workers.');
         return;
       }
 
-      // Pedir permiso
-      console.log('[PUSH BANNER] Permiso actual:', Notification.permission);
-      console.log('[PUSH BANNER] Pidiendo permiso...');
       const permission = await Notification.requestPermission();
-      console.log('[PUSH BANNER] Resultado permiso:', permission);
 
       if (permission !== 'granted') {
-        console.log('[PUSH BANNER] Permiso denegado o dismissed');
         alert('Necesitás permitir las notificaciones en tu navegador para activar push.');
         return;
       }
@@ -147,7 +112,7 @@ export function PushPermissionBanner() {
       await registrarSW();
       setMostrar(false);
     } catch (e) {
-      console.error('[PUSH BANNER] Error en handleActivar:', e);
+      console.error('[PUSH] Error activando push:', e);
       alert('Error activando push: ' + (e as Error).message);
     } finally {
       setPidiendo(false);
