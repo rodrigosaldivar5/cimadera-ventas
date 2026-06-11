@@ -21,6 +21,8 @@ export function PushProvider() {
 
     const register = async () => {
       try {
+        // 1. Registrar el service worker de push
+        await navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(() => {});
         const reg = await navigator.serviceWorker.ready;
         let sub = await reg.pushManager.getSubscription();
         if (!sub) {
