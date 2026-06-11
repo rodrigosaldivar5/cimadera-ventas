@@ -18,7 +18,10 @@ export function PushPermissionBanner() {
   const [pidiendo, setPidiendo] = useState(false);
 
   useEffect(() => {
-    if (typeof window === 'undefined' || !('Notification' in window)) return;
+    // Solo mostrar si el browser soporta notificaciones y no se pidió aún
+    if (typeof window === 'undefined') return;
+    if (!('Notification' in window)) return;
+    if (!('serviceWorker' in navigator)) return;
     if (Notification.permission === 'default') {
       const descartado = localStorage.getItem('push_banner_dismissed');
       if (!descartado) setMostrar(true);
