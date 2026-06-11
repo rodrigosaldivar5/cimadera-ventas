@@ -36,6 +36,36 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     camposModificados: { estado: { antes: prev?.estado, despues: estado } },
   });
 
+  // Notificar cambio de estado a coordinacion.general
+  try {
+    const { crearYEnviarNotificacion } = await import('@/lib/notificaciones');
+    const coordUser = await prisma.user.findUnique({
+      where: { email: 'coordinacion.general@cimadera.net' },
+      select: { id: true },
+    });
+    if (coordUser && coordUser.id !== session.user.id) {
+      const presup = await prisma.presupuesto.findUnique({
+        where: { id: params.id },
+        include: {
+          cliente: { select: { razonSocial: true } },
+          responsable: { select: { nombre: true } },
+        },
+      });
+      const estadoLabels: Record<string, string> = {
+        PENDIENTE: 'Pendiente', EN_PROCESO: 'En proceso', FINALIZADO: 'Finalizado',
+        PARA_ENVIAR: 'Para enviar', ENVIADO: 'Enviado', APROBADO: 'Aprobado', RECHAZADO: 'Rechazado',
+      };
+      await crearYEnviarNotificacion(coordUser.id, {
+        titulo: `#${presup?.numero} → ${estadoLabels[estado] ?? estado}`,
+        mensaje: `${session.user.nombre ?? 'Usuario'} cambió el estado de "${presup?.nombrePresupuesto ?? 'Presupuesto'}" — ${presup?.cliente?.razonSocial ?? ''}`,
+        tipo: 'estado_cambio',
+        linkUrl: `/presupuestos/${params.id}`,
+      });
+    }
+  } catch (err) {
+    console.error('[NOTIF] Error notificando cambio de estado:', err);
+  }
+
   if (estado === 'APROBADO') {
     const p = await prisma.presupuesto.findUnique({
       where: { id: params.id },
