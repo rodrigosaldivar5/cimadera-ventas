@@ -127,6 +127,7 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
           where: { email: 'coordinacion.general@cimadera.net' },
           select: { id: true },
         });
+        // Solo notificar si no es el mismo usuario que hizo el cambio
         if (coordUser && coordUser.id !== session.user.id) {
           const presup = await prisma.presupuesto.findUnique({
             where: { id: params.id },
