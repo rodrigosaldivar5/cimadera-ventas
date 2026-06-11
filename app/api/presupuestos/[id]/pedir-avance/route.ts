@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { crearYEnviarNotificacion } from '@/lib/notificaciones';
 
 export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
   const session = await auth();
@@ -23,16 +24,16 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     return NextResponse.json({ error: 'El presupuesto no tiene responsable asignado' }, { status: 400 });
   }
 
-  await prisma.notificacion.create({
-    data: {
-      userId: presupuesto.responsableId,
-      titulo: `Avance requerido: Presupuesto #${presupuesto.numero}`,
-      mensaje: mensaje
-        ? `${session.user.nombre} pide avance: "${mensaje}"`
-        : `${session.user.nombre} solicita avance del presupuesto #${presupuesto.numero} — ${presupuesto.cliente?.razonSocial ?? 'Sin cliente'}`,
-      tipo: 'avance_requerido',
-      linkUrl: `/presupuestos/${presupuesto.id}`,
-    },
+  const titulo = `Avance requerido: Presupuesto #${presupuesto.numero}`;
+  const mensajeNotif = mensaje
+    ? `${session.user.nombre} pide avance: "${mensaje}"`
+    : `${session.user.nombre} solicita avance del presupuesto #${presupuesto.numero} — ${presupuesto.cliente?.razonSocial ?? 'Sin cliente'}`;
+
+  await crearYEnviarNotificacion(presupuesto.responsableId, {
+    titulo,
+    mensaje: mensajeNotif,
+    tipo: 'avance_requerido',
+    linkUrl: `/presupuestos/${presupuesto.id}`,
   });
 
   try {
@@ -48,38 +49,6 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
         },
       },
     });
-  } catch {}
-
-  try {
-    const suscripciones = await prisma.pushSubscription.findMany({
-      where: { userId: presupuesto.responsableId },
-    });
-    if (suscripciones.length > 0) {
-      const webpush = await import('web-push');
-      webpush.setVapidDetails(
-        'mailto:coordinacion.general@cimadera.net',
-        process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? '',
-        process.env.VAPID_PRIVATE_KEY ?? ''
-      );
-      const pushPayload = JSON.stringify({
-        title: `Avance requerido`,
-        body: `Presupuesto #${presupuesto.numero} — ${presupuesto.cliente?.razonSocial ?? ''}`,
-        url: `/presupuestos/${presupuesto.id}`,
-      });
-      for (const sub of suscripciones) {
-        try {
-          await webpush.sendNotification(
-            { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
-            pushPayload
-          );
-        } catch (err) {
-          console.error('Push failed:', err);
-          if ((err as { statusCode?: number }).statusCode === 410) {
-            await prisma.pushSubscription.delete({ where: { id: sub.id } });
-          }
-        }
-      }
-    }
   } catch {}
 
   return NextResponse.json({ success: true });
