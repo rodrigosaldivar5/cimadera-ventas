@@ -22,7 +22,11 @@ export function PushPermissionBanner() {
     if (typeof window === 'undefined') return;
     if (!('Notification' in window)) return;
     if (!('serviceWorker' in navigator)) return;
-    // Si ya tiene permiso granted, no mostrar
+    if (Notification.permission === 'granted') {
+      // Verificar que el SW está registrado
+      registrarSW();
+      return;
+    }
     if (Notification.permission !== 'default') return;
     const descartado = localStorage.getItem('push_banner_dismissed');
     if (!descartado) setMostrar(true);
