@@ -22,10 +22,10 @@ export function PushPermissionBanner() {
     if (typeof window === 'undefined') return;
     if (!('Notification' in window)) return;
     if (!('serviceWorker' in navigator)) return;
-    if (Notification.permission === 'default') {
-      const descartado = localStorage.getItem('push_banner_dismissed');
-      if (!descartado) setMostrar(true);
-    }
+    // Si ya tiene permiso granted, no mostrar
+    if (Notification.permission !== 'default') return;
+    const descartado = localStorage.getItem('push_banner_dismissed');
+    if (!descartado) setMostrar(true);
   }, []);
 
   const registrarSW = async () => {
