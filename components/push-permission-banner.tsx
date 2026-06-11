@@ -29,8 +29,10 @@ export function PushPermissionBanner() {
     }
     // Si es 'default' (no pidió aún), mostrar el banner
     if (Notification.permission === 'default') {
+      // Verificar si el usuario ya lo descartó antes
       const descartado = localStorage.getItem('push_banner_dismissed');
-      if (!descartado) setMostrar(true);
+      if (descartado) return;
+      setMostrar(true);
     }
   }, []);
 
