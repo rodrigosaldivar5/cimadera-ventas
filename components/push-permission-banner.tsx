@@ -67,6 +67,7 @@ export function PushPermissionBanner() {
     });
     console.log('[PUSH BANNER] SW activo OK');
 
+    // Obtener suscripción existente
     let subscription = await registration.pushManager.getSubscription();
     console.log('[PUSH BANNER] Suscripción existente:', !!subscription);
 
