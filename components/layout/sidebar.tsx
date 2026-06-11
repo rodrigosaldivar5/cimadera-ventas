@@ -23,6 +23,9 @@ import {
   TrendingUp,
   DollarSign,
   CalendarDays,
+  Bell,
+  Smartphone,
+  Activity,
 } from 'lucide-react';
 import { Logo } from '@/components/logo';
 import { cn } from '@/lib/utils';
@@ -85,6 +88,9 @@ const navItemsBase: NavItem[] = [
     children: [
       { href: '/admin/usuarios', label: 'Usuarios', icon: UserCog },
       { href: '/admin/roles', label: 'Roles y Permisos', icon: Shield },
+      { href: '/admin/notificaciones', label: 'Notificaciones', icon: Bell },
+      { href: '/admin/push', label: 'Push & Suscripciones', icon: Smartphone },
+      { href: '/admin/eventos', label: 'Eventos', icon: Activity },
     ],
   },
 ];

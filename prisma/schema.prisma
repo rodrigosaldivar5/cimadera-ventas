@@ -44,8 +44,9 @@ model User {
   auditorias            AuditoriaPresupuesto[]
   eventLogs             EventLog[]
   decisionesAprobadas   DecisionLog[] @relation("DecisionesAprobadas")
-  notificaciones        Notificacion[]
-  pushSubscriptions     PushSubscription[]
+  notificaciones            Notificacion[]
+  pushSubscriptions         PushSubscription[]
+  notificacionPreferencias  NotificacionPreferencia[]
 }
 
 model PermisoRol {
@@ -607,6 +608,18 @@ model PushSubscription {
   auth      String
   createdAt DateTime @default(now())
 
+  @@index([userId])
+}
+
+model NotificacionPreferencia {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tipo      String
+  activo    Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, tipo])
   @@index([userId])
 }
 
