@@ -1,4 +1,5 @@
 import { jsPDF } from 'jspdf';
+import { loadLogoDataUrl } from './logo';
 
 type LineaItem = {
   nombre: string;
@@ -70,33 +71,31 @@ const marginR = 15;
 const HEADER_H = 25; // mm
 const CONTENT_START_Y = 35; // mm — below header
 
-function drawHeader(doc: jsPDF, numero: number) {
+function drawHeader(doc: jsPDF, numero: number, logoDataUrl: string | null) {
   const [nR, nG, nB] = hexToRgb(COLORS.negroCimadera);
   const [grR, grG, grB] = hexToRgb(COLORS.grisCorporativo);
   const [azR, azG, azB] = hexToRgb(COLORS.azulCimadera);
   const [sepR, sepG, sepB] = hexToRgb(COLORS.grisSeparador);
 
-  // Fondo blanco explícito (por si acaso)
   doc.setFillColor(255, 255, 255);
   doc.rect(0, 0, W, HEADER_H, 'F');
 
-  // ── Izquierda ──────────────────────────────────────────────────────────
-  const baseY = HEADER_H - 8; // ~17mm desde top
+  const baseY = HEADER_H - 8;
 
-  // "CIMAdera" bold 20pt negro
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(20);
-  doc.setTextColor(nR, nG, nB);
-  doc.text('CIMAdera', marginL, baseY);
+  if (logoDataUrl) {
+    doc.addImage(logoDataUrl, 'PNG', marginL, 5, 50, 18);
+  } else {
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(20);
+    doc.setTextColor(nR, nG, nB);
+    doc.text('CIMAdera', marginL, baseY);
+    const cimaderaWidth = doc.getTextWidth('CIMAdera');
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(12);
+    doc.setTextColor(nR, nG, nB);
+    doc.text(' S.A.', marginL + cimaderaWidth, baseY);
+  }
 
-  // "S.A." normal 12pt negro — mismo renglón, al lado de CIMAdera
-  const cimaderaWidth = doc.getTextWidth('CIMAdera');
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(12);
-  doc.setTextColor(nR, nG, nB);
-  doc.text(' S.A.', marginL + cimaderaWidth, baseY);
-
-  // Línea de contacto debajo
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(7.5);
   doc.setTextColor(grR, grG, grB);
@@ -141,7 +140,8 @@ function drawFooter(doc: jsPDF) {
   doc.text(`Página ${pageCount}`, W - marginR, 288, { align: 'right' });
 }
 
-export function generarPresupuestoPDF(p: PresupuestoPDF): void {
+export async function generarPresupuestoPDF(p: PresupuestoPDF): Promise<void> {
+  const logoDataUrl = await loadLogoDataUrl();
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
   const contentW = W - marginL - marginR;
   let y = CONTENT_START_Y;
@@ -152,13 +152,13 @@ export function generarPresupuestoPDF(p: PresupuestoPDF): void {
   const [gcR, gcG, gcB] = hexToRgb(COLORS.grisClaro);
 
   // Dibujar encabezado en página 1
-  drawHeader(doc, p.numero);
+  drawHeader(doc, p.numero, logoDataUrl);
 
   const checkPage = (needed: number) => {
     if (y + needed > 275) {
       drawFooter(doc);
       doc.addPage();
-      drawHeader(doc, p.numero);
+      drawHeader(doc, p.numero, logoDataUrl);
       y = CONTENT_START_Y;
     }
   };
