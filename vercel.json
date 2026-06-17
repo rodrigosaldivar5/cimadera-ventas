@@ -11,7 +11,7 @@
   "crons": [
     {
       "path": "/api/events/process-pending",
-      "schedule": "0 8 * * *"
+      "schedule": "*/10 * * * *"
     }
   ]
 }
