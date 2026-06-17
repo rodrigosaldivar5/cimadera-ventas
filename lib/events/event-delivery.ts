@@ -47,6 +47,21 @@ function buildHeaders(
       'X-CIMADERA-Signature': hmacSignature(body, secret),
     };
   }
+  if (target === 'admin') {
+    const secret = process.env.ADMIN_WEBHOOK_SECRET;
+    if (!secret) throw new Error('ADMIN_WEBHOOK_SECRET no configurado');
+    const timestamp = new Date().toISOString();
+    const signature = 'sha256=' + crypto
+      .createHmac('sha256', secret)
+      .update(timestamp + '.' + body)
+      .digest('hex');
+    return {
+      'Content-Type': 'application/json',
+      'X-CIMADERA-Origin': 'ventas',
+      'X-CIMADERA-Timestamp': timestamp,
+      'X-CIMADERA-Signature': signature,
+    };
+  }
   if (target === 'produccion') {
     const secret = process.env.PRODUCCION_WEBHOOK_SECRET ?? process.env.EXTERNAL_API_KEY;
     if (!secret) throw new Error('PRODUCCION_WEBHOOK_SECRET ni EXTERNAL_API_KEY configurados');

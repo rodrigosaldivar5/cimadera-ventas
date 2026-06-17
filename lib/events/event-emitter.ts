@@ -8,6 +8,7 @@ export const EVENT_TYPES = {
 const TARGET_URLS: Record<string, { url: string }> = {
   crm: { url: process.env.EVENT_TARGET_CRM_URL ?? '' },
   produccion: { url: process.env.EVENT_TARGET_PRODUCCION_URL ?? '' },
+  admin: { url: process.env.EVENT_TARGET_ADMIN_URL ?? '' },
 };
 
 interface EmitEventParams {
@@ -26,7 +27,7 @@ export async function emitEvent({
   entityType,
   entityId,
   data,
-  targets = ['crm', 'produccion'],
+  targets = ['crm', 'produccion', 'admin'],
   userId,
   correlationId,
   causationId,
