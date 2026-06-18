@@ -221,7 +221,7 @@ export function PresupuestosTable({ clientes, criticos, userEmail }: Props) {
     });
   };
 
-  const ALL_COLUMNS = ['numero', 'nombre', 'cliente', 'obra', 'responsable', 'prioridad', 'estado', 'recepcion', 'total', 'precio_final'];
+  const ALL_COLUMNS = ['numero', 'nombre', 'cliente', 'obra', 'responsable', 'prioridad', 'estado', 'recepcion', 'limite'];
   const [columnasVisibles, setColumnasVisibles] = useState<string[]>(ALL_COLUMNS);
   useEffect(() => {
     fetch('/api/admin/mis-columnas?modulo=presupuestos')
@@ -497,8 +497,7 @@ export function PresupuestosTable({ clientes, criticos, userEmail }: Props) {
                 {colVisible('prioridad') && <ResizableHead colKey="prioridad" defaultWidth={90} width={columnWidths.prioridad} onResize={handleResize}>Prioridad</ResizableHead>}
                 {colVisible('estado') && <ResizableHead colKey="estado" defaultWidth={120} width={columnWidths.estado} onResize={handleResize}>Estado</ResizableHead>}
                 {colVisible('recepcion') && <ResizableHead colKey="recepcion" defaultWidth={100} width={columnWidths.recepcion} onResize={handleResize}>Recepción</ResizableHead>}
-                {colVisible('total') && <ResizableHead colKey="total" defaultWidth={110} width={columnWidths.total} onResize={handleResize} className="text-right">Total</ResizableHead>}
-                {colVisible('precio_final') && <ResizableHead colKey="pfinal" defaultWidth={110} width={columnWidths.pfinal} onResize={handleResize} className="text-right">P. Final</ResizableHead>}
+                <ResizableHead colKey="limite" defaultWidth={110} width={columnWidths.limite} onResize={handleResize}>F. Límite</ResizableHead>
                 <TableHead className="w-16"></TableHead>
               </TableRow>
             </TableHeader>
@@ -560,61 +559,11 @@ export function PresupuestosTable({ clientes, criticos, userEmail }: Props) {
                         : '—'}
                     </TableCell>
                   )}
-                  {colVisible('total') && (
-                    <TableCell className="text-right">
-                      <div className="flex flex-col items-end gap-0.5">
-                        <div className="flex items-center gap-1">
-                          {p.moneda === 'USD' && (
-                            <span className="text-xs font-semibold text-green-700 bg-green-100 px-1 rounded">U$D</span>
-                          )}
-                          <span className="font-medium">
-                            {formatCurrency(
-                              Number(p.totalConIva) > 0 ? Number(p.totalConIva) :
-                              Number(p.precioFinal) > 0 ? Number(p.precioFinal) :
-                              Number(p.totalFinal)
-                            )}
-                          </span>
-                        </div>
-                        <Badge variant="outline" className="text-xs px-1 py-0 font-normal">
-                          {Number(p.tasaIva) === 0 ? 'Exento' : `${Number(p.tasaIva)}%`}
-                        </Badge>
-                      </div>
-                    </TableCell>
-                  )}
-                  {colVisible('precio_final') && (
-                    <TableCell className="text-right">
-                      {editingPrecio?.id === p.id ? (
-                        <div className="flex items-center gap-1 justify-end">
-                          <Input
-                            type="number"
-                            value={editingPrecio.value}
-                            onChange={(e) => setEditingPrecio({ id: p.id, value: e.target.value })}
-                            className="w-28 h-7 text-xs"
-                            autoFocus
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter') savePrecioFinal();
-                              if (e.key === 'Escape') setEditingPrecio(null);
-                            }}
-                          />
-                          <Button size="icon" variant="ghost" className="h-6 w-6" onClick={savePrecioFinal} disabled={savingPrecio}>
-                            <Check className="h-3 w-3" />
-                          </Button>
-                        </div>
-                      ) : (
-                        <button
-                          className="text-right w-full text-sm font-medium hover:text-[#00ADEF] transition-colors"
-                          onClick={() => setEditingPrecio({ id: p.id, value: p.precioFinal != null ? String(Number(p.precioFinal)) : '' })}
-                        >
-                          {p.precioFinal != null ? (
-                            <span className="flex items-center gap-1 justify-end">
-                              {p.moneda === 'USD' && <span className="text-xs font-semibold text-green-700 bg-green-100 px-1 rounded">U$D</span>}
-                              {formatCurrency(Number(p.precioFinal))}
-                            </span>
-                          ) : <span className="text-slate-300 text-xs">—</span>}
-                        </button>
-                      )}
-                    </TableCell>
-                  )}
+                  <TableCell className="text-slate-500 text-sm">
+                    {p.fechaVencimiento
+                      ? new Date(p.fechaVencimiento).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' })
+                      : '—'}
+                  </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-1">
                       <Button variant="ghost" size="icon" asChild>
@@ -645,7 +594,7 @@ export function PresupuestosTable({ clientes, criticos, userEmail }: Props) {
               ))}
               {presupuestosPagina.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={11} className="text-center text-slate-400 py-10">
+                  <TableCell colSpan={10} className="text-center text-slate-400 py-10">
                     No hay presupuestos con los filtros aplicados
                   </TableCell>
                 </TableRow>

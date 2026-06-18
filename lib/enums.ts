@@ -1,5 +1,5 @@
 ﻿export const estadoBadgeClass: Record<string, string> = {
-  PENDIENTE:   'bg-slate-100 text-slate-600 border-slate-300',
+  PENDIENTE:   'bg-red-100 text-red-800 border-red-300',
   EN_PROCESO:  'bg-yellow-100 text-yellow-700 border-yellow-300',
   FINALIZADO:  'bg-amber-800 text-white border-amber-900',
   PARA_ENVIAR: 'bg-blue-100 text-blue-700 border-blue-300',
@@ -21,7 +21,7 @@ export const estadoLabel: Record<string, string> = {
 import type { CSSProperties } from 'react';
 
 const ESTILOS_ESTADO: Record<string, CSSProperties> = {
-  PENDIENTE:   { backgroundColor: '#F1F5F9', color: '#475569', border: '1px solid #CBD5E1' },
+  PENDIENTE:   { backgroundColor: '#FEE2E2', color: '#991B1B', border: '1px solid #FCA5A5' },
   EN_PROCESO:  { backgroundColor: '#FEF9C3', color: '#854D0E', border: '1px solid #FDE047' },
   FINALIZADO:  { backgroundColor: '#8B6C3E', color: '#FFFFFF', border: '1px solid #6B4F2C' },
   PARA_ENVIAR: { backgroundColor: '#DBEAFE', color: '#1E40AF', border: '1px solid #93C5FD' },
