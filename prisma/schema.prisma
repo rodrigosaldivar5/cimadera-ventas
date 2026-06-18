@@ -47,6 +47,8 @@ model User {
   notificaciones            Notificacion[]
   pushSubscriptions         PushSubscription[]
   notificacionPreferencias  NotificacionPreferencia[]
+  solicitudesRestablecimiento SolicitudRestablecimiento[]
+  restablecimientosAprobados  SolicitudRestablecimiento[] @relation("AprobadorRestablecimiento")
 }
 
 model PermisoRol {
@@ -621,6 +623,21 @@ model NotificacionPreferencia {
 
   @@unique([userId, tipo])
   @@index([userId])
+}
+
+model SolicitudRestablecimiento {
+  id            String    @id @default(cuid())
+  userId        String
+  user          User      @relation(fields: [userId], references: [id])
+  estado        String    @default("PENDIENTE")
+  aprobadoPorId String?
+  aprobadoPor   User?     @relation("AprobadorRestablecimiento", fields: [aprobadoPorId], references: [id])
+  nuevaPassword String?
+  createdAt     DateTime  @default(now())
+  resolvedAt    DateTime?
+
+  @@index([userId])
+  @@index([estado])
 }
 
 model DecisionLog {
