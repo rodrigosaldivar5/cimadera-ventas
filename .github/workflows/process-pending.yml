@@ -1,0 +1,26 @@
+name: Process Pending Events
+
+on:
+  schedule:
+    - cron: '3-53/10 * * * *'
+  workflow_dispatch:
+
+jobs:
+  process-pending:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call process-pending
+        run: |
+          HTTP_STATUS=$(curl -s -o /tmp/response.json -w "%{http_code}" \
+            -X POST https://ventas.cimadera.net/api/events/process-pending \
+            -H "Authorization: Bearer ${{ secrets.VENTAS_CRON_SECRET }}" \
+            -H "Content-Type: application/json" \
+            -d '{}')
+
+          echo "HTTP status: $HTTP_STATUS"
+          echo "Response: $(cat /tmp/response.json)"
+
+          if [ "$HTTP_STATUS" -lt 200 ] || [ "$HTTP_STATUS" -ge 300 ]; then
+            echo "Error: endpoint returned $HTTP_STATUS"
+            exit 1
+          fi
