@@ -290,6 +290,7 @@ export default function NuevoPresupuestoPage() {
         responsableId: watch('responsableId') || null,
         observaciones: watch('observaciones') || null,
         division: watch('division') || null,
+        fechaVencimiento: watch('fechaVencimiento') || null,
         fechaPrometidaCliente: watch('fechaPrometidaCliente') || null,
         fechaObjetivoProduccion: watch('fechaObjetivoProduccion') || null,
         estado: 'PENDIENTE',
