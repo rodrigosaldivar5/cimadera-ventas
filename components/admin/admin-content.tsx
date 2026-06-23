@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
@@ -53,7 +53,7 @@ export function AdminContent({ usuarios, roles, divisiones }: Props) {
 
       {/* Tab Usuarios */}
       <TabsContent value="usuarios">
-        <div className="rounded-lg border bg-white shadow-sm overflow-hidden">
+        <div className="rounded-2xl border border-slate-100 bg-white shadow-[0_2px_8px_rgba(0,0,0,0.06)] overflow-hidden">
           <Table>
             <TableHeader>
               <TableRow>
@@ -95,7 +95,7 @@ export function AdminContent({ usuarios, roles, divisiones }: Props) {
 
       {/* Tab Roles y Permisos */}
       <TabsContent value="roles">
-        <div className="rounded-lg border bg-white shadow-sm p-6 text-center space-y-3">
+        <div className="rounded-2xl border border-slate-100 bg-white shadow-[0_2px_8px_rgba(0,0,0,0.06)] p-6 text-center space-y-3">
           <p className="text-slate-600 text-sm">La gestión de roles y permisos granulares se administra desde la página dedicada.</p>
           <a
             href="/admin/roles"
@@ -118,7 +118,7 @@ export function AdminContent({ usuarios, roles, divisiones }: Props) {
       <TabsContent value="divisiones">
         <div className="space-y-4">
           {divisiones.map((div) => (
-            <div key={div.id} className="rounded-lg border bg-white shadow-sm p-4">
+            <div key={div.id} className="rounded-xl border border-slate-100 bg-white shadow-[0_1px_4px_rgba(0,0,0,0.05)] p-4">
               <h3 className="font-semibold text-slate-800 mb-3">{div.nombre}</h3>
               <div className="space-y-2 pl-4">
                 {div.areas.map((area) => (
@@ -139,3 +139,5 @@ export function AdminContent({ usuarios, roles, divisiones }: Props) {
     </Tabs>
   );
 }
+
+

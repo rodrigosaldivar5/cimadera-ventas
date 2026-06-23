@@ -14,7 +14,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
   return (
     <>
       <PushProvider>
-        <div className="flex h-screen overflow-hidden bg-slate-100">
+        <div className="flex h-screen overflow-hidden bg-[#F2F2F2]">
           {/* Sidebar desktop */}
           <div className="hidden lg:flex lg:flex-shrink-0">
             <Sidebar

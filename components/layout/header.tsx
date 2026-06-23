@@ -111,7 +111,7 @@ export function Header({ userName, userEmail, rolNombre }: HeaderProps) {
   };
 
   return (
-    <header className="flex h-16 items-center justify-between border-b border-slate-200 bg-white px-4 lg:px-6">
+    <header className="flex h-16 items-center justify-between border-b border-slate-200 bg-white px-4 lg:px-6 shadow-[0_1px_4px_rgba(0,0,0,0.05)]">
       {/* Mobile menu */}
       <div className="flex items-center gap-3">
         <Sheet>

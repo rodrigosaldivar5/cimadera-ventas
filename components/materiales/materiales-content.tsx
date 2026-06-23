@@ -272,7 +272,7 @@ export function MateriaisContent({ categorias: iniciales }: { categorias: Catego
       {tab === 'items' && (
         <>
           {iniciales.map((cat) => (
-            <div key={cat.id} className="rounded-lg border bg-white shadow-sm overflow-hidden">
+            <div key={cat.id} className="rounded-2xl border border-slate-100 bg-white shadow-[0_2px_8px_rgba(0,0,0,0.06)] overflow-hidden">
               <button
                 onClick={() => toggleCategoria(cat.id)}
                 className="w-full flex items-center justify-between px-4 py-3 hover:bg-slate-50 transition-colors"
@@ -337,7 +337,7 @@ export function MateriaisContent({ categorias: iniciales }: { categorias: Catego
 
       {/* Tab: Categorías */}
       {tab === 'categorias' && (
-        <div className="rounded-lg border bg-white shadow-sm overflow-hidden">
+        <div className="rounded-2xl border border-slate-100 bg-white shadow-[0_2px_8px_rgba(0,0,0,0.06)] overflow-hidden">
           <Table>
             <TableHeader>
               <TableRow>
@@ -562,3 +562,4 @@ export function MateriaisContent({ categorias: iniciales }: { categorias: Catego
     </div>
   );
 }
+

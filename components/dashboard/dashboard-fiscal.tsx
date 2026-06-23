@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
@@ -174,7 +174,7 @@ export function DashboardFiscal() {
           No hay presupuestos aprobados en el período seleccionado.
         </p>
       ) : (
-        <div className="rounded-lg border bg-white shadow-sm overflow-hidden">
+        <div className="rounded-2xl border border-slate-100 bg-white shadow-[0_2px_8px_rgba(0,0,0,0.06)] overflow-hidden">
           <Table>
             <TableHeader>
               <TableRow>
@@ -218,3 +218,4 @@ export function DashboardFiscal() {
     </div>
   );
 }
+

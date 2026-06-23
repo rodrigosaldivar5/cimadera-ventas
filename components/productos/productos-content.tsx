@@ -253,7 +253,7 @@ export function ProductosContent({ productos, categorias, categoriasItem }: Prop
 
       {/* Tab Productos */}
       {tab === 'productos' && (
-        <div className="rounded-lg border bg-white shadow-sm overflow-hidden">
+        <div className="rounded-2xl border border-slate-100 bg-white shadow-[0_2px_8px_rgba(0,0,0,0.06)] overflow-hidden">
           <Table>
             <TableHeader>
               <TableRow>
@@ -294,7 +294,7 @@ export function ProductosContent({ productos, categorias, categoriasItem }: Prop
 
       {/* Tab Categorías */}
       {tab === 'categorias' && (
-        <div className="rounded-lg border bg-white shadow-sm overflow-hidden">
+        <div className="rounded-2xl border border-slate-100 bg-white shadow-[0_2px_8px_rgba(0,0,0,0.06)] overflow-hidden">
           <Table>
             <TableHeader>
               <TableRow>
@@ -491,3 +491,4 @@ export function ProductosContent({ productos, categorias, categoriasItem }: Prop
     </div>
   );
 }
+

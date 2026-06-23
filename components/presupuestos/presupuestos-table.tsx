@@ -353,7 +353,7 @@ export function PresupuestosTable({ clientes, criticos, userEmail }: Props) {
         </div>
 
         {/* Filtros */}
-        <div className="flex flex-wrap gap-3 p-4 bg-white rounded-lg border">
+        <div className="flex flex-wrap gap-3 p-4 bg-white rounded-2xl border border-slate-100 shadow-[0_1px_4px_rgba(0,0,0,0.05)]">
           {/* Estado */}
           <DropdownMenu open={estadosOpen} onOpenChange={setEstadosOpen}>
             <DropdownMenuTrigger asChild>
@@ -481,11 +481,11 @@ export function PresupuestosTable({ clientes, criticos, userEmail }: Props) {
 
       {/* Tabla */}
       {loading ? (
-        <div className="rounded-lg border bg-white p-10 text-center text-slate-400 text-sm">
+        <div className="rounded-2xl border border-slate-100 bg-white p-10 text-center text-slate-400 text-sm">
           Cargando presupuestos…
         </div>
       ) : (
-        <div className="rounded-lg border bg-white shadow-sm overflow-hidden [&_td]:py-3.5">
+        <div className="rounded-2xl border border-slate-100 bg-white shadow-[0_2px_8px_rgba(0,0,0,0.06)] overflow-hidden [&_td]:py-3.5">
           <Table>
             <TableHeader>
               <TableRow>
