@@ -299,10 +299,10 @@ export function PresupuestosTable({ clientes, criticos, userEmail }: Props) {
 
       {/* Críticos */}
       {criticos.length > 0 && (
-        <div className="rounded-lg border border-red-200 bg-red-50 overflow-hidden">
+        <div className="rounded-2xl border border-red-200 bg-red-50 overflow-hidden shadow-[0_2px_8px_rgba(220,38,38,0.08)]">
           <button
             onClick={() => setCriticosOpen((v) => !v)}
-            className="w-full flex items-center gap-2 px-4 py-3 text-left"
+            className="w-full flex items-center gap-2 px-4 py-3.5 text-left hover:bg-red-100/50 transition-colors"
           >
             <AlertTriangle className="h-4 w-4 text-red-500 shrink-0" />
             <span className="font-semibold text-red-700 text-sm">
@@ -319,16 +319,16 @@ export function PresupuestosTable({ clientes, criticos, userEmail }: Props) {
                   <Link
                     key={p.id}
                     href={`/presupuestos/${p.id}`}
-                    className={`rounded-lg border p-3 text-sm hover:shadow-md transition-shadow ${urgente ? 'border-red-400 bg-white' : 'border-red-200 bg-white'}`}
+                    className={`rounded-xl border p-4 text-sm hover:shadow-md transition-shadow ${urgente ? 'border-red-400 bg-white shadow-[0_1px_4px_rgba(220,38,38,0.12)]' : 'border-red-200 bg-white'}`}
                   >
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="font-semibold text-slate-800">#{p.numero}</span>
-                      {urgente && <span className="text-xs text-red-600 font-medium">{dias}d sin cambio</span>}
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="font-bold text-slate-800">#{p.numero}</span>
+                      {urgente && <span className="text-xs bg-red-100 text-red-600 font-semibold px-2 py-0.5 rounded-full">{dias}d sin cambio</span>}
                     </div>
-                    <p className="text-slate-600 truncate">{p.nombrePresupuesto ?? p.cliente.razonSocial}</p>
+                    <p className="font-medium text-slate-700 truncate">{p.nombrePresupuesto ?? p.cliente.razonSocial}</p>
                     <p className="text-slate-400 text-xs mt-0.5">{p.cliente.razonSocial}</p>
                     {p.responsable && (
-                      <p className="text-slate-500 text-xs mt-1">Resp: {p.responsable.nombre}</p>
+                      <p className="text-slate-500 text-xs mt-1.5 font-medium">Resp: {p.responsable.nombre}</p>
                     )}
                   </Link>
                 );
@@ -505,13 +505,13 @@ export function PresupuestosTable({ clientes, criticos, userEmail }: Props) {
               {presupuestosPagina.map((p) => (
                 <TableRow
                   key={p.id}
-                  className={`border-b border-slate-200 hover:bg-slate-50/50 ${p.estado === 'ENVIADO' && p.archivos.length === 0 ? 'bg-amber-50' : ''}`}
+                  className={`border-b border-slate-200 ${p.estado === 'ENVIADO' && p.archivos.length === 0 ? 'bg-amber-50' : ''}`}
                 >
-                  {colVisible('numero') && <TableCell className="font-medium">#{p.numero}</TableCell>}
-                  {colVisible('nombre') && <TableCell className="max-w-[140px] truncate text-slate-600">{p.nombrePresupuesto ?? '—'}</TableCell>}
-                  {colVisible('cliente') && <TableCell className="max-w-[150px] truncate">{p.cliente.razonSocial}</TableCell>}
-                  {colVisible('obra') && <TableCell className="text-slate-500 text-sm max-w-[120px] truncate">{p.obra?.nombre ?? '—'}</TableCell>}
-                  {colVisible('responsable') && <TableCell className="text-slate-500 text-sm">{p.responsable?.nombre ?? p.creadoPor.nombre}</TableCell>}
+                  {colVisible('numero') && <TableCell className="font-bold text-slate-800">#{p.numero}</TableCell>}
+                  {colVisible('nombre') && <TableCell className="max-w-[140px] truncate font-medium text-slate-700">{p.nombrePresupuesto ?? '—'}</TableCell>}
+                  {colVisible('cliente') && <TableCell className="max-w-[150px] truncate font-semibold text-slate-800">{p.cliente.razonSocial}</TableCell>}
+                  {colVisible('obra') && <TableCell className="text-slate-400 text-sm max-w-[120px] truncate">{p.obra?.nombre ?? '—'}</TableCell>}
+                  {colVisible('responsable') && <TableCell className="text-slate-400 text-sm">{p.responsable?.nombre ?? p.creadoPor.nombre}</TableCell>}
                   {colVisible('prioridad') && (
                     <TableCell>
                       <DropdownMenu>

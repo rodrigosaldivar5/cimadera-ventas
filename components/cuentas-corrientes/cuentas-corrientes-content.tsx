@@ -1014,42 +1014,42 @@ export function CuentasCorrientesContent({ cuentasIniciales, clientes, presupues
 
       {/* Metrics */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-white rounded-lg border p-4 shadow-sm">
-          <div className="flex items-center gap-2 text-sm text-gray-500 mb-1">
-            <DollarSign className="w-4 h-4" />
+        <div className="bg-white rounded-2xl border border-slate-100 p-5 shadow-[0_2px_8px_rgba(0,0,0,0.06)]">
+          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-slate-400 mb-2">
+            <DollarSign className="w-3.5 h-3.5" />
             Total facturado
           </div>
-          <p className="text-xl font-bold text-[#1A1A1A]">{formatCurrency(totalFacturado)}</p>
+          <p className="text-2xl font-bold text-[#1A1A1A]">{formatCurrency(totalFacturado)}</p>
           {totalFacturadoUSD > 0 && (
-            <p className="text-xs text-green-700 mt-0.5">+ U$D {totalFacturadoUSD.toLocaleString('es-AR', { minimumFractionDigits: 2 })}</p>
+            <p className="text-xs text-green-700 mt-1">+ U$D {totalFacturadoUSD.toLocaleString('es-AR', { minimumFractionDigits: 2 })}</p>
           )}
         </div>
-        <div className="bg-white rounded-lg border p-4 shadow-sm">
-          <div className="flex items-center gap-2 text-sm text-gray-500 mb-1">
-            <CreditCard className="w-4 h-4" />
+        <div className="bg-white rounded-2xl border border-slate-100 p-5 shadow-[0_2px_8px_rgba(0,0,0,0.06)]">
+          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-slate-400 mb-2">
+            <CreditCard className="w-3.5 h-3.5" />
             Total cobrado
           </div>
-          <p className="text-xl font-bold text-[#1A1A1A]">{formatCurrency(totalCobrado)}</p>
+          <p className="text-2xl font-bold text-[#1A1A1A]">{formatCurrency(totalCobrado)}</p>
           {totalCobradoUSD > 0 && (
-            <p className="text-xs text-green-700 mt-0.5">+ U$D {totalCobradoUSD.toLocaleString('es-AR', { minimumFractionDigits: 2 })}</p>
+            <p className="text-xs text-green-700 mt-1">+ U$D {totalCobradoUSD.toLocaleString('es-AR', { minimumFractionDigits: 2 })}</p>
           )}
         </div>
-        <div className="bg-white rounded-lg border p-4 shadow-sm">
-          <div className="flex items-center gap-2 text-sm text-gray-500 mb-1">
-            <FileText className="w-4 h-4" />
+        <div className="bg-white rounded-2xl border border-slate-100 p-5 shadow-[0_2px_8px_rgba(0,0,0,0.06)]">
+          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-slate-400 mb-2">
+            <FileText className="w-3.5 h-3.5" />
             Saldo pendiente
           </div>
-          <p className="text-xl font-bold text-red-600">{formatCurrency(saldoPendienteTotal)}</p>
+          <p className="text-2xl font-bold text-red-600">{formatCurrency(saldoPendienteTotal)}</p>
           {saldoPendienteTotalUSD > 0 && (
-            <p className="text-xs text-red-600 mt-0.5">+ U$D {saldoPendienteTotalUSD.toLocaleString('es-AR', { minimumFractionDigits: 2 })}</p>
+            <p className="text-xs text-red-600 mt-1">+ U$D {saldoPendienteTotalUSD.toLocaleString('es-AR', { minimumFractionDigits: 2 })}</p>
           )}
         </div>
-        <div className="bg-white rounded-lg border p-4 shadow-sm">
-          <div className="flex items-center gap-2 text-sm text-gray-500 mb-1">
-            <TrendingUp className="w-4 h-4" />
+        <div className="bg-white rounded-2xl border border-slate-100 p-5 shadow-[0_2px_8px_rgba(0,0,0,0.06)]">
+          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-slate-400 mb-2">
+            <TrendingUp className="w-3.5 h-3.5" />
             Cuentas activas
           </div>
-          <p className="text-xl font-bold text-[#00ADEF]">{cuentasActivas}</p>
+          <p className="text-2xl font-bold text-[#00ADEF]">{cuentasActivas}</p>
         </div>
       </div>
 
@@ -1075,7 +1075,7 @@ export function CuentasCorrientesContent({ cuentasIniciales, clientes, presupues
       </div>
 
       {/* List */}
-      <div className="space-y-3">
+      <div className="space-y-4">
         {cuentasFiltradas.length === 0 && (
           <p className="text-sm text-gray-400 py-8 text-center">No se encontraron cuentas corrientes.</p>
         )}
@@ -1106,57 +1106,60 @@ export function CuentasCorrientesContent({ cuentasIniciales, clientes, presupues
           return (
             <div
               key={cuenta.id}
-              className="bg-white border rounded-lg shadow-sm overflow-hidden"
+              className="bg-white border border-slate-200 rounded-2xl shadow-[0_2px_8px_rgba(0,0,0,0.06)] overflow-hidden transition-shadow hover:shadow-[0_4px_16px_rgba(0,0,0,0.10)]"
             >
               {/* Collapsed header */}
               <button
-                className="w-full flex items-center justify-between px-5 py-4 hover:bg-gray-50 transition-colors text-left"
+                className="w-full flex items-center justify-between px-6 py-5 hover:bg-[#F8FAFB] transition-colors text-left"
                 onClick={() => toggleExpand(cuenta.id)}
               >
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="font-semibold text-[#1A1A1A]">
+                    <span className="font-bold text-[#1A1A1A] text-[15px]">
                       {cuenta.cliente.razonSocial}
                     </span>
                     {cuenta.moneda === 'USD' && (
                       <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-semibold bg-green-100 text-green-700">U$D</span>
                     )}
                     {cuenta.obra && (
-                      <span className="text-gray-400">—</span>
-                    )}
-                    {cuenta.obra && (
-                      <span className="text-sm text-gray-600">{cuenta.obra.nombre}</span>
+                      <>
+                        <span className="text-slate-300">·</span>
+                        <span className="text-sm font-medium text-slate-600">{cuenta.obra.nombre}</span>
+                      </>
                     )}
                     {!cuenta.obra && (
-                      <span className="text-sm text-gray-400">Sin obra</span>
+                      <span className="text-sm text-slate-400">Sin obra</span>
                     )}
                   </div>
-                  <p className="text-xs text-gray-400 mt-0.5">
+                  <p className="text-xs text-slate-400 mt-1">
                     {cuenta.presupuesto
                       ? `Presupuesto N° ${String(cuenta.presupuesto.numero).padStart(4, '0')} · `
                       : ''}
                     Inicio: {formatDate(cuenta.fechaInicio)}
                   </p>
                 </div>
-                <div className="flex items-center gap-3 shrink-0 ml-4">
-                  {cancelado ? (
-                    <span className="text-sm font-semibold text-green-700">Saldado</span>
-                  ) : esUSD ? (
-                    <span className="text-sm font-semibold text-red-600">
-                      Saldo: U$D {Number(cuenta.saldoActualizado).toLocaleString('es-AR', { minimumFractionDigits: 2 })}
-                    </span>
-                  ) : (
-                    <span className="text-sm font-semibold text-red-600">
-                      Saldo: {formatCurrency(Number(cuenta.saldoActualizado))}
-                    </span>
-                  )}
-                  <Badge className={ESTADO_BADGE_STYLE[cuenta.estado] ?? ''}>
+                <div className="flex items-center gap-4 shrink-0 ml-4">
+                  <div className="text-right">
+                    {cancelado ? (
+                      <span className="text-base font-bold text-green-700">Saldado</span>
+                    ) : esUSD ? (
+                      <span className="text-base font-bold text-red-600">
+                        U$D {Number(cuenta.saldoActualizado).toLocaleString('es-AR', { minimumFractionDigits: 2 })}
+                      </span>
+                    ) : (
+                      <span className="text-base font-bold text-red-600">
+                        {formatCurrency(Number(cuenta.saldoActualizado))}
+                      </span>
+                    )}
+                    <p className="text-[11px] text-slate-400 mt-0.5">saldo pendiente</p>
+                  </div>
+                  <Badge className={`${ESTADO_BADGE_STYLE[cuenta.estado] ?? ''} text-xs px-3 py-1`}>
                     {ESTADO_LABELS[cuenta.estado] ?? cuenta.estado}
                   </Badge>
                   {isExpanded ? (
-                    <ChevronUp className="w-4 h-4 text-gray-400" />
+                    <ChevronUp className="w-4 h-4 text-slate-400 shrink-0" />
                   ) : (
-                    <ChevronDown className="w-4 h-4 text-gray-400" />
+                    <ChevronDown className="w-4 h-4 text-slate-400 shrink-0" />
                   )}
                 </div>
               </button>

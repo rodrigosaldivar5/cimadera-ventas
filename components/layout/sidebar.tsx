@@ -136,10 +136,10 @@ export function Sidebar({ userName, userEmail, rolNombre: rolNombreProp }: Sideb
     setOpenItems((prev) => ({ ...prev, [href]: !prev[href] }));
 
   return (
-    <aside className="flex h-full w-64 flex-col bg-white border-r border-slate-200">
+    <aside className="flex h-full w-64 flex-col bg-[#1A1A1A]">
       {/* Logo */}
-      <div className="flex h-20 items-center justify-center px-4 border-b border-slate-100">
-        <Logo variant="dark" />
+      <div className="flex h-20 items-center justify-center px-4 border-b border-white/10">
+        <Logo variant="light" />
       </div>
 
       {/* Navegación */}
@@ -157,13 +157,13 @@ export function Sidebar({ userName, userEmail, rolNombre: rolNombreProp }: Sideb
                 <li key={item.href}>
                   <div className={cn(
                     'flex items-center rounded-lg transition-colors',
-                    isActive ? 'bg-[#00ADEF]/10' : 'hover:bg-slate-50',
+                    isActive ? 'bg-[#00ADEF]/15' : 'hover:bg-white/5',
                   )}>
                     <Link
                       href={item.href}
                       className={cn(
                         'flex items-center gap-3 flex-1 px-3 py-2.5 text-sm font-medium',
-                        isActive ? 'text-[#00ADEF]' : 'text-slate-500 hover:text-slate-900'
+                        isActive ? 'text-[#00ADEF]' : 'text-[#9A9A9A] hover:text-white'
                       )}
                     >
                       <Icon className="h-5 w-5 shrink-0" />
@@ -171,15 +171,13 @@ export function Sidebar({ userName, userEmail, rolNombre: rolNombreProp }: Sideb
                     </Link>
                     <button
                       onClick={() => toggleItem(item.href)}
-                      className={cn(
-                        'px-2 py-2.5 text-slate-400 hover:text-slate-600',
-                      )}
+                      className="px-2 py-2.5 text-[#6A6A6A] hover:text-white"
                     >
                       <ChevronRight className={cn('h-4 w-4 transition-transform', isOpen && 'rotate-90')} />
                     </button>
                   </div>
                   {isOpen && (
-                    <ul className="mt-0.5 ml-4 space-y-0.5 border-l border-slate-200 pl-3">
+                    <ul className="mt-0.5 ml-4 space-y-0.5 border-l border-white/10 pl-3">
                       {item.children.map((child) => {
                         const ChildIcon = child.icon;
                         const childActive = pathname.startsWith(child.href);
@@ -190,8 +188,8 @@ export function Sidebar({ userName, userEmail, rolNombre: rolNombreProp }: Sideb
                               className={cn(
                                 'flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition-colors',
                                 childActive
-                                  ? 'bg-[#00ADEF]/10 text-[#00ADEF] font-medium'
-                                  : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'
+                                  ? 'bg-[#00ADEF]/15 text-[#00ADEF] font-medium'
+                                  : 'text-[#9A9A9A] hover:bg-white/5 hover:text-white'
                               )}
                             >
                               <ChildIcon className="h-4 w-4 shrink-0" />
@@ -213,13 +211,13 @@ export function Sidebar({ userName, userEmail, rolNombre: rolNombreProp }: Sideb
                   className={cn(
                     'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors',
                     isActive
-                      ? 'bg-[#00ADEF]/10 text-[#00ADEF]'
-                      : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'
+                      ? 'bg-[#00ADEF]/15 text-[#00ADEF]'
+                      : 'text-[#9A9A9A] hover:bg-white/5 hover:text-white'
                   )}
                 >
                   <Icon className="h-5 w-5 shrink-0" />
                   {item.label}
-                  {isActive && <ChevronRight className="ml-auto h-4 w-4 opacity-60" />}
+                  {isActive && <ChevronRight className="ml-auto h-4 w-4 opacity-50" />}
                 </Link>
               </li>
             );
@@ -228,20 +226,20 @@ export function Sidebar({ userName, userEmail, rolNombre: rolNombreProp }: Sideb
       </nav>
 
       {/* Usuario */}
-      <div className="border-t border-slate-100 p-4">
+      <div className="border-t border-white/10 p-4">
         <div className="flex items-center gap-3 mb-3">
           <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#00ADEF] text-white text-sm font-semibold">
             {userName.charAt(0).toUpperCase()}
           </div>
           <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-medium text-slate-800">{userName}</p>
-            <p className="truncate text-xs text-slate-500">{rolNombre ?? userEmail}</p>
+            <p className="truncate text-sm font-medium text-slate-100">{userName}</p>
+            <p className="truncate text-xs text-slate-400">{rolNombre ?? userEmail}</p>
           </div>
         </div>
         <Button
           variant="ghost"
           size="sm"
-          className="w-full justify-start text-slate-500 hover:text-slate-700 hover:bg-slate-50"
+          className="w-full justify-start text-[#8A8A8A] hover:text-white hover:bg-white/5"
           onClick={() => signOut({ callbackUrl: '/login' })}
         >
           <LogOut className="mr-2 h-4 w-4" />

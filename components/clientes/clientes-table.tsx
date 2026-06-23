@@ -144,12 +144,12 @@ export function ClientesTable({ clientes, total, page, perPage, q }: ClientesTab
           <TableBody>
             {clientes.map((c) => (
               <TableRow key={c.id}>
-                <TableCell className="font-medium">{c.razonSocial}</TableCell>
-                <TableCell>{c.cuit ?? '—'}</TableCell>
-                <TableCell>{c.email ?? '—'}</TableCell>
-                <TableCell>{c.telefono ?? '—'}</TableCell>
-                <TableCell>{c.ciudad ?? '—'}</TableCell>
-                <TableCell>{c.provincia ?? '—'}</TableCell>
+                <TableCell className="font-semibold text-slate-800">{c.razonSocial}</TableCell>
+                <TableCell className="text-slate-600 font-mono text-sm">{c.cuit ?? '—'}</TableCell>
+                <TableCell className="text-slate-500 text-sm">{c.email ?? '—'}</TableCell>
+                <TableCell className="text-slate-500 text-sm">{c.telefono ?? '—'}</TableCell>
+                <TableCell className="text-slate-600">{c.ciudad ?? '—'}</TableCell>
+                <TableCell className="text-slate-500 text-sm">{c.provincia ?? '—'}</TableCell>
                 <TableCell className="text-sm text-slate-500">{TIPO_CLIENTE_LABEL[(c.tipoCliente as TipoCliente) ?? 'PARTICULAR']}</TableCell>
                 <TableCell>
                   <div className="flex gap-1">
