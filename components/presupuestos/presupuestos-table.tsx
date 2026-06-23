@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import Link from 'next/link';
 import { useState, useEffect, useRef, useMemo } from 'react';
@@ -353,7 +353,7 @@ export function PresupuestosTable({ clientes, criticos, userEmail }: Props) {
         </div>
 
         {/* Filtros */}
-        <div className="flex flex-wrap gap-3 p-4 bg-white rounded-2xl border border-slate-100 shadow-[0_1px_4px_rgba(0,0,0,0.05)]">
+        <div className="flex flex-wrap gap-3 p-4 bg-white rounded-2xl border border-[#D4B896]/40 shadow-[0_1px_4px_rgba(0,0,0,0.05)]">
           {/* Estado */}
           <DropdownMenu open={estadosOpen} onOpenChange={setEstadosOpen}>
             <DropdownMenuTrigger asChild>
@@ -481,11 +481,11 @@ export function PresupuestosTable({ clientes, criticos, userEmail }: Props) {
 
       {/* Tabla */}
       {loading ? (
-        <div className="rounded-2xl border border-slate-100 bg-white p-10 text-center text-slate-400 text-sm">
+        <div className="rounded-2xl border border-[#D4B896]/40 bg-white p-10 text-center text-slate-400 text-sm">
           Cargando presupuestos…
         </div>
       ) : (
-        <div className="rounded-2xl border border-slate-100 bg-white shadow-[0_2px_8px_rgba(0,0,0,0.06)] overflow-hidden [&_td]:py-3.5">
+        <div className="rounded-2xl border border-[#D4B896]/40 bg-white shadow-[0_2px_8px_rgba(0,0,0,0.06)] overflow-hidden [&_td]:py-3.5">
           <Table>
             <TableHeader>
               <TableRow>
@@ -505,7 +505,7 @@ export function PresupuestosTable({ clientes, criticos, userEmail }: Props) {
               {presupuestosPagina.map((p) => (
                 <TableRow
                   key={p.id}
-                  className={`border-b border-slate-200 ${p.estado === 'ENVIADO' && p.archivos.length === 0 ? 'bg-amber-50' : ''}`}
+                  className={`border-b border-[#D4B896]/45 ${p.estado === 'ENVIADO' && p.archivos.length === 0 ? 'bg-amber-50' : ''}`}
                 >
                   {colVisible('numero') && <TableCell className="font-bold text-slate-800">#{p.numero}</TableCell>}
                   {colVisible('nombre') && <TableCell className="max-w-[140px] truncate font-medium text-slate-700">{p.nombrePresupuesto ?? '—'}</TableCell>}
@@ -657,3 +657,4 @@ export function PresupuestosTable({ clientes, criticos, userEmail }: Props) {
     </div>
   );
 }
+

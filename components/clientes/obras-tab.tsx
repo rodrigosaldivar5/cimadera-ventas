@@ -63,7 +63,7 @@ export function ObrasTab({ clienteId, obras: initialObras }: Props) {
       ) : (
         <div className="grid gap-4">
           {obras.map((obra) => (
-            <div key={obra.id} className="rounded-2xl border border-slate-200 bg-white p-5 flex items-start justify-between gap-4 shadow-[0_2px_8px_rgba(0,0,0,0.06)] hover:shadow-[0_4px_14px_rgba(0,0,0,0.10)] transition-shadow">
+            <div key={obra.id} className="rounded-2xl border border-[#D4B896]/50 bg-white p-5 flex items-start justify-between gap-4 shadow-[0_2px_8px_rgba(0,0,0,0.06)] hover:shadow-[0_4px_14px_rgba(0,0,0,0.10)] transition-shadow">
               <div className="flex-1 min-w-0">
                 <p className="font-semibold text-slate-800">{obra.nombre}</p>
                 {obra.direccion && (
@@ -120,4 +120,5 @@ export function ObrasTab({ clienteId, obras: initialObras }: Props) {
     </div>
   );
 }
+
 

@@ -174,7 +174,7 @@ export function DashboardFiscal() {
           No hay presupuestos aprobados en el período seleccionado.
         </p>
       ) : (
-        <div className="rounded-2xl border border-slate-100 bg-white shadow-[0_2px_8px_rgba(0,0,0,0.06)] overflow-hidden">
+        <div className="rounded-2xl border border-[#D4B896]/40 bg-white shadow-[0_2px_8px_rgba(0,0,0,0.06)] overflow-hidden">
           <Table>
             <TableHeader>
               <TableRow>
@@ -218,4 +218,5 @@ export function DashboardFiscal() {
     </div>
   );
 }
+
 

@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState, useCallback, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
@@ -1014,7 +1014,7 @@ export function CuentasCorrientesContent({ cuentasIniciales, clientes, presupues
 
       {/* Metrics */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-white rounded-2xl border border-slate-100 p-5 shadow-[0_2px_8px_rgba(0,0,0,0.06)]">
+        <div className="bg-white rounded-2xl border border-[#D4B896]/40 p-5 shadow-[0_2px_8px_rgba(0,0,0,0.06)]">
           <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-slate-400 mb-2">
             <DollarSign className="w-3.5 h-3.5" />
             Total facturado
@@ -1024,7 +1024,7 @@ export function CuentasCorrientesContent({ cuentasIniciales, clientes, presupues
             <p className="text-xs text-green-700 mt-1">+ U$D {totalFacturadoUSD.toLocaleString('es-AR', { minimumFractionDigits: 2 })}</p>
           )}
         </div>
-        <div className="bg-white rounded-2xl border border-slate-100 p-5 shadow-[0_2px_8px_rgba(0,0,0,0.06)]">
+        <div className="bg-white rounded-2xl border border-[#D4B896]/40 p-5 shadow-[0_2px_8px_rgba(0,0,0,0.06)]">
           <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-slate-400 mb-2">
             <CreditCard className="w-3.5 h-3.5" />
             Total cobrado
@@ -1034,7 +1034,7 @@ export function CuentasCorrientesContent({ cuentasIniciales, clientes, presupues
             <p className="text-xs text-green-700 mt-1">+ U$D {totalCobradoUSD.toLocaleString('es-AR', { minimumFractionDigits: 2 })}</p>
           )}
         </div>
-        <div className="bg-white rounded-2xl border border-slate-100 p-5 shadow-[0_2px_8px_rgba(0,0,0,0.06)]">
+        <div className="bg-white rounded-2xl border border-[#D4B896]/40 p-5 shadow-[0_2px_8px_rgba(0,0,0,0.06)]">
           <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-slate-400 mb-2">
             <FileText className="w-3.5 h-3.5" />
             Saldo pendiente
@@ -1044,7 +1044,7 @@ export function CuentasCorrientesContent({ cuentasIniciales, clientes, presupues
             <p className="text-xs text-red-600 mt-1">+ U$D {saldoPendienteTotalUSD.toLocaleString('es-AR', { minimumFractionDigits: 2 })}</p>
           )}
         </div>
-        <div className="bg-white rounded-2xl border border-slate-100 p-5 shadow-[0_2px_8px_rgba(0,0,0,0.06)]">
+        <div className="bg-white rounded-2xl border border-[#D4B896]/40 p-5 shadow-[0_2px_8px_rgba(0,0,0,0.06)]">
           <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-slate-400 mb-2">
             <TrendingUp className="w-3.5 h-3.5" />
             Cuentas activas
@@ -1106,7 +1106,7 @@ export function CuentasCorrientesContent({ cuentasIniciales, clientes, presupues
           return (
             <div
               key={cuenta.id}
-              className="bg-white border border-slate-200 rounded-2xl shadow-[0_2px_8px_rgba(0,0,0,0.06)] overflow-hidden transition-shadow hover:shadow-[0_4px_16px_rgba(0,0,0,0.10)]"
+              className="bg-white border border-[#D4B896]/50 rounded-2xl shadow-[0_2px_8px_rgba(0,0,0,0.06)] overflow-hidden transition-shadow hover:shadow-[0_4px_16px_rgba(0,0,0,0.10)]"
             >
               {/* Collapsed header */}
               <button
@@ -2031,3 +2031,4 @@ export function CuentasCorrientesContent({ cuentasIniciales, clientes, presupues
     </div>
   );
 }
+

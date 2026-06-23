@@ -272,7 +272,7 @@ export function MateriaisContent({ categorias: iniciales }: { categorias: Catego
       {tab === 'items' && (
         <>
           {iniciales.map((cat) => (
-            <div key={cat.id} className="rounded-2xl border border-slate-100 bg-white shadow-[0_2px_8px_rgba(0,0,0,0.06)] overflow-hidden">
+            <div key={cat.id} className="rounded-2xl border border-[#D4B896]/40 bg-white shadow-[0_2px_8px_rgba(0,0,0,0.06)] overflow-hidden">
               <button
                 onClick={() => toggleCategoria(cat.id)}
                 className="w-full flex items-center justify-between px-4 py-3 hover:bg-slate-50 transition-colors"
@@ -337,7 +337,7 @@ export function MateriaisContent({ categorias: iniciales }: { categorias: Catego
 
       {/* Tab: Categorías */}
       {tab === 'categorias' && (
-        <div className="rounded-2xl border border-slate-100 bg-white shadow-[0_2px_8px_rgba(0,0,0,0.06)] overflow-hidden">
+        <div className="rounded-2xl border border-[#D4B896]/40 bg-white shadow-[0_2px_8px_rgba(0,0,0,0.06)] overflow-hidden">
           <Table>
             <TableHeader>
               <TableRow>
@@ -474,7 +474,7 @@ export function MateriaisContent({ categorias: iniciales }: { categorias: Catego
                 <Download className="h-4 w-4" /> Descargar plantilla
               </Button>
               <label className="cursor-pointer">
-                <span className="inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-md border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 transition-colors">
+                <span className="inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-md border border-[#D4B896]/50 bg-white hover:bg-slate-50 text-slate-700 transition-colors">
                   <Upload className="h-4 w-4" /> Seleccionar archivo (.xlsx, .xls, .csv)
                 </span>
                 <input ref={importInputRef} type="file" accept=".xlsx,.xls,.csv" className="sr-only" onChange={parsearArchivo} />
@@ -562,4 +562,5 @@ export function MateriaisContent({ categorias: iniciales }: { categorias: Catego
     </div>
   );
 }
+
 

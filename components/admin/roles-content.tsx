@@ -108,7 +108,7 @@ export function RolesContent({ roles: initialRoles, divisiones }: Props) {
       {roles.map((rol) => {
         const isOpen = expanded.has(rol.id);
         return (
-          <div key={rol.id} className="rounded-2xl border border-slate-100 bg-white shadow-[0_2px_8px_rgba(0,0,0,0.06)] overflow-hidden">
+          <div key={rol.id} className="rounded-2xl border border-[#D4B896]/40 bg-white shadow-[0_2px_8px_rgba(0,0,0,0.06)] overflow-hidden">
             <button
               className="w-full flex items-center justify-between px-4 py-3 bg-slate-50 border-b hover:bg-slate-100 transition-colors text-left"
               onClick={() => toggle(rol.id)}
@@ -224,4 +224,5 @@ export function RolesContent({ roles: initialRoles, divisiones }: Props) {
     </div>
   );
 }
+
 
