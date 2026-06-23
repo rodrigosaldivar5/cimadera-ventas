@@ -326,7 +326,7 @@ export function PresupuestosTable({ clientes, criticos, userEmail }: Props) {
                       {urgente && <span className="text-xs bg-red-100 text-red-600 font-semibold px-2 py-0.5 rounded-full">{dias}d sin cambio</span>}
                     </div>
                     <p className="font-medium text-slate-700 truncate">{p.nombrePresupuesto ?? p.cliente.razonSocial}</p>
-                    <p className="text-slate-400 text-xs mt-0.5">{p.cliente.razonSocial}</p>
+                    <p className="text-slate-500 text-xs mt-0.5">{p.cliente.razonSocial}</p>
                     {p.responsable && (
                       <p className="text-slate-500 text-xs mt-1.5 font-medium">Resp: {p.responsable.nombre}</p>
                     )}
@@ -510,8 +510,8 @@ export function PresupuestosTable({ clientes, criticos, userEmail }: Props) {
                   {colVisible('numero') && <TableCell className="font-bold text-slate-800">#{p.numero}</TableCell>}
                   {colVisible('nombre') && <TableCell className="max-w-[140px] truncate font-medium text-slate-700">{p.nombrePresupuesto ?? '—'}</TableCell>}
                   {colVisible('cliente') && <TableCell className="max-w-[150px] truncate font-semibold text-slate-800">{p.cliente.razonSocial}</TableCell>}
-                  {colVisible('obra') && <TableCell className="text-slate-400 text-sm max-w-[120px] truncate">{p.obra?.nombre ?? '—'}</TableCell>}
-                  {colVisible('responsable') && <TableCell className="text-slate-400 text-sm">{p.responsable?.nombre ?? p.creadoPor.nombre}</TableCell>}
+                  {colVisible('obra') && <TableCell className="text-slate-500 text-sm max-w-[120px] truncate">{p.obra?.nombre ?? '—'}</TableCell>}
+                  {colVisible('responsable') && <TableCell className="text-slate-500 text-sm">{p.responsable?.nombre ?? p.creadoPor.nombre}</TableCell>}
                   {colVisible('prioridad') && (
                     <TableCell>
                       <DropdownMenu>

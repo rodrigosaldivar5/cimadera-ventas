@@ -1110,7 +1110,7 @@ export function CuentasCorrientesContent({ cuentasIniciales, clientes, presupues
             >
               {/* Collapsed header */}
               <button
-                className="w-full flex items-center justify-between px-6 py-5 hover:bg-[#F8FAFB] transition-colors text-left"
+                className="w-full flex items-center justify-between px-6 py-4 hover:bg-[#F8FAFB] transition-colors text-left"
                 onClick={() => toggleExpand(cuenta.id)}
               >
                 <div className="flex-1 min-w-0">
@@ -1131,7 +1131,7 @@ export function CuentasCorrientesContent({ cuentasIniciales, clientes, presupues
                       <span className="text-sm text-slate-400">Sin obra</span>
                     )}
                   </div>
-                  <p className="text-xs text-slate-400 mt-1">
+                  <p className="text-xs text-slate-500 mt-1">
                     {cuenta.presupuesto
                       ? `Presupuesto N° ${String(cuenta.presupuesto.numero).padStart(4, '0')} · `
                       : ''}
@@ -1151,7 +1151,6 @@ export function CuentasCorrientesContent({ cuentasIniciales, clientes, presupues
                         {formatCurrency(Number(cuenta.saldoActualizado))}
                       </span>
                     )}
-                    <p className="text-[11px] text-slate-400 mt-0.5">saldo pendiente</p>
                   </div>
                   <Badge className={`${ESTADO_BADGE_STYLE[cuenta.estado] ?? ''} text-xs px-3 py-1`}>
                     {ESTADO_LABELS[cuenta.estado] ?? cuenta.estado}
