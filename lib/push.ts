@@ -11,6 +11,7 @@ export interface PushPayload {
   title: string;
   body: string;
   url?: string;
+  tag?: string;
 }
 
 export async function enviarPush(userId: string, payload: PushPayload): Promise<void> {

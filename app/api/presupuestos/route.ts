@@ -142,6 +142,46 @@ export async function POST(req: NextRequest) {
       accion: 'CREACION',
     });
 
+    if (presupuesto.responsableId && presupuesto.responsableId !== session.user.id) {
+      try {
+        const { enviarNotificacion } = await import('@/lib/notificaciones');
+        const clienteNombre = (await prisma.cliente.findUnique({
+          where: { id: presupuesto.clienteId },
+          select: { razonSocial: true },
+        }))?.razonSocial ?? 'Cliente';
+        await enviarNotificacion({
+          evento: 'presupuesto_asignado',
+          userId: presupuesto.responsableId,
+          titulo: `Nuevo presupuesto asignado: #${presupuesto.numero}`,
+          mensaje: `${session.user.nombre ?? 'Admin'} te asignó "${presupuesto.nombrePresupuesto ?? 'Presupuesto'}" — ${clienteNombre}`,
+          linkUrl: `/presupuestos/${presupuesto.id}`,
+        });
+        console.log('[NOTIF] presupuesto_asignado enviado a', presupuesto.responsableId);
+      } catch (err) {
+        console.error('[NOTIF] Error en presupuesto_asignado:', err);
+      }
+    }
+
+    if (presupuesto.prioridad === 'ALTA') {
+      try {
+        const { enviarNotificacionMasiva } = await import('@/lib/notificaciones');
+        const clienteNombre = (await prisma.cliente.findUnique({
+          where: { id: presupuesto.clienteId },
+          select: { razonSocial: true },
+        }))?.razonSocial ?? 'Cliente';
+        await enviarNotificacionMasiva({
+          evento: 'alta_prioridad',
+          titulo: `🔴 Presupuesto ALTA prioridad: #${presupuesto.numero}`,
+          mensaje: `${presupuesto.nombrePresupuesto ?? 'Presupuesto'} — ${clienteNombre}`,
+          linkUrl: `/presupuestos/${presupuesto.id}`,
+          excluirUserId: session.user.id,
+        });
+        console.log('[NOTIF] alta_prioridad enviado (creación)');
+      } catch (err) {
+        console.error('[NOTIF] Error en alta_prioridad:', err);
+      }
+    }
+
     return NextResponse.json(presupuesto, { status: 201 });
   } catch (err) {
     console.error(err);

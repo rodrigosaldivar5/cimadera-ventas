@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Bell, Send, CheckCircle, XCircle, Loader2 } from 'lucide-react';
+import { Bell, Send, CheckCircle, XCircle, Loader2, FlaskConical } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -31,6 +31,22 @@ interface Props {
 export function NotificacionesAdmin({ usuarios, recentNotifs }: Props) {
   const [sending, setSending] = useState<string | null>(null);
   const [results, setResults] = useState<Record<string, 'ok' | 'error'>>({});
+  const [testingAll, setTestingAll] = useState(false);
+  const [testAllResult, setTestAllResult] = useState<string | null>(null);
+
+  const testAll = async () => {
+    setTestingAll(true);
+    setTestAllResult(null);
+    try {
+      const res = await fetch('/api/push/test-all', { method: 'POST' });
+      const data = await res.json();
+      setTestAllResult(JSON.stringify(data, null, 2));
+    } catch (e) {
+      setTestAllResult('Error: ' + String(e));
+    } finally {
+      setTestingAll(false);
+    }
+  };
 
   const enviarTest = async (userId: string) => {
     setSending(userId);
@@ -54,11 +70,30 @@ export function NotificacionesAdmin({ usuarios, recentNotifs }: Props) {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-xl font-semibold text-slate-800">Notificaciones Push</h2>
-        <p className="text-sm text-slate-500 mt-1">
-          Gestión de suscripciones y envío de notificaciones a usuarios
-        </p>
+      <div className="flex items-start justify-between gap-4 flex-wrap">
+        <div>
+          <h2 className="text-xl font-semibold text-slate-800">Notificaciones Push</h2>
+          <p className="text-sm text-slate-500 mt-1">
+            Gestión de suscripciones y envío de notificaciones a usuarios
+          </p>
+        </div>
+        <div className="flex flex-col items-end gap-2">
+          <Button
+            onClick={testAll}
+            variant="outline"
+            size="sm"
+            disabled={testingAll}
+            className="flex items-center gap-2"
+          >
+            {testingAll ? <Loader2 className="h-4 w-4 animate-spin" /> : <FlaskConical className="h-4 w-4" />}
+            🧪 Test de notificaciones push
+          </Button>
+          {testAllResult && (
+            <pre className="text-xs bg-slate-50 border border-slate-200 rounded p-3 max-w-sm overflow-auto whitespace-pre-wrap text-slate-600">
+              {testAllResult}
+            </pre>
+          )}
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

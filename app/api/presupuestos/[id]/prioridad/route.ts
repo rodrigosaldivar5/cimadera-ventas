@@ -30,5 +30,25 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     camposModificados: { prioridad: { antes: prev?.prioridad, despues: prioridad } },
   });
 
+  if (prioridad === 'ALTA') {
+    try {
+      const { enviarNotificacionMasiva } = await import('@/lib/notificaciones');
+      const cliente = await prisma.cliente.findUnique({
+        where: { id: presupuesto.clienteId },
+        select: { razonSocial: true },
+      });
+      await enviarNotificacionMasiva({
+        evento: 'alta_prioridad',
+        titulo: `🔴 Prioridad ALTA: #${presupuesto.numero}`,
+        mensaje: `"${presupuesto.nombrePresupuesto ?? 'Presupuesto'}" — ${cliente?.razonSocial ?? 'Cliente'} fue marcado como alta prioridad`,
+        linkUrl: `/presupuestos/${params.id}`,
+        excluirUserId: session.user.id,
+      });
+      console.log('[NOTIF] alta_prioridad enviado (cambio prioridad)');
+    } catch (err) {
+      console.error('[NOTIF] Error en alta_prioridad:', err);
+    }
+  }
+
   return NextResponse.json(presupuesto);
 }
