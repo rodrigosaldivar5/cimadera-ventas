@@ -9,7 +9,14 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Edit, Download, RefreshCw, CheckCircle2, Loader2 } from 'lucide-react';
-import { ESTADO_PRESUPUESTO, estadoLabel, type EstadoPresupuesto } from '@/lib/enums';
+import {
+  ESTADO_PRESUPUESTO,
+  estadoLabel,
+  type EstadoPresupuesto,
+  MOTIVO_CIERRE_LABEL,
+  MOTIVOS_PERDIDO_COMPUTABLE,
+  MOTIVOS_NO_COMPUTABLE,
+} from '@/lib/enums';
 import Link from 'next/link';
 import { generarPresupuestoPDF } from '@/lib/pdf/generar-presupuesto';
 import { formatCurrency } from '@/lib/utils';
@@ -41,6 +48,13 @@ export function PresupuestoAcciones({ presupuesto, presupuestoPDF, presupuestoDa
   const [nuevoEstado, setNuevoEstado] = useState<EstadoPresupuesto>(presupuesto.estado);
   const [isLoading, setIsLoading] = useState(false);
 
+  // ── Dialog cierre comercial (RECHAZADO) ──────────────────────────────────
+  const [cierreDialog, setCierreDialog] = useState(false);
+  const [cierreResultado, setCierreResultado] = useState<'PERDIDO_COMPUTABLE' | 'NO_COMPUTABLE' | ''>('');
+  const [cierreMotivo, setCierreMotivo] = useState('');
+  const [cierreComentario, setCierreComentario] = useState('');
+  const [cierreSaving, setCierreSaving] = useState(false);
+
   // ── Dialog sugerencia cuenta corriente ────────────────────────────────────
   const [suggestCuenta, setSuggestCuenta] = useState(false);
 
@@ -56,6 +70,15 @@ export function PresupuestoAcciones({ presupuesto, presupuestoPDF, presupuestoDa
   const [ccError, setCcError] = useState('');
 
   const cambiarEstado = async () => {
+    if (nuevoEstado === 'RECHAZADO') {
+      setEstadoDialog(false);
+      setCierreResultado('');
+      setCierreMotivo('');
+      setCierreComentario('');
+      setCierreDialog(true);
+      return;
+    }
+
     setIsLoading(true);
     const res = await fetch(`/api/presupuestos/${presupuesto.id}/estado`, {
       method: 'PATCH',
@@ -70,6 +93,26 @@ export function PresupuestoAcciones({ presupuesto, presupuestoPDF, presupuestoDa
       setCcMonto(Number(monto).toFixed(2));
       setSuggestCuenta(true);
     } else {
+      router.refresh();
+    }
+  };
+
+  const confirmarCierre = async () => {
+    if (!cierreResultado || !cierreMotivo) return;
+    setCierreSaving(true);
+    const res = await fetch(`/api/presupuestos/${presupuesto.id}/estado`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        estado: 'RECHAZADO',
+        resultadoComercial: cierreResultado,
+        motivoCierre: cierreMotivo,
+        comentarioCierre: cierreComentario || null,
+      }),
+    });
+    setCierreSaving(false);
+    if (res.ok) {
+      setCierreDialog(false);
       router.refresh();
     }
   };
@@ -153,6 +196,68 @@ export function PresupuestoAcciones({ presupuesto, presupuestoPDF, presupuestoDa
             <Button variant="outline" onClick={() => setEstadoDialog(false)}>Cancelar</Button>
             <Button onClick={cambiarEstado} disabled={isLoading} className="bg-[#00ADEF] hover:bg-[#0089C7]">
               {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Confirmar'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Dialog cierre comercial ── */}
+      <Dialog open={cierreDialog} onOpenChange={setCierreDialog}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Cerrar presupuesto #{presupuesto.numero}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label className="mb-1.5 block text-sm font-medium">Resultado comercial *</Label>
+              <Select
+                value={cierreResultado}
+                onValueChange={(v) => { setCierreResultado(v as 'PERDIDO_COMPUTABLE' | 'NO_COMPUTABLE'); setCierreMotivo(''); }}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Seleccioná un resultado..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="PERDIDO_COMPUTABLE">Perdido (computable)</SelectItem>
+                  <SelectItem value="NO_COMPUTABLE">No computable</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label className="mb-1.5 block text-sm font-medium">Motivo *</Label>
+              <Select
+                value={cierreMotivo}
+                onValueChange={setCierreMotivo}
+                disabled={!cierreResultado}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Seleccioná un motivo..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {(cierreResultado === 'PERDIDO_COMPUTABLE' ? MOTIVOS_PERDIDO_COMPUTABLE : MOTIVOS_NO_COMPUTABLE).map((m) => (
+                    <SelectItem key={m} value={m}>{MOTIVO_CIERRE_LABEL[m]}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label className="mb-1.5 block text-sm font-medium">Comentario (opcional)</Label>
+              <Textarea
+                value={cierreComentario}
+                onChange={(e) => setCierreComentario(e.target.value)}
+                rows={2}
+                placeholder="Contexto adicional..."
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCierreDialog(false)}>Cancelar</Button>
+            <Button
+              onClick={confirmarCierre}
+              disabled={!cierreResultado || !cierreMotivo || cierreSaving}
+              className="bg-red-600 hover:bg-red-700 text-white"
+            >
+              {cierreSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Confirmar cierre'}
             </Button>
           </DialogFooter>
         </DialogContent>

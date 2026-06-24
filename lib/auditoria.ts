@@ -8,7 +8,8 @@ type AccionAuditoria =
   | 'ACTUALIZACION_PRECIOS'
   | 'ADJUNTO_SUBIDO'
   | 'ADJUNTO_ELIMINADO'
-  | 'PEDIDO_AVANCE';
+  | 'PEDIDO_AVANCE'
+  | 'CIERRE_COMERCIAL';
 
 export function registrarAuditoria(params: {
   presupuestoId: string;

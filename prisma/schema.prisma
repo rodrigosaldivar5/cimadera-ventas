@@ -150,6 +150,14 @@ model Presupuesto {
   probabilidadCobro        Decimal?           @db.Decimal(5,2)
   motivoRechazo            String?
   moneda                   String             @default("ARS")
+  // ── Métricas comerciales ───────────────────────────────────────────
+  resultadoComercial            ResultadoComercial   @default(ABIERTO)
+  motivoCierre                  MotivoCierre?
+  comentarioCierre              String?
+  fechaCierreComercial          DateTime?
+  tipoOportunidad               TipoOportunidad?
+  fechaPrimerEnvio              DateTime?
+  fechaUltimaActividadComercial DateTime?
 }
 
 model Obra {
@@ -535,6 +543,44 @@ model AuditoriaPresupuesto {
   createdAt         DateTime    @default(now())
 
   @@index([presupuestoId])
+}
+
+// ─── Métricas comerciales ─────────────────────────────────────────────────────
+
+enum ResultadoComercial {
+  ABIERTO
+  GANADO
+  PERDIDO_COMPUTABLE
+  NO_COMPUTABLE
+}
+
+enum MotivoCierre {
+  PRECIO
+  PLAZO_ENTREGA
+  FORMA_PAGO
+  ELIGIO_COMPETENCIA
+  PROPUESTA_TECNICA_NO_ADECUADA
+  FALTA_SEGUIMIENTO
+  CLIENTE_NO_RESPONDE
+  ERROR_PRESUPUESTO
+  LICITACION_NO_EJECUTADA
+  LICITACION_NO_ADJUDICADA
+  OBRA_CANCELADA
+  OBRA_SUSPENDIDA
+  PRESUPUESTO_REFERENCIA
+  PRESUPUESTO_DUPLICADO
+  CLIENTE_FUERA_PERFIL
+  PROYECTO_SIN_DECISION_REAL
+  OTRO
+}
+
+enum TipoOportunidad {
+  OBRA_REAL
+  LICITACION
+  PRESUPUESTO_COMPARATIVO
+  ADICIONAL_REPOSICION
+  PROYECTO_EN_ANALISIS
+  OTRO
 }
 
 // ─── División productiva ──────────────────────────────────────────────────────

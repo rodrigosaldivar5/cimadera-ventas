@@ -84,3 +84,83 @@ export const TIPO_CLIENTE_LABEL: Record<TipoCliente, string> = {
   DESARROLLADOR: 'Pequeño Desarrollador',
   PARTICULAR: 'Particular',
 };
+
+// ── Resultado comercial ───────────────────────────────────────────────────────
+
+export const RESULTADO_COMERCIAL = {
+  ABIERTO:            'ABIERTO',
+  GANADO:             'GANADO',
+  PERDIDO_COMPUTABLE: 'PERDIDO_COMPUTABLE',
+  NO_COMPUTABLE:      'NO_COMPUTABLE',
+} as const;
+
+export type ResultadoComercial = (typeof RESULTADO_COMERCIAL)[keyof typeof RESULTADO_COMERCIAL];
+
+export const RESULTADO_COMERCIAL_LABEL: Record<ResultadoComercial, string> = {
+  ABIERTO:            'Abierto',
+  GANADO:             'Ganado',
+  PERDIDO_COMPUTABLE: 'Perdido (computable)',
+  NO_COMPUTABLE:      'No computable',
+};
+
+export const MOTIVO_CIERRE_LABEL: Record<string, string> = {
+  PRECIO:                        'Precio',
+  PLAZO_ENTREGA:                 'Plazo de entrega',
+  FORMA_PAGO:                    'Forma de pago',
+  ELIGIO_COMPETENCIA:            'Eligió competencia',
+  PROPUESTA_TECNICA_NO_ADECUADA: 'Propuesta técnica no adecuada',
+  FALTA_SEGUIMIENTO:             'Falta de seguimiento',
+  CLIENTE_NO_RESPONDE:           'Cliente no responde',
+  ERROR_PRESUPUESTO:             'Error en presupuesto',
+  LICITACION_NO_EJECUTADA:       'Licitación no ejecutada',
+  LICITACION_NO_ADJUDICADA:      'Licitación no adjudicada',
+  OBRA_CANCELADA:                'Obra cancelada',
+  OBRA_SUSPENDIDA:               'Obra suspendida',
+  PRESUPUESTO_REFERENCIA:        'Presupuesto de referencia',
+  PRESUPUESTO_DUPLICADO:         'Presupuesto duplicado',
+  CLIENTE_FUERA_PERFIL:          'Cliente fuera de perfil',
+  PROYECTO_SIN_DECISION_REAL:    'Proyecto sin decisión real',
+  OTRO:                          'Otro',
+};
+
+export const MOTIVOS_PERDIDO_COMPUTABLE = [
+  'PRECIO',
+  'PLAZO_ENTREGA',
+  'FORMA_PAGO',
+  'ELIGIO_COMPETENCIA',
+  'PROPUESTA_TECNICA_NO_ADECUADA',
+  'FALTA_SEGUIMIENTO',
+  'CLIENTE_NO_RESPONDE',
+  'ERROR_PRESUPUESTO',
+  'OTRO',
+] as const;
+
+export const MOTIVOS_NO_COMPUTABLE = [
+  'LICITACION_NO_EJECUTADA',
+  'LICITACION_NO_ADJUDICADA',
+  'OBRA_CANCELADA',
+  'OBRA_SUSPENDIDA',
+  'PRESUPUESTO_REFERENCIA',
+  'PRESUPUESTO_DUPLICADO',
+  'CLIENTE_FUERA_PERFIL',
+  'PROYECTO_SIN_DECISION_REAL',
+  'OTRO',
+] as const;
+
+const RESULTADO_COMERCIAL_ESTILOS: Record<ResultadoComercial, CSSProperties> = {
+  ABIERTO:            { backgroundColor: '#F1F5F9', color: '#475569', border: '1px solid #CBD5E1' },
+  GANADO:             { backgroundColor: '#DCFCE7', color: '#166534', border: '1px solid #86EFAC' },
+  PERDIDO_COMPUTABLE: { backgroundColor: '#FEE2E2', color: '#991B1B', border: '1px solid #FCA5A5' },
+  NO_COMPUTABLE:      { backgroundColor: '#FEF3C7', color: '#92400E', border: '1px solid #FCD34D' },
+};
+
+export function getEstiloResultadoComercial(resultado: string): CSSProperties {
+  return {
+    ...BASE_BADGE_STYLE,
+    ...(RESULTADO_COMERCIAL_ESTILOS[resultado as ResultadoComercial] ?? RESULTADO_COMERCIAL_ESTILOS.ABIERTO),
+  };
+}
+
+export function getLabelResultadoComercial(resultado: string): string {
+  return RESULTADO_COMERCIAL_LABEL[resultado as ResultadoComercial] ?? resultado;
+}

@@ -9,23 +9,42 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   const session = await auth();
   if (!session?.user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
 
-  const { estado, motivoRechazo } = await req.json();
+  const { estado, motivoRechazo, resultadoComercial, motivoCierre, comentarioCierre } = await req.json();
 
   if (!Object.values(EstadoPresupuesto).includes(estado)) {
     return NextResponse.json({ error: 'Estado inválido' }, { status: 400 });
   }
 
+  if (estado === 'RECHAZADO') {
+    if (!resultadoComercial || !['PERDIDO_COMPUTABLE', 'NO_COMPUTABLE'].includes(resultadoComercial)) {
+      return NextResponse.json({ error: 'Resultado comercial requerido al rechazar' }, { status: 400 });
+    }
+    if (!motivoCierre) {
+      return NextResponse.json({ error: 'Motivo de cierre requerido al rechazar' }, { status: 400 });
+    }
+  }
+
+  const now = new Date();
+
   const prev = await prisma.presupuesto.findUnique({
     where: { id: params.id },
-    select: { estado: true },
+    select: { estado: true, fechaPrimerEnvio: true },
   });
 
   const presupuesto = await prisma.presupuesto.update({
     where: { id: params.id },
     data: {
       estado,
-      fechaEnvio: estado === 'ENVIADO' ? new Date() : undefined,
-      motivoRechazo: estado === 'RECHAZADO' ? (motivoRechazo ?? null) : undefined,
+      fechaEnvio:                  estado === 'ENVIADO'    ? now       : undefined,
+      fechaPrimerEnvio:            estado === 'ENVIADO' && !prev?.fechaPrimerEnvio ? now : undefined,
+      fechaUltimaActividadComercial: ['ENVIADO', 'APROBADO', 'RECHAZADO'].includes(estado) ? now : undefined,
+      motivoRechazo:               estado === 'RECHAZADO'  ? (motivoRechazo ?? null) : undefined,
+      resultadoComercial:          estado === 'APROBADO'   ? 'GANADO'
+                                 : estado === 'RECHAZADO'  ? resultadoComercial
+                                 : undefined,
+      motivoCierre:                estado === 'RECHAZADO'  ? motivoCierre           : undefined,
+      comentarioCierre:            estado === 'RECHAZADO'  ? (comentarioCierre ?? null) : undefined,
+      fechaCierreComercial:        (estado === 'APROBADO' || estado === 'RECHAZADO') ? now : undefined,
     },
   });
 
@@ -35,6 +54,19 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     accion: 'CAMBIO_ESTADO',
     camposModificados: { estado: { antes: prev?.estado, despues: estado } },
   });
+
+  if (estado === 'APROBADO' || estado === 'RECHAZADO') {
+    registrarAuditoria({
+      presupuestoId: params.id,
+      usuarioId: session.user.id,
+      accion: 'CIERRE_COMERCIAL',
+      camposModificados: {
+        resultadoComercial: estado === 'APROBADO' ? 'GANADO' : resultadoComercial,
+        motivoCierre:        estado === 'RECHAZADO' ? motivoCierre : null,
+        comentarioCierre:    estado === 'RECHAZADO' ? (comentarioCierre ?? null) : null,
+      },
+    });
+  }
 
   // Notificar cambio de estado a coordinacion.general
   try {

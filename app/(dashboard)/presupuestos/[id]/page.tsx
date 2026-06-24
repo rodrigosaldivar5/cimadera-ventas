@@ -20,7 +20,7 @@ import { auth } from '@/lib/auth';
 import type { EstadoPresupuesto } from '@prisma/client';
 import Link from 'next/link';
 import { ArrowLeft, Building2, User2, Calendar } from 'lucide-react';
-import { estadoBadgeClass, estadoLabel, getEstiloEstado, getLabelEstado } from '@/lib/enums';
+import { estadoBadgeClass, estadoLabel, getEstiloEstado, getLabelEstado, getEstiloResultadoComercial, getLabelResultadoComercial } from '@/lib/enums';
 
 const EMAILS_AUTORIZADOS_BORRAR = ['coordinacion.general@cimadera.net', 'admin@cimadera.net'];
 
@@ -76,6 +76,11 @@ export default async function PresupuestoDetallePage({ params }: { params: { id:
             prioridadInicial={presupuesto.prioridad}
           />
           <span style={getEstiloEstado(presupuesto.estado)}>{getLabelEstado(presupuesto.estado)}</span>
+          {presupuesto.resultadoComercial !== 'ABIERTO' && (
+            <span style={getEstiloResultadoComercial(presupuesto.resultadoComercial)}>
+              {getLabelResultadoComercial(presupuesto.resultadoComercial)}
+            </span>
+          )}
           <PresupuestoAcciones
             presupuesto={{ id: presupuesto.id, estado: presupuesto.estado, numero: presupuesto.numero }}
             presupuestoDatos={{
