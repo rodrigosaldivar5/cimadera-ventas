@@ -142,7 +142,9 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
           obra: p.obra ? { id: p.obra.id, nombre: p.obra.nombre, direccion: p.obra.direccion ?? null } : null,
           responsable: { id: p.responsable?.id ?? p.creadoPor.id, nombre: p.responsable?.nombre ?? p.creadoPor.nombre, email: p.responsable?.email ?? p.creadoPor.email },
           division: divisionGlobal,
+          moneda: p.moneda,
           monto: {
+            moneda: p.moneda,
             neto,
             descuentoPorcentaje: Number(p.descuento ?? 0),
             descuentoMonto: neto > 0 && Number(p.descuento) > 0 ? neto * Number(p.descuento) / (100 - Number(p.descuento)) : 0,
