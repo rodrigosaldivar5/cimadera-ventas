@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 
 export const EVENT_TYPES = {
   PRESUPUESTO_APROBADO: 'presupuesto.aprobado',
+  PRESUPUESTO_RECHAZADO: 'presupuesto.rechazado',
 } as const;
 
 const TARGET_URLS: Record<string, { url: string }> = {

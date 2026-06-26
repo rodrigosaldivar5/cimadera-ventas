@@ -80,6 +80,16 @@ export async function GET(request: NextRequest) {
         fechaCreacion: p.fechaCreacion,
         fechaEnvio: p.fechaEnvio,
         fechaVencimiento: p.fechaVencimiento,
+        fechaRecepcion: p.fechaRecepcion,
+        resultadoComercial: p.resultadoComercial,
+        motivoCierre: p.motivoCierre,
+        comentarioCierre: p.comentarioCierre,
+        tipoOportunidad: p.tipoOportunidad,
+        fechaCierreComercial: p.fechaCierreComercial,
+        fechaPrimerEnvio: p.fechaPrimerEnvio,
+        fechaUltimaActividadComercial: p.fechaUltimaActividadComercial,
+        fechaPrometidaCliente: p.fechaPrometidaCliente,
+        fechaObjetivoProduccion: p.fechaObjetivoProduccion,
       })),
     }, 200, origin);
   } catch (error) {

@@ -157,12 +157,67 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
             observaciones: p.observaciones ?? null,
             fechaVencimiento: p.fechaVencimiento?.toISOString() ?? null,
           },
+          resultadoComercial: 'GANADO',
+          motivoCierre: p.motivoCierre ?? null,
+          comentarioCierre: p.comentarioCierre ?? null,
+          tipoOportunidad: p.tipoOportunidad ?? null,
           fechaCreacion: p.fechaCreacion.toISOString(),
           fechaAprobacion: new Date().toISOString(),
+          fechaCierreComercial: p.fechaCierreComercial?.toISOString() ?? null,
+          fechaPrimerEnvio: p.fechaPrimerEnvio?.toISOString() ?? null,
+          fechaUltimaActividadComercial: p.fechaUltimaActividadComercial?.toISOString() ?? null,
+          fechaRecepcion: p.fechaRecepcion?.toISOString() ?? null,
+          fechaEnvio: p.fechaEnvio?.toISOString() ?? null,
           fechaPrometidaCliente: p.fechaPrometidaCliente?.toISOString() ?? null,
           fechaObjetivoProduccion: p.fechaObjetivoProduccion?.toISOString() ?? null,
         },
       }).catch((err: Error) => console.error('[EVENT] Error emitiendo presupuesto.aprobado:', err.message));
+    }
+  }
+
+  if (estado === 'RECHAZADO') {
+    const p = await prisma.presupuesto.findUnique({
+      where: { id: params.id },
+      include: {
+        cliente: { select: { id: true, razonSocial: true, email: true, tipoCliente: true } },
+        obra: { select: { id: true, nombre: true, direccion: true } },
+        creadoPor: { select: { id: true, nombre: true, email: true } },
+        responsable: { select: { id: true, nombre: true, email: true } },
+      },
+    });
+    if (p) {
+      await emitEvent({
+        eventType: EVENT_TYPES.PRESUPUESTO_RECHAZADO,
+        entityType: 'presupuesto',
+        entityId: p.id,
+        userId: session.user.id,
+        data: {
+          presupuestoId: p.id,
+          numero: p.numero,
+          nombrePresupuesto: p.nombrePresupuesto ?? null,
+          cliente: { id: p.cliente.id, razonSocial: p.cliente.razonSocial, email: p.cliente.email ?? null, tipoCliente: p.cliente.tipoCliente },
+          obra: p.obra ? { id: p.obra.id, nombre: p.obra.nombre, direccion: p.obra.direccion ?? null } : null,
+          responsable: { id: p.responsable?.id ?? p.creadoPor.id, nombre: p.responsable?.nombre ?? p.creadoPor.nombre, email: p.responsable?.email ?? p.creadoPor.email },
+          moneda: p.moneda,
+          monto: {
+            moneda: p.moneda,
+            neto: Number(p.precioFinal ?? p.totalFinal ?? 0),
+            totalConIva: Number(p.totalConIva ?? 0),
+          },
+          resultadoComercial: p.resultadoComercial,
+          motivoCierre: p.motivoCierre ?? null,
+          comentarioCierre: p.comentarioCierre ?? null,
+          tipoOportunidad: p.tipoOportunidad ?? null,
+          fechaCreacion: p.fechaCreacion.toISOString(),
+          fechaCierreComercial: p.fechaCierreComercial?.toISOString() ?? null,
+          fechaPrimerEnvio: p.fechaPrimerEnvio?.toISOString() ?? null,
+          fechaUltimaActividadComercial: p.fechaUltimaActividadComercial?.toISOString() ?? null,
+          fechaRecepcion: p.fechaRecepcion?.toISOString() ?? null,
+          fechaEnvio: p.fechaEnvio?.toISOString() ?? null,
+          fechaPrometidaCliente: p.fechaPrometidaCliente?.toISOString() ?? null,
+          fechaObjetivoProduccion: p.fechaObjetivoProduccion?.toISOString() ?? null,
+        },
+      }).catch((err: Error) => console.error('[EVENT] Error emitiendo presupuesto.rechazado:', err.message));
     }
   }
 
