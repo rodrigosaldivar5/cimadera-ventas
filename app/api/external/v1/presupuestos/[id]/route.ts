@@ -33,6 +33,22 @@ export async function GET(request: NextRequest, { params }: Ctx) {
         archivos: {
           select: { id: true, nombre: true, tipo: true, tamanio: true, createdAt: true },
         },
+        _count: { select: { seguimientos: true } },
+        seguimientos: {
+          orderBy: { fechaContacto: 'desc' },
+          take: 20,
+          select: {
+            id: true,
+            responsableId: true,
+            responsableNombre: true,
+            fechaContacto: true,
+            canal: true,
+            resultado: true,
+            comentario: true,
+            proximoContacto: true,
+            createdAt: true,
+          },
+        },
       },
     });
 
@@ -77,6 +93,10 @@ export async function GET(request: NextRequest, { params }: Ctx) {
       fechaUltimaActividadComercial: p.fechaUltimaActividadComercial,
       fechaPrometidaCliente: p.fechaPrometidaCliente,
       fechaObjetivoProduccion: p.fechaObjetivoProduccion,
+      cantidadSeguimientos: p._count.seguimientos,
+      ultimoSeguimiento: p.seguimientos[0] ?? null,
+      proximoContacto: p.seguimientos[0]?.proximoContacto ?? null,
+      seguimientos: p.seguimientos,
       lineas: p.lineas.map((l) => ({
         id: l.id,
         item: l.item,

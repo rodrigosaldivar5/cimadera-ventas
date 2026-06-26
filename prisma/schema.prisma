@@ -49,6 +49,8 @@ model User {
   notificacionPreferencias  NotificacionPreferencia[]
   solicitudesRestablecimiento SolicitudRestablecimiento[]
   restablecimientosAprobados  SolicitudRestablecimiento[] @relation("AprobadorRestablecimiento")
+  seguimientosComoResponsable SeguimientoComercial[]      @relation("SeguimientoResponsable")
+  seguimientosCreados         SeguimientoComercial[]      @relation("SeguimientosCreados")
 }
 
 model PermisoRol {
@@ -87,6 +89,7 @@ model Cliente {
   criterios         CriterioCliente[]
   obras             Obra[]
   cuentasCorrientes CuentaCorriente[]
+  seguimientos      SeguimientoComercial[]
 }
 
 model CategoriaItem {
@@ -158,6 +161,7 @@ model Presupuesto {
   tipoOportunidad               TipoOportunidad?
   fechaPrimerEnvio              DateTime?
   fechaUltimaActividadComercial DateTime?
+  seguimientos                  SeguimientoComercial[]
 }
 
 model Obra {
@@ -684,6 +688,54 @@ model SolicitudRestablecimiento {
 
   @@index([userId])
   @@index([estado])
+}
+
+// ─── Seguimiento comercial ────────────────────────────────────────────────────
+
+enum CanalSeguimiento {
+  WHATSAPP
+  LLAMADA
+  EMAIL
+  REUNION
+  OTRO
+}
+
+enum ResultadoSeguimiento {
+  CONTACTADO
+  NO_RESPONDE
+  INTERESADO
+  PIDE_CAMBIOS
+  PIDE_REENVIO
+  POSTERGADO
+  CERRADO_APROBADO
+  CERRADO_RECHAZADO
+  OTRO
+}
+
+model SeguimientoComercial {
+  id                String               @id @default(cuid())
+  presupuestoId     String?
+  presupuesto       Presupuesto?         @relation(fields: [presupuestoId], references: [id], onDelete: SetNull)
+  clienteId         String?
+  cliente           Cliente?             @relation(fields: [clienteId], references: [id], onDelete: SetNull)
+  responsableId     String?
+  responsable       User?                @relation("SeguimientoResponsable", fields: [responsableId], references: [id], onDelete: SetNull)
+  responsableNombre String?
+  fechaContacto     DateTime
+  canal             CanalSeguimiento
+  resultado         ResultadoSeguimiento
+  comentario        String
+  proximoContacto   DateTime?
+  createdById       String?
+  createdBy         User?                @relation("SeguimientosCreados", fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
+
+  @@index([presupuestoId])
+  @@index([clienteId])
+  @@index([responsableId])
+  @@index([fechaContacto])
+  @@index([proximoContacto])
 }
 
 model DecisionLog {

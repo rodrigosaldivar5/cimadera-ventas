@@ -45,6 +45,19 @@ export async function GET(request: NextRequest) {
           obra: { select: { id: true, nombre: true } },
           responsable: { select: { id: true, nombre: true, email: true } },
           creadoPor: { select: { id: true, nombre: true } },
+          _count: { select: { seguimientos: true } },
+          seguimientos: {
+            orderBy: { fechaContacto: 'desc' },
+            take: 1,
+            select: {
+              id: true,
+              fechaContacto: true,
+              canal: true,
+              resultado: true,
+              proximoContacto: true,
+              comentario: true,
+            },
+          },
         },
       }),
     ]);
@@ -90,6 +103,9 @@ export async function GET(request: NextRequest) {
         fechaUltimaActividadComercial: p.fechaUltimaActividadComercial,
         fechaPrometidaCliente: p.fechaPrometidaCliente,
         fechaObjetivoProduccion: p.fechaObjetivoProduccion,
+        cantidadSeguimientos: p._count.seguimientos,
+        ultimoSeguimiento: p.seguimientos[0] ?? null,
+        proximoContacto: p.seguimientos[0]?.proximoContacto ?? null,
       })),
     }, 200, origin);
   } catch (error) {
