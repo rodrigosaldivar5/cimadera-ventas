@@ -1234,7 +1234,13 @@ export function CuentasCorrientesContent({ cuentasIniciales, clientes, presupues
                             </TableCell>
                           </TableRow>
                         )}
-                        {movsSorted.map((mov) => (
+                        {movsSorted.map((mov) => {
+                          // Para cuenta ARS con pago en caja USD: monto histórico puede estar en pesos.
+                          // montoPesos = montoEnARS ?? monto; montoUsd = montoPesos / TC (solo display).
+                          const esCobroUSDEnPesos = !esUSD && mov.caja === 'USD' && mov.tipoCambio != null;
+                          const montoPesosDisplay = esCobroUSDEnPesos ? Number(mov.montoEnARS ?? mov.monto) : 0;
+                          const montoUsdDisplay = esCobroUSDEnPesos ? montoPesosDisplay / Number(mov.tipoCambio) : 0;
+                          return (
                           <TableRow key={mov.id}>
                             <TableCell className="text-sm">{formatDate(mov.fecha)}</TableCell>
                             <TableCell>
@@ -1249,9 +1255,9 @@ export function CuentasCorrientesContent({ cuentasIniciales, clientes, presupues
                                   {`$ ${Number(mov.montoEnARS ?? mov.monto).toLocaleString('es-AR', { minimumFractionDigits: 2 })} ARS ÷ TC $${Number(mov.tipoCambio).toLocaleString('es-AR')}`}
                                 </div>
                               )}
-                              {mov.tipoCambio != null && !esUSD && mov.caja === 'USD' && (
+                              {esCobroUSDEnPesos && (
                                 <div className="text-xs text-gray-400 mt-0.5">
-                                  {`U$D ${Number(mov.monto).toLocaleString('es-AR', { minimumFractionDigits: 2 })} × TC $${Number(mov.tipoCambio).toLocaleString('es-AR')}`}
+                                  {`U$D ${montoUsdDisplay.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} × TC $${Number(mov.tipoCambio).toLocaleString('es-AR')}`}
                                 </div>
                               )}
                             </TableCell>
@@ -1269,11 +1275,22 @@ export function CuentasCorrientesContent({ cuentasIniciales, clientes, presupues
                             </TableCell>
                             <TableCell className="text-sm text-right font-medium">
                               {mov.tipo === 'ANTICIPO' || mov.tipo === 'PAGO_PARCIAL' ? (
-                                <span className="text-red-600">
-                                  −{mov.caja === 'USD'
-                                    ? `U$D ${Number(mov.monto).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-                                    : formatCurrency(Number(mov.monto))}
-                                </span>
+                                esCobroUSDEnPesos ? (
+                                  <div>
+                                    <span className="text-red-600">
+                                      −U$D {montoUsdDisplay.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                    </span>
+                                    <div className="text-xs text-gray-400 mt-0.5">
+                                      {`Equiv.: ${formatCurrency(montoPesosDisplay)} · TC $${Number(mov.tipoCambio).toLocaleString('es-AR')}`}
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <span className="text-red-600">
+                                    −{mov.caja === 'USD'
+                                      ? `U$D ${Number(mov.monto).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                                      : formatCurrency(Number(mov.monto))}
+                                  </span>
+                                )
                               ) : (
                                 <span className="text-green-700">
                                   +{esUSD
@@ -1315,7 +1332,8 @@ export function CuentasCorrientesContent({ cuentasIniciales, clientes, presupues
                               </div>
                             </TableCell>
                           </TableRow>
-                        ))}
+                          );
+                        })}
                       </TableBody>
                     </Table>
                   </div>

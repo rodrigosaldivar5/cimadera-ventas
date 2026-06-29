@@ -384,13 +384,23 @@ export async function generarCuentaCorrientePDF(cuenta: CuentaPDF): Promise<void
     doc.text(mov.numeroFactura ?? '—', colX.factura + 1, y + 4.5);
 
     const isReduccion = mov.tipo === 'ANTICIPO' || mov.tipo === 'PAGO_PARCIAL';
-    const montoDisplay = isReduccion
-      ? (moneda === 'USD' && mov.equivalenteUSD != null
-          ? Math.abs(mov.equivalenteUSD)
-          : Math.abs(Number(mov.montoEnARS ?? mov.monto)))
-      : Math.abs(Number(mov.monto));
-    const montoStr = (isReduccion ? '-' : '+') + prefijo +
-      montoDisplay.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    // Para cuenta ARS con pago en caja USD: mostrar USD original (solo display).
+    // montoPesos = montoEnARS ?? monto; montoUsd = montoPesos / tipoCambio.
+    const esCobroUSDEnPesos = isReduccion && moneda === 'ARS' && mov.caja === 'USD' && mov.tipoCambio != null;
+    let montoStr: string;
+    if (esCobroUSDEnPesos) {
+      const montoPesos = Math.abs(Number(mov.montoEnARS ?? mov.monto));
+      const montoUsd = montoPesos / Number(mov.tipoCambio);
+      montoStr = '-U$D ' + montoUsd.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    } else {
+      const montoDisplay = isReduccion
+        ? (moneda === 'USD' && mov.equivalenteUSD != null
+            ? Math.abs(mov.equivalenteUSD)
+            : Math.abs(Number(mov.montoEnARS ?? mov.monto)))
+        : Math.abs(Number(mov.monto));
+      montoStr = (isReduccion ? '-' : '+') + prefijo +
+        montoDisplay.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
 
     doc.setTextColor(isReduccion ? 22 : nR, isReduccion ? 101 : nG, isReduccion ? 52 : nB);
     doc.text(montoStr, colX.monto + cols.monto - 2, y + 4.5, { align: 'right' });
@@ -409,8 +419,8 @@ export async function generarCuentaCorrientePDF(cuenta: CuentaPDF): Promise<void
         const arsAmt = Math.abs(Number(mov.montoEnARS ?? mov.monto));
         tcLine = `$ ${arsAmt.toLocaleString('es-AR', { minimumFractionDigits: 2 })} ARS ÷ TC $${tcVal.toLocaleString('es-AR')}`;
       } else if (moneda === 'ARS' && mov.caja === 'USD') {
-        const usdAmt = Math.abs(Number(mov.monto));
-        tcLine = `U$D ${usdAmt.toLocaleString('es-AR', { minimumFractionDigits: 2 })} × TC $${tcVal.toLocaleString('es-AR')}`;
+        const montoPesos = Math.abs(Number(mov.montoEnARS ?? mov.monto));
+        tcLine = `Equiv.: $ ${montoPesos.toLocaleString('es-AR', { minimumFractionDigits: 2 })} · TC $${tcVal.toLocaleString('es-AR')}`;
       }
       if (tcLine) {
         doc.text(tcLine, colX.descripcion + 1, y);
