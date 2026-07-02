@@ -162,6 +162,12 @@ model Presupuesto {
   fechaPrimerEnvio              DateTime?
   fechaUltimaActividadComercial DateTime?
   seguimientos                  SeguimientoComercial[]
+  // ── Queja del cliente (dato interno) ──────────────────────────────
+  tieneQuejaCliente             Boolean                @default(false)
+  motivoQuejaCliente            MotivoQuejaCliente?
+  comentarioQuejaCliente        String?
+  fechaQuejaCliente             DateTime?
+  quejaRegistradaPorNombre      String?
 }
 
 model Obra {
@@ -587,6 +593,14 @@ enum TipoOportunidad {
   PRESUPUESTO_COMPARATIVO
   ADICIONAL_REPOSICION
   PROYECTO_EN_ANALISIS
+  OTRO
+}
+
+enum MotivoQuejaCliente {
+  COTIZACION_MAL_HECHA
+  TIEMPO_COTIZACION
+  MALA_PREDISPOSICION
+  ERROR_DATOS
   OTRO
 }
 

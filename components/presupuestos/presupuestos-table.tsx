@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuCheckboxItem, DropdownMenuSeparator, DropdownMenuItem } from '@/components/ui/dropdown-menu';
-import { Plus, Eye, ChevronLeft, ChevronRight, AlertTriangle, ChevronDown, ChevronUp, Check, MessageCircle } from 'lucide-react';
+import { Plus, Eye, ChevronLeft, ChevronRight, AlertTriangle, ChevronDown, ChevronUp, Check, MessageCircle, BarChart2 } from 'lucide-react';
 import { EliminarPresupuestoBtn } from '@/components/presupuestos/eliminar-presupuesto-btn';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
@@ -34,6 +34,7 @@ type PresupuestoRow = {
   fechaCreacion: Date;
   fechaRecepcion: Date | null;
   fechaVencimiento: Date | null;
+  fechaPrimerEnvio?: Date | string | null;
   totalFinal: unknown;
   tasaIva: unknown;
   totalConIva: unknown;
@@ -41,6 +42,9 @@ type PresupuestoRow = {
   moneda?: string;
   clienteId?: string;
   obraId?: string;
+  responsableId?: string | null;
+  tieneQuejaCliente?: boolean;
+  motivoQuejaCliente?: string | null;
   cliente: { id?: string; razonSocial: string };
   creadoPor: { nombre: string };
   responsable: { nombre: string } | null;
@@ -121,7 +125,17 @@ function diasDesde(fecha: Date | null): number {
   return Math.floor((Date.now() - new Date(fecha).getTime()) / 86_400_000);
 }
 
-export function PresupuestosTable({ clientes, criticos, userEmail }: Props) {
+const MOTIVOS_QUEJA: Record<string, string> = {
+  COTIZACION_MAL_HECHA: 'Cotización mal hecha',
+  TIEMPO_COTIZACION: 'Tiempos de cotización',
+  MALA_PREDISPOSICION: 'Mala predisposición',
+  ERROR_DATOS: 'Error en datos / medidas / alcance',
+  OTRO: 'Otro',
+};
+
+const ESTADOS_BASE_QUEJA = new Set(['ENVIADO', 'APROBADO', 'RECHAZADO']);
+
+export function PresupuestosTable({ clientes, usuarios, criticos, userEmail }: Props) {
   const puedeEliminar = EMAILS_AUTORIZADOS_BORRAR.includes(userEmail);
 
   // ── Datos ─────────────────────────────────────────────────────────
@@ -208,6 +222,42 @@ export function PresupuestosTable({ clientes, criticos, userEmail }: Props) {
   const [mensajeAvance, setMensajeAvance] = useState('');
   const [enviandoAvance, setEnviandoAvance] = useState(false);
   const [toastAvance, setToastAvance] = useState<{ msg: string; error: boolean } | null>(null);
+  const [metricasOpen, setMetricasOpen] = useState(false);
+  const [metricasDesde, setMetricasDesde] = useState('');
+  const [metricasHasta, setMetricasHasta] = useState('');
+  const [metricasResponsableId, setMetricasResponsableId] = useState('');
+
+  const quejaMetrics = useMemo(() => {
+    let base = todosLosPresupuestos.filter(
+      (p) => p.fechaPrimerEnvio != null || ESTADOS_BASE_QUEJA.has(p.estado),
+    );
+    if (metricasDesde) {
+      const d = new Date(metricasDesde);
+      base = base.filter((p) => new Date(p.fechaCreacion) >= d);
+    }
+    if (metricasHasta) {
+      const h = new Date(metricasHasta);
+      h.setHours(23, 59, 59);
+      base = base.filter((p) => new Date(p.fechaCreacion) <= h);
+    }
+    if (metricasResponsableId) {
+      base = base.filter((p) => p.responsableId === metricasResponsableId);
+    }
+    const total = base.length;
+    const conQueja = base.filter((p) => p.tieneQuejaCliente).length;
+    const satisfaccion = total === 0 ? 100 : ((total - conQueja) / total) * 100;
+    const porMotivo: Record<string, number> = {};
+    const porResponsable: Record<string, number> = {};
+    for (const p of base.filter((p) => p.tieneQuejaCliente)) {
+      if (p.motivoQuejaCliente) {
+        porMotivo[p.motivoQuejaCliente] = (porMotivo[p.motivoQuejaCliente] ?? 0) + 1;
+      }
+      const nombre = p.responsable?.nombre ?? p.creadoPor.nombre;
+      porResponsable[nombre] = (porResponsable[nombre] ?? 0) + 1;
+    }
+    return { total, conQueja, satisfaccion, porMotivo, porResponsable };
+  }, [todosLosPresupuestos, metricasDesde, metricasHasta, metricasResponsableId]);
+
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>(() => {
     if (typeof window === 'undefined') return {};
     try { const s = localStorage.getItem(COLUMN_WIDTHS_KEY); return s ? JSON.parse(s) : {}; } catch { return {}; }
@@ -337,6 +387,107 @@ export function PresupuestosTable({ clientes, criticos, userEmail }: Props) {
           )}
         </div>
       )}
+
+      {/* Métricas de quejas */}
+      <div className="rounded-2xl border border-slate-200 bg-white shadow-[0_1px_4px_rgba(0,0,0,0.05)] overflow-hidden">
+        <button
+          onClick={() => setMetricasOpen((v) => !v)}
+          className="w-full flex items-center gap-2 px-4 py-3 text-left hover:bg-slate-50 transition-colors"
+        >
+          <BarChart2 className="h-4 w-4 text-slate-400 shrink-0" />
+          <span className="font-medium text-slate-700 text-sm">Métricas de satisfacción</span>
+          {!metricasOpen && quejaMetrics.conQueja > 0 && (
+            <span className="text-xs bg-amber-100 text-amber-700 border border-amber-300 rounded-full px-2 py-0.5 font-semibold ml-1">
+              {quejaMetrics.conQueja} queja{quejaMetrics.conQueja !== 1 ? 's' : ''}
+            </span>
+          )}
+          {metricasOpen ? (
+            <ChevronUp className="ml-auto h-4 w-4 text-slate-400" />
+          ) : (
+            <ChevronDown className="ml-auto h-4 w-4 text-slate-400" />
+          )}
+        </button>
+        {metricasOpen && (
+          <div className="px-4 pb-4 space-y-4 border-t border-slate-100">
+            {/* Filtros de métricas */}
+            <div className="flex flex-wrap gap-3 pt-3">
+              <div className="flex items-center gap-2">
+                <Label className="text-xs text-slate-500 whitespace-nowrap">Desde</Label>
+                <Input type="date" value={metricasDesde} onChange={(e) => setMetricasDesde(e.target.value)} className="w-36 h-8 text-sm" />
+              </div>
+              <div className="flex items-center gap-2">
+                <Label className="text-xs text-slate-500 whitespace-nowrap">Hasta</Label>
+                <Input type="date" value={metricasHasta} onChange={(e) => setMetricasHasta(e.target.value)} className="w-36 h-8 text-sm" />
+              </div>
+              <Select value={metricasResponsableId || '__all__'} onValueChange={(v) => setMetricasResponsableId(v === '__all__' ? '' : v)}>
+                <SelectTrigger className="w-44 h-8 text-sm">
+                  <SelectValue placeholder="Todos los responsables" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__all__">Todos los responsables</SelectItem>
+                  {usuarios.map((u) => (
+                    <SelectItem key={u.id} value={u.id}>{u.nombre}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {(metricasDesde || metricasHasta || metricasResponsableId) && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 text-xs text-slate-400 hover:text-slate-600"
+                  onClick={() => { setMetricasDesde(''); setMetricasHasta(''); setMetricasResponsableId(''); }}
+                >
+                  Limpiar
+                </Button>
+              )}
+            </div>
+
+            {/* KPIs principales */}
+            <div className="grid grid-cols-3 gap-3">
+              <div className="rounded-xl border border-slate-100 bg-slate-50 p-3 text-center">
+                <p className="text-2xl font-bold text-slate-800">{quejaMetrics.total}</p>
+                <p className="text-xs text-slate-500 mt-0.5">Presupuestos enviados</p>
+              </div>
+              <div className="rounded-xl border border-amber-100 bg-amber-50 p-3 text-center">
+                <p className="text-2xl font-bold text-amber-700">{quejaMetrics.conQueja}</p>
+                <p className="text-xs text-amber-600 mt-0.5">Con queja</p>
+              </div>
+              <div className="rounded-xl border border-green-100 bg-green-50 p-3 text-center">
+                <p className="text-2xl font-bold text-green-700">{quejaMetrics.satisfaccion.toFixed(1)}%</p>
+                <p className="text-xs text-green-600 mt-0.5">Satisfacción</p>
+              </div>
+            </div>
+
+            {/* Por motivo y por responsable */}
+            {quejaMetrics.conQueja > 0 && (
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Por motivo</p>
+                  <div className="space-y-1">
+                    {Object.entries(quejaMetrics.porMotivo).sort((a, b) => b[1] - a[1]).map(([m, n]) => (
+                      <div key={m} className="flex justify-between items-center text-sm">
+                        <span className="text-slate-600 text-xs">{MOTIVOS_QUEJA[m] ?? m}</span>
+                        <span className="font-semibold text-slate-800 tabular-nums">{n}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Por responsable</p>
+                  <div className="space-y-1">
+                    {Object.entries(quejaMetrics.porResponsable).sort((a, b) => b[1] - a[1]).map(([nombre, n]) => (
+                      <div key={nombre} className="flex justify-between items-center text-sm">
+                        <span className="text-slate-600 text-xs">{nombre}</span>
+                        <span className="font-semibold text-slate-800 tabular-nums">{n}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
 
       {/* Toolbar */}
       <div className="flex flex-col gap-3">
@@ -542,11 +693,19 @@ export function PresupuestosTable({ clientes, criticos, userEmail }: Props) {
                   )}
                   {colVisible('estado') && (
                     <TableCell>
-                      <div className="flex items-center gap-1.5">
+                      <div className="flex items-center gap-1.5 flex-wrap">
                         <span style={getEstiloEstado(p.estado)}>{getLabelEstado(p.estado)}</span>
                         {p.estado === 'ENVIADO' && p.archivos.length === 0 && (
                           <span title="Sin adjuntos">
                             <AlertTriangle className="h-3.5 w-3.5 text-amber-500 shrink-0" />
+                          </span>
+                        )}
+                        {p.tieneQuejaCliente && (
+                          <span
+                            title={`Con queja${p.motivoQuejaCliente ? `: ${MOTIVOS_QUEJA[p.motivoQuejaCliente] ?? p.motivoQuejaCliente}` : ''}`}
+                            className="text-[10px] bg-amber-100 text-amber-700 border border-amber-300 rounded-full px-1.5 py-0.5 font-semibold leading-none"
+                          >
+                            Q
                           </span>
                         )}
                       </div>

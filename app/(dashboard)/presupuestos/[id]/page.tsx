@@ -16,6 +16,7 @@ import { ActualizarPreciosBtn } from '@/components/presupuestos/actualizar-preci
 import { EliminarPresupuestoBtn } from '@/components/presupuestos/eliminar-presupuesto-btn';
 import { CambiarPrioridadBtn } from '@/components/presupuestos/cambiar-prioridad-btn';
 import { HistorialPresupuesto } from '@/components/presupuestos/historial-presupuesto';
+import { QuejaClienteCard } from '@/components/presupuestos/queja-cliente-card';
 import { auth } from '@/lib/auth';
 import type { EstadoPresupuesto } from '@prisma/client';
 import Link from 'next/link';
@@ -275,6 +276,15 @@ export default async function PresupuestoDetallePage({ params }: { params: { id:
       </Card>
 
       <HistorialPresupuesto presupuestoId={presupuesto.id} />
+
+      <QuejaClienteCard
+        presupuestoId={presupuesto.id}
+        tieneQuejaCliente={presupuesto.tieneQuejaCliente}
+        motivoQuejaCliente={presupuesto.motivoQuejaCliente ?? null}
+        comentarioQuejaCliente={presupuesto.comentarioQuejaCliente ?? null}
+        fechaQuejaCliente={presupuesto.fechaQuejaCliente?.toISOString() ?? null}
+        quejaRegistradaPorNombre={presupuesto.quejaRegistradaPorNombre ?? null}
+      />
 
       <DocumentacionPresupuesto
         presupuestoId={presupuesto.id}

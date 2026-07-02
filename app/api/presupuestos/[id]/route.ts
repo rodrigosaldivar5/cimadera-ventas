@@ -181,7 +181,43 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
       updateData.totalConIva = totalConIva;
     }
 
+    let quejaAccion: 'QUEJA_REGISTRADA' | 'QUEJA_REMOVIDA' | null = null;
+    let quejaCampos: Record<string, unknown> | undefined;
+
+    if ('tieneQuejaCliente' in data) {
+      const tieneQueja = !!data.tieneQuejaCliente;
+      if (tieneQueja && !data.motivoQuejaCliente) {
+        return NextResponse.json({ error: 'El motivo es obligatorio cuando hay queja' }, { status: 400 });
+      }
+      updateData.tieneQuejaCliente = tieneQueja;
+      if (tieneQueja) {
+        updateData.motivoQuejaCliente = data.motivoQuejaCliente;
+        updateData.comentarioQuejaCliente = data.comentarioQuejaCliente ?? null;
+        updateData.fechaQuejaCliente = new Date();
+        updateData.quejaRegistradaPorNombre = session.user.nombre ?? session.user.email ?? 'Desconocido';
+        quejaAccion = 'QUEJA_REGISTRADA';
+        quejaCampos = { motivo: data.motivoQuejaCliente, comentario: data.comentarioQuejaCliente ?? null };
+      } else {
+        updateData.motivoQuejaCliente = null;
+        updateData.comentarioQuejaCliente = null;
+        updateData.fechaQuejaCliente = null;
+        updateData.quejaRegistradaPorNombre = null;
+        quejaAccion = 'QUEJA_REMOVIDA';
+        quejaCampos = { accion: 'Queja removida' };
+      }
+    }
+
     const presupuesto = await prisma.presupuesto.update({ where: { id: params.id }, data: updateData });
+
+    if (quejaAccion) {
+      registrarAuditoria({
+        presupuestoId: params.id,
+        usuarioId: session.user.id,
+        accion: quejaAccion,
+        camposModificados: quejaCampos,
+      });
+    }
+
     return NextResponse.json(presupuesto);
   } catch {
     return NextResponse.json({ error: 'Error al actualizar' }, { status: 500 });

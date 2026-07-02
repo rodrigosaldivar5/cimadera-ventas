@@ -9,7 +9,9 @@ type AccionAuditoria =
   | 'ADJUNTO_SUBIDO'
   | 'ADJUNTO_ELIMINADO'
   | 'PEDIDO_AVANCE'
-  | 'CIERRE_COMERCIAL';
+  | 'CIERRE_COMERCIAL'
+  | 'QUEJA_REGISTRADA'
+  | 'QUEJA_REMOVIDA';
 
 export function registrarAuditoria(params: {
   presupuestoId: string;
