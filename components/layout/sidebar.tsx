@@ -26,6 +26,7 @@ import {
   Bell,
   Smartphone,
   Activity,
+  Building2,
 } from 'lucide-react';
 import { Logo } from '@/components/logo';
 import { cn } from '@/lib/utils';
@@ -58,6 +59,7 @@ const navItemsBase: NavItem[] = [
       { href: '/clientes/descuentos', label: 'Descuentos por tipo', icon: Percent },
     ],
   },
+  { href: '/obras', label: 'Obras', icon: Building2 },
   { href: '/presupuestos', label: 'Presupuestos', icon: FileText },
   { href: '/cuentas-corrientes', label: 'Cuentas corrientes', icon: Wallet },
   {
