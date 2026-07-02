@@ -17,6 +17,7 @@ import { EliminarPresupuestoBtn } from '@/components/presupuestos/eliminar-presu
 import { CambiarPrioridadBtn } from '@/components/presupuestos/cambiar-prioridad-btn';
 import { HistorialPresupuesto } from '@/components/presupuestos/historial-presupuesto';
 import { QuejaClienteCard } from '@/components/presupuestos/queja-cliente-card';
+import { FtpBtn } from '@/components/presupuestos/ftp-btn';
 import { auth } from '@/lib/auth';
 import type { EstadoPresupuesto } from '@prisma/client';
 import Link from 'next/link';
@@ -63,6 +64,7 @@ export default async function PresupuestoDetallePage({ params }: { params: { id:
           <Link href="/presupuestos"><ArrowLeft className="mr-2 h-4 w-4" /> Volver</Link>
         </Button>
         <div className="flex items-center gap-3">
+          <FtpBtn presupuestoId={presupuesto.id} ftpDriveUrl={presupuesto.ftpDriveUrl} />
           <ActualizarPreciosBtn presupuestoId={presupuesto.id} />
           {EMAILS_AUTORIZADOS_BORRAR.includes(session?.user?.email ?? '') && (
             <EliminarPresupuestoBtn
