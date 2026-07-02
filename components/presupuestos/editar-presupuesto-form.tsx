@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { SearchableSelect } from '@/components/ui/searchable-select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2, Plus, Trash2, ChevronRight, ChevronLeft, Save, Send, ArrowLeft } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
@@ -252,19 +253,14 @@ export function EditarPresupuestoForm({ presupuesto }: { presupuesto: Presupuest
 
               <div className="space-y-2">
                 <Label>Cliente *</Label>
-                <Select
+                <SearchableSelect
                   value={watch('clienteId') || presupuesto.clienteId}
-                  onValueChange={(v) => setValue('clienteId', v)}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Seleccioná un cliente" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {clientes.map((c) => (
-                      <SelectItem key={c.id} value={c.id}>{c.razonSocial}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  onValueChange={(v) => setValue('clienteId', v, { shouldValidate: true })}
+                  options={clientes.map((c) => ({ value: c.id, label: c.razonSocial }))}
+                  placeholder="Seleccioná un cliente"
+                  searchPlaceholder="Buscar cliente…"
+                  emptyText="Sin resultados"
+                />
                 {errors.clienteId && <p className="text-xs text-red-500">{errors.clienteId.message}</p>}
               </div>
 
@@ -292,17 +288,21 @@ export function EditarPresupuestoForm({ presupuesto }: { presupuesto: Presupuest
 
               <div className="space-y-2">
                 <Label>Obra</Label>
-                <Select value={obraId || '__none__'} onValueChange={(v) => setObraId(v === '__none__' ? '' : v)}>
-                  <SelectTrigger>
-                    <SelectValue placeholder={obras.length === 0 ? 'Sin obras para este cliente' : 'Sin obra asignada'} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__none__">Sin obra</SelectItem>
-                    {obras.map((o) => (
-                      <SelectItem key={o.id} value={o.id}>{o.nombre}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <SearchableSelect
+                  value={obraId || ''}
+                  onValueChange={(v) => setObraId(v)}
+                  options={[
+                    { value: '', label: 'Sin obra' },
+                    ...obras.map((o) => ({ value: o.id, label: o.nombre })),
+                  ]}
+                  placeholder={
+                    obras.length === 0
+                      ? 'Sin obras para este cliente'
+                      : 'Sin obra asignada'
+                  }
+                  searchPlaceholder="Buscar obra…"
+                  emptyText="Sin obras para este cliente"
+                />
               </div>
 
               <div className="grid grid-cols-2 gap-4">

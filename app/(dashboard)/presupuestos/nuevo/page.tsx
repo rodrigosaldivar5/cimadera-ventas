@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { SearchableSelect } from '@/components/ui/searchable-select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Loader2, Plus, Trash2, ChevronRight, ChevronLeft, Save, Send, AlertTriangle, ExternalLink, Clock, RotateCcw } from 'lucide-react';
@@ -480,19 +481,15 @@ export default function NuevoPresupuestoPage() {
                 <div className="col-span-2 space-y-2">
                   <Label>Cliente *</Label>
                   <div className="flex gap-2">
-                    <Select
+                    <SearchableSelect
+                      className="flex-1"
                       value={watch('clienteId') || ''}
                       onValueChange={(v) => setValue('clienteId', v, { shouldValidate: true })}
-                    >
-                      <SelectTrigger className="flex-1">
-                        <SelectValue placeholder="Seleccioná un cliente" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {clientes.map((c) => (
-                          <SelectItem key={c.id} value={c.id}>{c.razonSocial}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                      options={clientes.map((c) => ({ value: c.id, label: c.razonSocial }))}
+                      placeholder="Seleccioná un cliente"
+                      searchPlaceholder="Buscar cliente…"
+                      emptyText="Sin resultados"
+                    />
                     <Button type="button" variant="outline" size="sm" onClick={() => setNuevoClienteOpen(true)} className="shrink-0">
                       <Plus className="mr-1 h-3.5 w-3.5" /> Nuevo
                     </Button>
@@ -576,20 +573,22 @@ export default function NuevoPresupuestoPage() {
                   <div className="col-span-2 space-y-2">
                     <Label>Obra (opcional)</Label>
                     <div className="flex gap-2">
-                      <Select
-                        value={watch('obraId') || '__none__'}
-                        onValueChange={(v) => setValue('obraId', v === '__none__' ? undefined : v, { shouldDirty: true })}
-                      >
-                        <SelectTrigger className="flex-1">
-                          <SelectValue placeholder="Sin obra asociada" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="__none__">Sin obra</SelectItem>
-                          {obras.map((o) => (
-                            <SelectItem key={o.id} value={o.id}>{o.nombre}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <SearchableSelect
+                        className="flex-1"
+                        value={watch('obraId') ?? ''}
+                        onValueChange={(v) => setValue('obraId', v || undefined, { shouldDirty: true })}
+                        options={[
+                          { value: '', label: 'Sin obra' },
+                          ...obras.map((o) => ({ value: o.id, label: o.nombre })),
+                        ]}
+                        placeholder={
+                          obras.length === 0
+                            ? 'Sin obras para este cliente'
+                            : 'Sin obra asociada'
+                        }
+                        searchPlaceholder="Buscar obra…"
+                        emptyText="Sin obras para este cliente"
+                      />
                       <Button type="button" variant="outline" size="sm" onClick={() => setNuevaObraOpen(true)} className="shrink-0">
                         <Plus className="mr-1 h-3.5 w-3.5" /> Nueva obra
                       </Button>
