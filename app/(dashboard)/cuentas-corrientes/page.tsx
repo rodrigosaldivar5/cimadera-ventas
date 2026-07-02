@@ -61,6 +61,7 @@ export default async function CuentasCorrientesPage() {
       equivalenteUSD: m.equivalenteUSD != null ? Number(m.equivalenteUSD) : null,
     })),
     montoEstimadoCobro: c.montoEstimadoCobro != null ? Number(c.montoEstimadoCobro) : null,
+    montoDevengado: Number(c.montoDevengado ?? 0),
   }));
 
   const presupuestosSinCuenta = rawSinCuenta.map((p) => ({

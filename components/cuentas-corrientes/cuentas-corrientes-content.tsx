@@ -62,12 +62,13 @@ type MovimientoSerializado = Omit<MovimientoCuenta, 'monto' | 'saldoResultante' 
   equivalenteUSD: number | null;
 };
 
-type CuentaConRelaciones = Omit<CuentaCorriente, 'montoOriginal' | 'indiceInicio' | 'indiceActual' | 'saldoActualizado' | 'montoEstimadoCobro'> & {
+type CuentaConRelaciones = Omit<CuentaCorriente, 'montoOriginal' | 'indiceInicio' | 'indiceActual' | 'saldoActualizado' | 'montoEstimadoCobro' | 'montoDevengado'> & {
   montoOriginal: number;
   indiceInicio: number;
   indiceActual: number;
   saldoActualizado: number;
   montoEstimadoCobro: number | null;
+  montoDevengado: number;
   moneda?: string;
   cliente: { id: string; razonSocial: string; cuit?: string | null; email?: string | null; telefono?: string | null };
   obra?: { id: string; nombre: string; direccion?: string | null } | null;
@@ -130,6 +131,7 @@ function serializeCuenta(c: any): CuentaConRelaciones {
       equivalenteUSD:  m.equivalenteUSD != null ? Number(m.equivalenteUSD) : null,
     })),
     montoEstimadoCobro: c.montoEstimadoCobro != null ? Number(c.montoEstimadoCobro) : null,
+    montoDevengado: Number(c.montoDevengado ?? 0),
   };
 }
 
@@ -285,6 +287,13 @@ export function CuentasCorrientesContent({ cuentasIniciales, clientes, presupues
 
   const cuentasActivas = cuentas.filter((c) => c.estado !== 'CANCELADO').length;
 
+  const totalDevengadoARS = arsCuentas
+    .filter((c) => c.estado !== 'CANCELADO')
+    .reduce((sum, c) => sum + Number(c.montoDevengado ?? 0), 0);
+  const totalDevengadoUSD = usdCuentas
+    .filter((c) => c.estado !== 'CANCELADO')
+    .reduce((sum, c) => sum + Number(c.montoDevengado ?? 0), 0);
+
   // ── Nueva cuenta form state ───────────────────────────────────────────────
   const [nfClienteId, setNfClienteId] = useState('');
   const [nfObras, setNfObras] = useState<Obra[]>([]);
@@ -414,6 +423,49 @@ export function CuentasCorrientesContent({ cuentasIniciales, clientes, presupues
     if (ps.moneda === 'USD' || ps.moneda === 'ARS') setNfMoneda(ps.moneda);
     setBannerLoadingId(null);
     setNuevaOpen(true);
+  };
+
+  // ── Saldo devengado ───────────────────────────────────────────────────────
+  const [dvSavingId, setDvSavingId] = useState<string | null>(null);
+  const [dvDraft, setDvDraft] = useState<Record<string, { monto: string; nota: string }>>({});
+
+  const getDvDraft = (cuenta: CuentaConRelaciones) =>
+    dvDraft[cuenta.id] ?? {
+      monto: String(Number(cuenta.montoDevengado ?? 0)),
+      nota:  cuenta.notaDevengado ?? '',
+    };
+
+  const handleGuardarDevengado = async (cuentaId: string) => {
+    const d = dvDraft[cuentaId];
+    if (!d) return;
+    const cuenta = cuentas.find((c) => c.id === cuentaId);
+    if (!cuenta) return;
+
+    const montoNum = parseFloat(d.monto);
+    if (isNaN(montoNum) || montoNum < 0) {
+      showToast('El monto devengado debe ser mayor o igual a 0', true);
+      return;
+    }
+    if (montoNum > Number(cuenta.saldoActualizado)) {
+      showToast('El monto devengado no puede superar el saldo pendiente', true);
+      return;
+    }
+
+    setDvSavingId(cuentaId);
+    try {
+      const res = await fetch(`/api/cuentas-corrientes/${cuentaId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ montoDevengado: montoNum, notaDevengado: d.nota || null }),
+      });
+      if (!res.ok) { showToast('Error al guardar devengado', true); return; }
+      const updated = await res.json();
+      setCuentas((prev) => prev.map((c) => (c.id === cuentaId ? serializeCuenta(updated) : c)));
+      setDvDraft((prev) => { const next = { ...prev }; delete next[cuentaId]; return next; });
+      showToast('Saldo devengado guardado');
+    } finally {
+      setDvSavingId(null);
+    }
   };
 
   // ── Proyección de cobro (cashflow fields) ────────────────────────────────
@@ -1013,7 +1065,7 @@ export function CuentasCorrientesContent({ cuentasIniciales, clientes, presupues
       </div>
 
       {/* Metrics */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
         <div className="bg-white rounded-2xl border border-[#D4B896]/40 p-5 shadow-[0_2px_8px_rgba(0,0,0,0.06)]">
           <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-slate-400 mb-2">
             <DollarSign className="w-3.5 h-3.5" />
@@ -1050,6 +1102,20 @@ export function CuentasCorrientesContent({ cuentasIniciales, clientes, presupues
             Cuentas activas
           </div>
           <p className="text-2xl font-bold text-[#00ADEF]">{cuentasActivas}</p>
+        </div>
+        <div className="bg-white rounded-2xl border border-amber-200/60 p-5 shadow-[0_2px_8px_rgba(0,0,0,0.06)]">
+          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-amber-500 mb-2">
+            <AlertTriangle className="w-3.5 h-3.5" />
+            Saldo devengado
+          </div>
+          <p className="text-2xl font-bold text-amber-700">
+            {totalDevengadoARS > 0 ? formatCurrency(totalDevengadoARS) : <span className="text-slate-300 text-base font-normal">—</span>}
+          </p>
+          {totalDevengadoUSD > 0 && (
+            <p className="text-xs text-amber-600 mt-1">
+              + U$D {totalDevengadoUSD.toLocaleString('es-AR', { minimumFractionDigits: 2 })}
+            </p>
+          )}
         </div>
       </div>
 
@@ -1150,6 +1216,13 @@ export function CuentasCorrientesContent({ cuentasIniciales, clientes, presupues
                       <span className="text-base font-bold text-red-600">
                         {formatCurrency(Number(cuenta.saldoActualizado))}
                       </span>
+                    )}
+                    {!cancelado && Number(cuenta.montoDevengado) > 0 && (
+                      <p className="text-xs text-amber-600 mt-0.5">
+                        Dev.: {esUSD
+                          ? `U$D ${Number(cuenta.montoDevengado).toLocaleString('es-AR', { minimumFractionDigits: 2 })}`
+                          : formatCurrency(Number(cuenta.montoDevengado))}
+                      </p>
                     )}
                   </div>
                   <Badge className={`${ESTADO_BADGE_STYLE[cuenta.estado] ?? ''} text-xs px-3 py-1`}>
@@ -1386,6 +1459,74 @@ export function CuentasCorrientesContent({ cuentasIniciales, clientes, presupues
                             >
                               {cfSavingId === cuenta.id ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : null}
                               Guardar proyección
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
+
+                  {/* Saldo devengado */}
+                  {!cancelado && (() => {
+                    const dv = getDvDraft(cuenta);
+                    const isDirty = dvDraft[cuenta.id] !== undefined;
+                    const montoNum = parseFloat(dv.monto);
+                    const superaSaldo = !isNaN(montoNum) && montoNum > Number(cuenta.saldoActualizado);
+                    return (
+                      <div className="bg-amber-50/60 border border-amber-100 rounded-md p-3 space-y-2">
+                        <div className="flex items-start justify-between gap-2">
+                          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                            Saldo devengado
+                          </p>
+                          <p className="text-xs text-slate-400 text-right leading-tight">
+                            Dato interno. No modifica el saldo ni aparece en el PDF.
+                          </p>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          <div>
+                            <Label className="text-xs">
+                              Monto devengado ({esUSD ? 'U$D' : '$'})
+                            </Label>
+                            <Input
+                              type="number"
+                              step="0.01"
+                              min="0"
+                              value={dv.monto}
+                              className={`h-8 text-xs mt-1 ${superaSaldo ? 'border-red-400' : ''}`}
+                              onChange={(e) =>
+                                setDvDraft((p) => ({ ...p, [cuenta.id]: { ...getDvDraft(cuenta), monto: e.target.value } }))
+                              }
+                            />
+                            {superaSaldo && (
+                              <p className="text-xs text-red-500 mt-0.5">
+                                No puede superar el saldo pendiente
+                              </p>
+                            )}
+                          </div>
+                          <div>
+                            <Label className="text-xs">Nota (opcional)</Label>
+                            <Input
+                              value={dv.nota}
+                              placeholder="Ej: Etapa 1 entregada"
+                              className="h-8 text-xs mt-1"
+                              onChange={(e) =>
+                                setDvDraft((p) => ({ ...p, [cuenta.id]: { ...getDvDraft(cuenta), nota: e.target.value } }))
+                              }
+                            />
+                          </div>
+                        </div>
+                        {isDirty && !superaSaldo && (
+                          <div className="flex justify-end">
+                            <Button
+                              size="sm"
+                              className="h-7 text-xs bg-amber-600 hover:bg-amber-700 text-white"
+                              onClick={() => handleGuardarDevengado(cuenta.id)}
+                              disabled={dvSavingId === cuenta.id}
+                            >
+                              {dvSavingId === cuenta.id ? (
+                                <Loader2 className="w-3 h-3 animate-spin mr-1" />
+                              ) : null}
+                              Guardar devengado
                             </Button>
                           </div>
                         )}

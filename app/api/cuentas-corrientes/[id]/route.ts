@@ -33,6 +33,13 @@ export async function PATCH(req: NextRequest, { params }: RouteContext) {
     const data = await req.json();
     const updateData: Record<string, unknown> = {};
     if (data.obraId !== undefined) updateData.obraId = data.obraId || null;
+    if (data.montoDevengado !== undefined) {
+      const monto = Number(data.montoDevengado);
+      if (!isNaN(monto) && monto >= 0) updateData.montoDevengado = monto;
+    }
+    if (data.notaDevengado !== undefined) updateData.notaDevengado = data.notaDevengado || null;
+    if (data.fechaDevengado !== undefined)
+      updateData.fechaDevengado = data.fechaDevengado ? new Date(data.fechaDevengado) : null;
 
     const cuenta = await prisma.cuentaCorriente.update({
       where: { id: params.id },

@@ -369,6 +369,9 @@ model CuentaCorriente {
   fechaEstimadaCobro   DateTime?
   montoEstimadoCobro   Decimal?           @db.Decimal(14, 2)
   notasCobro           String?
+  montoDevengado       Decimal            @db.Decimal(12, 2) @default(0)
+  notaDevengado        String?
+  fechaDevengado       DateTime?
   moneda               String             @default("ARS")
   movimientos          MovimientoCuenta[]
   createdAt            DateTime           @default(now())
