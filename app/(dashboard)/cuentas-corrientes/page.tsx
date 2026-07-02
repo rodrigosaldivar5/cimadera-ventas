@@ -31,11 +31,15 @@ export default async function CuentasCorrientesPage() {
         nombrePresupuesto: true,
         precioFinal: true,
         totalFinal: true,
+        totalConIva: true,
+        tasaIva: true,
+        montoIva: true,
         fechaCreacion: true,
         clienteId: true,
         cliente: { select: { razonSocial: true } },
         obraId: true,
         obra: { select: { nombre: true } },
+        moneda: true,
       },
       orderBy: { fechaCreacion: 'desc' },
     }),
@@ -62,12 +66,18 @@ export default async function CuentasCorrientesPage() {
     })),
     montoEstimadoCobro: c.montoEstimadoCobro != null ? Number(c.montoEstimadoCobro) : null,
     montoDevengado: Number(c.montoDevengado ?? 0),
+    tasaIvaContrato: c.tasaIvaContrato != null ? Number(c.tasaIvaContrato) : null,
+    montoContratoNeto: c.montoContratoNeto != null ? Number(c.montoContratoNeto) : null,
+    montoContratoIva: c.montoContratoIva != null ? Number(c.montoContratoIva) : null,
   }));
 
   const presupuestosSinCuenta = rawSinCuenta.map((p) => ({
     ...p,
     precioFinal: p.precioFinal != null ? Number(p.precioFinal) : null,
     totalFinal: Number(p.totalFinal),
+    totalConIva: Number(p.totalConIva ?? p.totalFinal),
+    tasaIva: Number(p.tasaIva ?? 0),
+    montoIva: Number(p.montoIva ?? 0),
   }));
 
   return (

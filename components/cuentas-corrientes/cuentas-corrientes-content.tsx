@@ -35,6 +35,9 @@ type Presupuesto = {
   numero: number;
   totalFinal: unknown;
   precioFinal?: number | null;
+  totalConIva?: number | null;
+  tasaIva?: number | null;
+  montoIva?: number | null;
   nombrePresupuesto?: string | null;
   moneda?: string;
 };
@@ -45,6 +48,9 @@ type PresupuestoSinCuenta = {
   nombrePresupuesto?: string | null;
   precioFinal?: number | null;
   totalFinal: number;
+  totalConIva?: number | null;
+  tasaIva?: number | null;
+  montoIva?: number | null;
   fechaCreacion: Date | string;
   clienteId: string;
   cliente: { razonSocial: string };
@@ -62,13 +68,16 @@ type MovimientoSerializado = Omit<MovimientoCuenta, 'monto' | 'saldoResultante' 
   equivalenteUSD: number | null;
 };
 
-type CuentaConRelaciones = Omit<CuentaCorriente, 'montoOriginal' | 'indiceInicio' | 'indiceActual' | 'saldoActualizado' | 'montoEstimadoCobro' | 'montoDevengado'> & {
+type CuentaConRelaciones = Omit<CuentaCorriente, 'montoOriginal' | 'indiceInicio' | 'indiceActual' | 'saldoActualizado' | 'montoEstimadoCobro' | 'montoDevengado' | 'tasaIvaContrato' | 'montoContratoNeto' | 'montoContratoIva'> & {
   montoOriginal: number;
   indiceInicio: number;
   indiceActual: number;
   saldoActualizado: number;
   montoEstimadoCobro: number | null;
   montoDevengado: number;
+  tasaIvaContrato: number | null;
+  montoContratoNeto: number | null;
+  montoContratoIva: number | null;
   moneda?: string;
   cliente: { id: string; razonSocial: string; cuit?: string | null; email?: string | null; telefono?: string | null };
   obra?: { id: string; nombre: string; direccion?: string | null } | null;
@@ -132,7 +141,15 @@ function serializeCuenta(c: any): CuentaConRelaciones {
     })),
     montoEstimadoCobro: c.montoEstimadoCobro != null ? Number(c.montoEstimadoCobro) : null,
     montoDevengado: Number(c.montoDevengado ?? 0),
+    tasaIvaContrato: c.tasaIvaContrato != null ? Number(c.tasaIvaContrato) : null,
+    montoContratoNeto: c.montoContratoNeto != null ? Number(c.montoContratoNeto) : null,
+    montoContratoIva: c.montoContratoIva != null ? Number(c.montoContratoIva) : null,
   };
+}
+
+function resolverMontoContrato(p: { precioFinal?: number | null; totalFinal: number; totalConIva?: number | null; tasaIva?: number | null }): number {
+  if (p.totalConIva != null && Number(p.totalConIva) > 0) return Number(p.totalConIva);
+  return Number(p.precioFinal ?? p.totalFinal ?? 0);
 }
 
 // ── Main Component ────────────────────────────────────────────────────────────
@@ -308,6 +325,7 @@ export function CuentasCorrientesContent({ cuentasIniciales, clientes, presupues
   const [nfObservaciones, setNfObservaciones] = useState('');
   const [nfMoneda, setNfMoneda] = useState<'ARS' | 'USD'>('ARS');
   const [nfSaving, setNfSaving] = useState(false);
+  const [nfSnapshotIva, setNfSnapshotIva] = useState<{ tasaIva: number; neto: number; iva: number } | null>(null);
 
   const handleClienteChange = async (clienteId: string) => {
     setNfClienteId(clienteId);
@@ -335,9 +353,15 @@ export function CuentasCorrientesContent({ cuentasIniciales, clientes, presupues
     setNfPresupuestoId(presId);
     const pres = nfPresupuestos.find((p) => p.id === presId);
     if (pres) {
-      const monto = pres.precioFinal ?? pres.totalFinal ?? 0;
+      const monto = resolverMontoContrato(pres as { precioFinal?: number | null; totalFinal: number; totalConIva?: number | null; tasaIva?: number | null });
       setNfMonto(Number(monto).toFixed(2));
       if (pres.moneda === 'USD' || pres.moneda === 'ARS') setNfMoneda(pres.moneda);
+      const tasa = Number(pres.tasaIva ?? 0);
+      if (tasa > 0 && pres.montoIva != null) {
+        setNfSnapshotIva({ tasaIva: tasa, neto: Number(pres.precioFinal ?? pres.totalFinal ?? 0), iva: Number(pres.montoIva) });
+      } else {
+        setNfSnapshotIva(null);
+      }
     }
   };
 
@@ -362,6 +386,9 @@ export function CuentasCorrientesContent({ cuentasIniciales, clientes, presupues
           fechaInicio: nfFechaInicio,
           observaciones: nfObservaciones || null,
           moneda: nfMoneda,
+          tasaIvaContrato: nfSnapshotIva?.tasaIva ?? null,
+          montoContratoNeto: nfSnapshotIva?.neto ?? null,
+          montoContratoIva: nfSnapshotIva?.iva ?? null,
         }),
       });
       if (!res.ok) {
@@ -394,14 +421,21 @@ export function CuentasCorrientesContent({ cuentasIniciales, clientes, presupues
     setNfFechaInicio('');
     setNfObservaciones('');
     setNfMoneda('ARS');
+    setNfSnapshotIva(null);
   };
 
   const handleAbrirDesdeBanner = async (ps: PresupuestoSinCuenta) => {
     setBannerLoadingId(ps.id);
     resetNuevaForm();
     setNfClienteId(ps.clienteId);
-    const monto = ps.precioFinal ?? ps.totalFinal ?? 0;
+    const monto = resolverMontoContrato(ps);
     setNfMonto(Number(monto).toFixed(2));
+    const tasa = Number(ps.tasaIva ?? 0);
+    if (tasa > 0 && ps.montoIva != null) {
+      setNfSnapshotIva({ tasaIva: tasa, neto: Number(ps.precioFinal ?? ps.totalFinal ?? 0), iva: Number(ps.montoIva) });
+    } else {
+      setNfSnapshotIva(null);
+    }
     const [obrasRes, presRes] = await Promise.all([
       fetch(`/api/clientes/${ps.clienteId}/obras`),
       fetch(`/api/presupuestos?clienteId=${ps.clienteId}&page=1`),
@@ -415,7 +449,7 @@ export function CuentasCorrientesContent({ cuentasIniciales, clientes, presupues
       const d = await presRes.json();
       const list: Presupuesto[] = d.presupuestos ?? [];
       if (!list.find((p) => p.id === ps.id)) {
-        list.unshift({ id: ps.id, numero: ps.numero, totalFinal: ps.totalFinal, precioFinal: ps.precioFinal, nombrePresupuesto: ps.nombrePresupuesto });
+        list.unshift({ id: ps.id, numero: ps.numero, totalFinal: ps.totalFinal, precioFinal: ps.precioFinal, totalConIva: ps.totalConIva, tasaIva: ps.tasaIva, montoIva: ps.montoIva, nombrePresupuesto: ps.nombrePresupuesto });
       }
       setNfPresupuestos(list);
       setNfPresupuestoId(ps.id);
@@ -896,6 +930,9 @@ export function CuentasCorrientesContent({ cuentasIniciales, clientes, presupues
           }
         : null,
       moneda: cuenta.moneda ?? 'ARS',
+      tasaIvaContrato: cuenta.tasaIvaContrato,
+      montoContratoNeto: cuenta.montoContratoNeto,
+      montoContratoIva: cuenta.montoContratoIva,
       movimientos: cuenta.movimientos.map((m) => ({
         fecha: m.fecha,
         tipo: m.tipo,
@@ -1254,6 +1291,17 @@ export function CuentasCorrientesContent({ cuentasIniciales, clientes, presupues
                           ? `U$D ${Number(cuenta.montoOriginal).toLocaleString('es-AR', { minimumFractionDigits: 2 })}`
                           : formatCurrency(Number(cuenta.montoOriginal))}
                       </p>
+                      {cuenta.tasaIvaContrato != null && cuenta.tasaIvaContrato > 0 && (
+                        <div className="mt-1 space-y-0.5">
+                          <p className="text-xs text-amber-700 font-medium">IVA {cuenta.tasaIvaContrato}% incluido</p>
+                          {cuenta.montoContratoNeto != null && (
+                            <p className="text-xs text-gray-400">Neto: {esUSD ? `U$D ${cuenta.montoContratoNeto.toLocaleString('es-AR', { minimumFractionDigits: 2 })}` : formatCurrency(cuenta.montoContratoNeto)}</p>
+                          )}
+                          {cuenta.montoContratoIva != null && (
+                            <p className="text-xs text-gray-400">IVA: {esUSD ? `U$D ${cuenta.montoContratoIva.toLocaleString('es-AR', { minimumFractionDigits: 2 })}` : formatCurrency(cuenta.montoContratoIva)}</p>
+                          )}
+                        </div>
+                      )}
                     </div>
                     <div className="bg-gray-50 rounded-md p-3">
                       <p className="text-xs text-gray-400">Saldo pendiente actualizado</p>

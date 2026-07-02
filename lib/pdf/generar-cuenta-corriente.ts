@@ -25,6 +25,9 @@ export type CuentaPDF = {
   saldoActualizado: number;
   estado: string;
   observaciones?: string | null;
+  tasaIvaContrato?: number | null;
+  montoContratoNeto?: number | null;
+  montoContratoIva?: number | null;
   cliente: {
     razonSocial: string;
     cuit?: string | null;
@@ -313,7 +316,30 @@ export async function generarCuentaCorrientePDF(cuenta: CuentaPDF): Promise<void
     doc.setTextColor(...finColors[i]);
     doc.text(val, marginL + colW2 * i + 3, y + 5);
   });
-  y += 12;
+  y += 7;
+
+  // ── IVA breakdown (solo cuando aplica) ───────────────────────────────
+  if (cuenta.tasaIvaContrato != null && cuenta.tasaIvaContrato > 0) {
+    checkPage(14);
+    const [amberR, amberG, amberB] = [146, 64, 14] as [number, number, number];
+    const ivaRows = [
+      { label: `Incluye IVA ${cuenta.tasaIvaContrato}%`, value: cuenta.montoContratoIva != null ? formatMonto(cuenta.montoContratoIva) : '—' },
+      { label: 'Neto s/IVA', value: cuenta.montoContratoNeto != null ? formatMonto(cuenta.montoContratoNeto) : '—' },
+    ];
+    for (const row of ivaRows) {
+      doc.setFillColor(255, 251, 235);
+      doc.rect(marginL, y, contentW, 5.5, 'F');
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(7.5);
+      doc.setTextColor(amberR, amberG, amberB);
+      doc.text(row.label, marginL + 3, y + 4);
+      doc.text(row.value, marginL + contentW - 3, y + 4, { align: 'right' });
+      y += 5.5;
+    }
+    y += 1;
+  }
+
+  y += 5;
 
   // ── TABLA MOVIMIENTOS ─────────────────────────────────────────────────
   checkPage(20);

@@ -54,6 +54,9 @@ export async function POST(req: NextRequest) {
       fechaInicio,
       observaciones,
       moneda,
+      tasaIvaContrato,
+      montoContratoNeto,
+      montoContratoIva,
     } = data;
 
     if (!clienteId || !montoOriginal || !indiceInicio || !indiceActual || !fechaInicio) {
@@ -79,6 +82,9 @@ export async function POST(req: NextRequest) {
         fechaInicio: new Date(fechaInicio),
         observaciones: observaciones || null,
         moneda: moneda === 'USD' ? 'USD' : 'ARS',
+        tasaIvaContrato: tasaIvaContrato != null ? Number(tasaIvaContrato) : null,
+        montoContratoNeto: montoContratoNeto != null ? Number(montoContratoNeto) : null,
+        montoContratoIva: montoContratoIva != null ? Number(montoContratoIva) : null,
         movimientos: {
           create: {
             tipo: TipoMovimiento.CARGO_INICIAL,

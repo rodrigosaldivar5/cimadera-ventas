@@ -162,6 +162,13 @@ model Presupuesto {
   fechaPrimerEnvio              DateTime?
   fechaUltimaActividadComercial DateTime?
   seguimientos                  SeguimientoComercial[]
+  // ── FTP — Ficha Técnica para Presupuestos (dato interno) ──────────
+  ftpDriveFileId                String?
+  ftpDriveUrl                   String?
+  ftpNombreArchivo              String?
+  ftpCreatedAt                  DateTime?
+  ftpUpdatedAt                  DateTime?
+  ftpCreatedBy                  String?
   // ── Queja del cliente (dato interno) ──────────────────────────────
   tieneQuejaCliente             Boolean                @default(false)
   motivoQuejaCliente            MotivoQuejaCliente?
@@ -379,6 +386,10 @@ model CuentaCorriente {
   notaDevengado        String?
   fechaDevengado       DateTime?
   moneda               String             @default("ARS")
+  // ── Snapshot IVA al crear (para PDF y auditoría) ───────────────────
+  tasaIvaContrato      Decimal?           @db.Decimal(5, 2)
+  montoContratoNeto    Decimal?           @db.Decimal(12, 2)
+  montoContratoIva     Decimal?           @db.Decimal(12, 2)
   movimientos          MovimientoCuenta[]
   createdAt            DateTime           @default(now())
   updatedAt            DateTime           @updatedAt
