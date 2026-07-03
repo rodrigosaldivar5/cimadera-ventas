@@ -9,17 +9,59 @@ import {
 } from '@/lib/integrations/google-drive';
 import path from 'path';
 
-const ALLOWED_EXTS = ['.pdf', '.xml', '.xlsx', '.xls', '.doc', '.docx'];
+const ALLOWED_EXTS = new Set([
+  '.pdf', '.doc', '.docx', '.xls', '.xlsx',
+  '.jpg', '.jpeg', '.png', '.webp',
+  '.dwg', '.dxf',
+  '.zip', '.rar',
+  '.skp', '.step', '.stp',
+]);
+
 const MAX_SIZE = 10 * 1024 * 1024; // 10 MB
 
-const MIME_TYPES: Record<string, string> = {
+// MIME a enviar a Drive según extensión (DWG/DXF/CAD usan octet-stream)
+const DRIVE_MIME: Record<string, string> = {
   pdf: 'application/pdf',
   doc: 'application/msword',
   docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
   xls: 'application/vnd.ms-excel',
   xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-  xml: 'application/xml',
+  jpg: 'image/jpeg',
+  jpeg: 'image/jpeg',
+  png: 'image/png',
+  webp: 'image/webp',
+  zip: 'application/zip',
+  rar: 'application/x-rar-compressed',
+  dwg: 'application/octet-stream',
+  dxf: 'application/octet-stream',
+  skp: 'application/octet-stream',
+  step: 'application/octet-stream',
+  stp: 'application/octet-stream',
 };
+
+// Bloquear archivos cuyo MIME indica contenido ejecutable/web aunque la ext esté bien (ataque de renombre)
+const BLOCKED_MIME = new Set([
+  'text/html', 'text/javascript',
+  'application/javascript', 'application/x-javascript',
+  'application/x-httpd-php', 'application/x-php',
+  'application/x-sh', 'application/x-shellscript',
+]);
+
+const TIPOS_LABEL = 'PDF, Word, Excel, imágenes, DWG, DXF, ZIP/RAR';
+
+type ArchivoCreado = {
+  id: string; nombre: string; url: string; tipo: string;
+  tamanio: number; createdAt: Date; driveUrl: string | null; storageProvider: string | null;
+};
+
+function validarArchivo(file: File, ext: string): string | null {
+  if (!ext) return 'El archivo no tiene extensión';
+  if (!ALLOWED_EXTS.has(ext)) return `Tipo de archivo no permitido. Permitidos: ${TIPOS_LABEL}`;
+  if (BLOCKED_MIME.has(file.type)) return `Tipo de contenido bloqueado (${file.type})`;
+  if (file.size === 0) return 'El archivo está vacío';
+  if (file.size > MAX_SIZE) return `Excede el tamaño máximo (${Math.round(MAX_SIZE / 1024 / 1024)} MB)`;
+  return null;
+}
 
 export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
   const session = await auth();
@@ -89,17 +131,21 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     if (!files || files.length === 0)
       return NextResponse.json({ error: 'No se recibieron archivos' }, { status: 400 });
 
-    const archivosCreados = [];
+    const archivosCreados: ArchivoCreado[] = [];
+    const rechazados: { nombre: string; razon: string }[] = [];
+
     for (const file of files) {
       const ext = path.extname(file.name).toLowerCase();
-      if (!ALLOWED_EXTS.includes(ext)) continue;
-      if (file.size > MAX_SIZE) continue;
-      if (file.size === 0) continue;
+      const errorValidacion = validarArchivo(file, ext);
+      if (errorValidacion) {
+        rechazados.push({ nombre: file.name, razon: errorValidacion });
+        continue;
+      }
 
       const bytes = await file.arrayBuffer();
       const buffer = Buffer.from(bytes);
       const tipo = ext.replace('.', '');
-      const mimeType = MIME_TYPES[tipo] ?? 'application/octet-stream';
+      const mimeType = DRIVE_MIME[tipo] ?? 'application/octet-stream';
 
       const { fileId, url: driveUrl } = await uploadPresupuestoAdjuntoToDrive({
         folderId: subFolderId,
@@ -136,6 +182,14 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       archivosCreados.push(archivo);
     }
 
+    // Todos rechazados → error explícito
+    if (archivosCreados.length === 0 && rechazados.length > 0) {
+      return NextResponse.json(
+        { error: rechazados[0].razon, rechazados },
+        { status: 422 },
+      );
+    }
+
     if (archivosCreados.length > 0) {
       registrarAuditoria({
         presupuestoId: params.id,
@@ -148,7 +202,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       });
     }
 
-    return NextResponse.json({ archivos: archivosCreados });
+    return NextResponse.json({ archivos: archivosCreados, rechazados });
   } catch (error) {
     const mensaje = error instanceof Error ? error.message : 'Error al subir archivo';
     console.error('[ADJUNTOS]', mensaje);

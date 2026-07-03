@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   Paperclip, X, Loader2,
   FileText, FileSpreadsheet, FileCode, File, Download, ExternalLink,
+  Image as ImageIcon, Archive,
 } from 'lucide-react';
 
 type Archivo = {
@@ -25,11 +26,35 @@ interface Props {
   archivosIniciales: Archivo[];
 }
 
+const FRONTEND_EXTS = new Set([
+  '.pdf', '.doc', '.docx', '.xls', '.xlsx',
+  '.jpg', '.jpeg', '.png', '.webp',
+  '.dwg', '.dxf',
+  '.zip', '.rar',
+  '.skp', '.step', '.stp',
+]);
+const FRONTEND_MAX_BYTES = 10 * 1024 * 1024;
+const TIPOS_LABEL = 'PDF, Word, Excel, imágenes, DWG, DXF, ZIP/RAR';
+
+function validarArchivoFrontend(file: File): string | null {
+  const lastDot = file.name.lastIndexOf('.');
+  const ext = lastDot >= 0 ? file.name.slice(lastDot).toLowerCase() : '';
+  if (!ext) return `"${file.name}": sin extensión, no permitido`;
+  if (!FRONTEND_EXTS.has(ext)) return `Tipo no permitido. Permitidos: ${TIPOS_LABEL}`;
+  if (file.size > FRONTEND_MAX_BYTES) return `"${file.name}": excede el máximo de 10 MB`;
+  return null;
+}
+
 function IconArchivo({ tipo }: { tipo: string }) {
   if (tipo === 'pdf') return <FileText className="h-4 w-4 text-red-500 shrink-0" />;
   if (tipo === 'xlsx' || tipo === 'xls') return <FileSpreadsheet className="h-4 w-4 text-green-600 shrink-0" />;
   if (tipo === 'doc' || tipo === 'docx') return <File className="h-4 w-4 text-blue-500 shrink-0" />;
-  if (tipo === 'xml') return <FileCode className="h-4 w-4 text-orange-500 shrink-0" />;
+  if (tipo === 'jpg' || tipo === 'jpeg' || tipo === 'png' || tipo === 'webp')
+    return <ImageIcon className="h-4 w-4 text-purple-500 shrink-0" />;
+  if (tipo === 'zip' || tipo === 'rar')
+    return <Archive className="h-4 w-4 text-amber-600 shrink-0" />;
+  if (tipo === 'dwg' || tipo === 'dxf' || tipo === 'skp' || tipo === 'step' || tipo === 'stp' || tipo === 'xml')
+    return <FileCode className="h-4 w-4 text-orange-500 shrink-0" />;
   return <Paperclip className="h-4 w-4 text-slate-400 shrink-0" />;
 }
 
@@ -84,6 +109,16 @@ export function DocumentacionPresupuesto({ presupuestoId, archivosIniciales }: P
   const subirArchivos = async (files: FileList | File[]) => {
     const lista = Array.from(files);
     if (lista.length === 0) return;
+
+    // Validación previa en cliente (la definitiva es en backend)
+    for (const file of lista) {
+      const error = validarArchivoFrontend(file);
+      if (error) {
+        showToast(error, 'error');
+        return;
+      }
+    }
+
     setSubiendo(true);
     const formData = new FormData();
     lista.forEach((file) => formData.append('files', file));
@@ -98,7 +133,18 @@ export function DocumentacionPresupuesto({ presupuestoId, archivosIniciales }: P
       }
       const data = await res.json();
       await cargarArchivos();
-      showToast(`${data.archivos?.length ?? 0} archivo(s) subido(s) a Drive correctamente`);
+      const n: number = data.archivos?.length ?? 0;
+      const rechazados: { nombre: string; razon: string }[] = data.rechazados ?? [];
+      if (n > 0 && rechazados.length === 0) {
+        showToast(`${n} archivo(s) subido(s) a Drive correctamente`);
+      } else if (n > 0 && rechazados.length > 0) {
+        showToast(
+          `${n} subido(s). Rechazado(s): ${rechazados.map((r) => r.nombre).join(', ')}`,
+          'error',
+        );
+      } else {
+        showToast('No se subió ningún archivo', 'error');
+      }
     } catch (error) {
       const msg = error instanceof Error ? error.message : 'Error al subir el archivo';
       console.error('[ADJUNTOS]', msg);
@@ -146,7 +192,7 @@ export function DocumentacionPresupuesto({ presupuestoId, archivosIniciales }: P
               <input
                 ref={inputRef}
                 type="file"
-                accept=".pdf,.doc,.docx,.xls,.xlsx,.xml"
+                accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.webp,.dwg,.dxf,.zip,.rar,.skp,.step,.stp"
                 multiple
                 className="sr-only"
                 onChange={handleFileInput}
@@ -223,7 +269,7 @@ export function DocumentacionPresupuesto({ presupuestoId, archivosIniciales }: P
           </div>
 
           <p className="text-xs text-slate-400">
-            Los archivos nuevos se guardan en Google Drive. Los adjuntos históricos siguen disponibles para descarga.
+            PDF, Word, Excel, imágenes (JPG/PNG/WEBP), DWG, DXF, ZIP/RAR, SKP, STEP · máx. 10 MB · se guardan en Google Drive
           </p>
         </div>
       </CardContent>
