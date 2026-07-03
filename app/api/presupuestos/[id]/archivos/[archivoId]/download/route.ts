@@ -20,10 +20,18 @@ export async function GET(
 
   const archivo = await prisma.archivoPresupuesto.findUnique({
     where: { id: params.archivoId },
+    select: { nombre: true, tipo: true, tamanio: true, contenido: true, driveUrl: true, storageProvider: true },
   });
 
-  if (!archivo || !archivo.contenido)
-    return new NextResponse('No encontrado', { status: 404 });
+  if (!archivo) return new NextResponse('No encontrado', { status: 404 });
+
+  // Archivo Drive → redirect para que el browser lo abra directamente
+  if (archivo.storageProvider === 'DRIVE' && archivo.driveUrl) {
+    return NextResponse.redirect(archivo.driveUrl);
+  }
+
+  // Archivo histórico DB → servir binario
+  if (!archivo.contenido) return new NextResponse('No encontrado', { status: 404 });
 
   return new NextResponse(archivo.contenido, {
     headers: {

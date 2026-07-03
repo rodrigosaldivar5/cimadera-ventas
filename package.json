@@ -9,7 +9,8 @@
     "lint": "next lint",
     "seed": "ts-node --compiler-options {\"module\":\"CommonJS\"} prisma/seed.ts",
     "fix:cc:iva": "ts-node --project tsconfig.scripts.json scripts/fix-cuentas-corrientes-iva.ts",
-    "test:ftp": "ts-node --project tsconfig.scripts.json scripts/test-ftp-drive.ts"
+    "test:ftp": "ts-node --project tsconfig.scripts.json scripts/test-ftp-drive.ts",
+    "test:adjuntos": "ts-node --project tsconfig.scripts.json scripts/test-adjuntos-drive2.ts"
   },
   "prisma": {
     "seed": "ts-node --compiler-options {\"module\":\"CommonJS\"} prisma/seed.ts"

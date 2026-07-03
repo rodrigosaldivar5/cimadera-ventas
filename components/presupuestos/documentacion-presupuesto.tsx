@@ -1,11 +1,11 @@
-﻿'use client';
+'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   Paperclip, X, Loader2,
-  FileText, FileSpreadsheet, FileCode, File, Download,
+  FileText, FileSpreadsheet, FileCode, File, Download, ExternalLink,
 } from 'lucide-react';
 
 type Archivo = {
@@ -15,6 +15,8 @@ type Archivo = {
   tipo: string;
   tamanio: number;
   createdAt: string;
+  driveUrl?: string | null;
+  storageProvider?: string | null;
 };
 
 interface Props {
@@ -37,11 +39,27 @@ function formatBytes(bytes: number) {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
+function BadgeStorage({ provider }: { provider?: string | null }) {
+  if (provider === 'DRIVE') {
+    return (
+      <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-blue-50 text-blue-600 border border-blue-100 shrink-0">
+        Drive
+      </span>
+    );
+  }
+  return (
+    <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-slate-100 text-slate-400 border border-slate-200 shrink-0">
+      Local
+    </span>
+  );
+}
+
 export function DocumentacionPresupuesto({ presupuestoId, archivosIniciales }: Props) {
   const [archivos, setArchivos] = useState<Archivo[]>(archivosIniciales);
   const [subiendo, setSubiendo] = useState(false);
   const [eliminando, setEliminando] = useState<string | null>(null);
   const [toast, setToast] = useState<{ msg: string; tipo: 'ok' | 'error' } | null>(null);
+  const [dragging, setDragging] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const showToast = (msg: string, tipo: 'ok' | 'error' = 'ok') => {
@@ -49,7 +67,7 @@ export function DocumentacionPresupuesto({ presupuestoId, archivosIniciales }: P
     setTimeout(() => setToast(null), 4000);
   };
 
-  const cargarArchivos = async () => {
+  const cargarArchivos = useCallback(async () => {
     try {
       const res = await fetch(`/api/presupuestos/${presupuestoId}/archivos`);
       if (res.ok) {
@@ -57,20 +75,18 @@ export function DocumentacionPresupuesto({ presupuestoId, archivosIniciales }: P
         setArchivos(data);
       }
     } catch {}
-  };
+  }, [presupuestoId]);
 
   useEffect(() => {
     cargarArchivos();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [presupuestoId]);
+  }, [cargarArchivos]);
 
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files || files.length === 0) return;
+  const subirArchivos = async (files: FileList | File[]) => {
+    const lista = Array.from(files);
+    if (lista.length === 0) return;
     setSubiendo(true);
     const formData = new FormData();
-    // NO se setea Content-Type — el browser lo agrega automáticamente con boundary
-    Array.from(files).forEach((file) => formData.append('files', file));
+    lista.forEach((file) => formData.append('files', file));
     try {
       const res = await fetch(`/api/presupuestos/${presupuestoId}/archivos`, {
         method: 'POST',
@@ -82,14 +98,25 @@ export function DocumentacionPresupuesto({ presupuestoId, archivosIniciales }: P
       }
       const data = await res.json();
       await cargarArchivos();
-      showToast(`${data.archivos?.length ?? 0} archivo(s) subido(s) correctamente`);
+      showToast(`${data.archivos?.length ?? 0} archivo(s) subido(s) a Drive correctamente`);
     } catch (error) {
-      console.error('Error subiendo archivo:', error);
-      showToast('Error al subir el archivo', 'error');
+      const msg = error instanceof Error ? error.message : 'Error al subir el archivo';
+      console.error('[ADJUNTOS]', msg);
+      showToast(msg, 'error');
     } finally {
       setSubiendo(false);
-      e.target.value = '';
+      if (inputRef.current) inputRef.current.value = '';
     }
+  };
+
+  const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) subirArchivos(e.target.files);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setDragging(false);
+    if (e.dataTransfer.files) subirArchivos(e.dataTransfer.files);
   };
 
   const eliminarArchivo = async (id: string) => {
@@ -108,7 +135,6 @@ export function DocumentacionPresupuesto({ presupuestoId, archivosIniciales }: P
         <CardTitle className="text-base">Documentación del presupuesto</CardTitle>
       </CardHeader>
       <CardContent className="space-y-5">
-        {/* Archivos adjuntos */}
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <p className="text-sm font-medium text-slate-700">Archivos adjuntos</p>
@@ -123,51 +149,82 @@ export function DocumentacionPresupuesto({ presupuestoId, archivosIniciales }: P
                 accept=".pdf,.doc,.docx,.xls,.xlsx,.xml"
                 multiple
                 className="sr-only"
-                onChange={handleFileUpload}
+                onChange={handleFileInput}
                 disabled={subiendo}
               />
             </label>
           </div>
 
-          {archivos.length === 0 ? (
-            <p className="text-sm text-slate-400 text-center py-4">Sin archivos adjuntos</p>
-          ) : (
-            <div className="space-y-2">
-              {archivos.map((a) => (
-                <div key={a.id} className="flex items-center gap-3 p-2.5 rounded-lg border bg-slate-50">
-                  <IconArchivo tipo={a.tipo} />
-                  <div className="flex-1 min-w-0">
-                    <span className="text-sm text-slate-700 block truncate">{a.nombre}</span>
-                    <p className="text-xs text-slate-400 mt-0.5">
-                      Subido el {new Date(a.createdAt).toLocaleDateString('es-AR')} a las {new Date(a.createdAt).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })}
-                    </p>
-                  </div>
-                  <span className="text-xs text-slate-400 shrink-0">{formatBytes(a.tamanio)}</span>
-                  <a
-                    href={a.url}
-                    download={a.nombre}
-                    className="text-slate-400 hover:text-[#00ADEF] shrink-0"
-                    title="Descargar"
-                  >
-                    <Download className="h-3.5 w-3.5" />
-                  </a>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className="text-red-400 hover:text-red-600 h-6 w-6 p-0 shrink-0"
-                    onClick={() => eliminarArchivo(a.id)}
-                    disabled={eliminando === a.id}
-                  >
-                    {eliminando === a.id ? (
-                      <Loader2 className="h-3 w-3 animate-spin" />
-                    ) : (
-                      <X className="h-3 w-3" />
-                    )}
-                  </Button>
-                </div>
-              ))}
-            </div>
-          )}
+          {/* Zona drag & drop */}
+          <div
+            onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
+            onDragLeave={() => setDragging(false)}
+            onDrop={handleDrop}
+            className={`rounded-lg border-2 border-dashed transition-colors ${
+              dragging ? 'border-[#00ADEF] bg-blue-50' : 'border-slate-200 bg-transparent'
+            } ${archivos.length === 0 ? 'py-6' : 'py-2 px-1'}`}
+          >
+            {archivos.length === 0 ? (
+              <p className="text-sm text-slate-400 text-center">
+                {dragging ? 'Soltá los archivos aquí' : 'Sin archivos adjuntos · arrastrá aquí o usá "Adjuntar"'}
+              </p>
+            ) : (
+              <div className="space-y-1.5">
+                {archivos.map((a) => {
+                  const esDrive = a.storageProvider === 'DRIVE' && a.driveUrl;
+                  return (
+                    <div key={a.id} className="flex items-center gap-3 p-2.5 rounded-lg border bg-slate-50">
+                      <IconArchivo tipo={a.tipo} />
+                      <div className="flex-1 min-w-0">
+                        <span className="text-sm text-slate-700 block truncate">{a.nombre}</span>
+                        <p className="text-xs text-slate-400 mt-0.5">
+                          {new Date(a.createdAt).toLocaleDateString('es-AR')} · {formatBytes(a.tamanio)}
+                        </p>
+                      </div>
+                      <BadgeStorage provider={a.storageProvider} />
+                      {esDrive ? (
+                        <a
+                          href={a.driveUrl!}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-slate-400 hover:text-[#00ADEF] shrink-0"
+                          title="Abrir en Drive"
+                        >
+                          <ExternalLink className="h-3.5 w-3.5" />
+                        </a>
+                      ) : (
+                        <a
+                          href={a.url}
+                          download={a.nombre}
+                          className="text-slate-400 hover:text-[#00ADEF] shrink-0"
+                          title="Descargar"
+                        >
+                          <Download className="h-3.5 w-3.5" />
+                        </a>
+                      )}
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="text-red-400 hover:text-red-600 h-6 w-6 p-0 shrink-0"
+                        onClick={() => eliminarArchivo(a.id)}
+                        disabled={eliminando === a.id}
+                      >
+                        {eliminando === a.id ? (
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                        ) : (
+                          <X className="h-3 w-3" />
+                        )}
+                      </Button>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          <p className="text-xs text-slate-400">
+            Los archivos nuevos se guardan en Google Drive. Los adjuntos históricos siguen disponibles para descarga.
+          </p>
         </div>
       </CardContent>
     </Card>

@@ -1,4 +1,5 @@
 import { google } from 'googleapis';
+import { Readable } from 'stream';
 
 function getDriveClient() {
   const clientEmail = process.env.GOOGLE_CLIENT_EMAIL;
@@ -88,4 +89,93 @@ export async function copyFtpTemplateForPresupuesto(params: {
   }
 
   return { fileId, url };
+}
+
+// ── Adjuntos ──────────────────────────────────────────────────────────────────
+
+export function buildPresupuestoFolderName(params: {
+  numero: number;
+  obraNombre?: string | null;
+  clienteNombre?: string | null;
+  presupuestoNombre?: string | null;
+}): string {
+  const sufijo = params.obraNombre ?? params.clienteNombre ?? params.presupuestoNombre ?? 'Sin nombre';
+  return `Presupuesto N°${params.numero} - ${sufijo}`
+    .replace(/[\r\n\t]/g, ' ')
+    .replace(/[/\\?%*:|"<>]/g, '-')
+    .slice(0, 200)
+    .trim();
+}
+
+export function buildSafeFileName(nombre: string): string {
+  return nombre.replace(/[\r\n\t]/g, ' ').replace(/[/\\?%*:|"<>]/g, '-').slice(0, 200).trim();
+}
+
+export async function getOrCreatePresupuestoAdjuntosFolder(params: {
+  parentFolderId: string;
+  folderName: string;
+}): Promise<string> {
+  const drive = getDriveClient();
+  const escapedName = params.folderName.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+
+  const res = await drive.files.list({
+    q: `name = '${escapedName}' and '${params.parentFolderId}' in parents and mimeType = 'application/vnd.google-apps.folder' and trashed = false`,
+    fields: 'files(id, name)',
+    supportsAllDrives: true,
+    includeItemsFromAllDrives: true,
+    pageSize: 1,
+  });
+
+  const existing = res.data.files?.[0];
+  if (existing?.id) return existing.id;
+
+  const created = await drive.files.create({
+    supportsAllDrives: true,
+    requestBody: {
+      name: params.folderName,
+      mimeType: 'application/vnd.google-apps.folder',
+      parents: [params.parentFolderId],
+    },
+    fields: 'id',
+  });
+
+  if (!created.data.id) throw new Error('No se pudo crear la subcarpeta en Google Drive.');
+  return created.data.id;
+}
+
+export async function uploadPresupuestoAdjuntoToDrive(params: {
+  folderId: string;
+  nombre: string;
+  buffer: Buffer;
+  mimeType: string;
+}): Promise<{ fileId: string; url: string }> {
+  const drive = getDriveClient();
+  const stream = Readable.from(params.buffer);
+
+  const res = await drive.files.create({
+    supportsAllDrives: true,
+    requestBody: {
+      name: buildSafeFileName(params.nombre),
+      parents: [params.folderId],
+    },
+    media: {
+      mimeType: params.mimeType,
+      body: stream,
+    },
+    fields: 'id, webViewLink',
+  });
+
+  const fileId = res.data.id;
+  const url = res.data.webViewLink;
+  if (!fileId || !url) throw new Error('Google Drive no devolvió ID o URL del archivo subido.');
+  return { fileId, url };
+}
+
+export async function trashDriveFile(fileId: string): Promise<void> {
+  const drive = getDriveClient();
+  await drive.files.update({
+    fileId,
+    supportsAllDrives: true,
+    requestBody: { trashed: true },
+  });
 }

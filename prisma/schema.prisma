@@ -192,15 +192,20 @@ model Obra {
 }
 
 model ArchivoPresupuesto {
-  id            String      @id @default(cuid())
-  presupuestoId String
-  presupuesto   Presupuesto @relation(fields: [presupuestoId], references: [id], onDelete: Cascade)
-  nombre        String
-  url           String
-  tipo          String
-  tamanio       Int
-  contenido     Bytes?
-  createdAt     DateTime    @default(now())
+  id              String      @id @default(cuid())
+  presupuestoId   String
+  presupuesto     Presupuesto @relation(fields: [presupuestoId], references: [id], onDelete: Cascade)
+  nombre          String
+  url             String
+  tipo            String
+  tamanio         Int
+  contenido       Bytes?
+  driveFileId     String?
+  driveUrl        String?
+  driveFolderId   String?
+  storageProvider String?
+  uploadedBy      String?
+  createdAt       DateTime    @default(now())
 }
 
 enum EstadoPresupuesto {
