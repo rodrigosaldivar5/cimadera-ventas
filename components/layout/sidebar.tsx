@@ -138,14 +138,14 @@ export function Sidebar({ userName, userEmail, rolNombre: rolNombreProp }: Sideb
     setOpenItems((prev) => ({ ...prev, [href]: !prev[href] }));
 
   return (
-    <aside className="flex h-full w-64 flex-col bg-[#1A1A1A]">
+    <aside className="sticky top-0 h-screen flex w-64 flex-col bg-[#1A1A1A]">
       {/* Logo */}
       <div className="flex h-20 items-center justify-center px-4 border-b border-white/10">
         <Logo variant="light" />
       </div>
 
       {/* Navegación */}
-      <nav className="flex-1 overflow-y-auto py-4 px-3">
+      <nav className="flex-1 overflow-y-auto py-4 px-3 [&::-webkit-scrollbar]:hidden [scrollbar-width:none] [-ms-overflow-style:none]">
         <ul className="space-y-0.5">
           {navItems.map((item) => {
             const Icon = item.icon;

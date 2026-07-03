@@ -14,7 +14,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
   return (
     <>
       <PushProvider>
-        <div className="flex h-screen overflow-hidden bg-[#F2F2F2]">
+        <div className="flex min-h-screen bg-[#F2F2F2]">
           {/* Sidebar desktop */}
           <div className="hidden lg:flex lg:flex-shrink-0">
             <Sidebar
@@ -25,13 +25,13 @@ export default async function DashboardLayout({ children }: { children: React.Re
           </div>
 
           {/* Contenido principal */}
-          <div className="flex flex-1 flex-col overflow-hidden">
+          <div className="flex flex-1 flex-col min-w-0">
             <Header
               userName={session.user.nombre}
               userEmail={session.user.email ?? ''}
               rolNombre={session.user.rolNombre}
             />
-            <main className="flex-1 overflow-y-auto p-4 lg:p-6">{children}</main>
+            <main className="flex-1 p-4 lg:p-6">{children}</main>
           </div>
         </div>
       </PushProvider>
