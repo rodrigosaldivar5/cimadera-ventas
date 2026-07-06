@@ -17,7 +17,7 @@ const ALLOWED_EXTS = new Set([
   '.skp', '.step', '.stp',
 ]);
 
-const MAX_SIZE = 10 * 1024 * 1024; // 10 MB
+const MAX_SIZE = 4 * 1024 * 1024; // 4 MB — alineado con límite de Vercel Functions
 
 // MIME a enviar a Drive según extensión (DWG/DXF/CAD usan octet-stream)
 const DRIVE_MIME: Record<string, string> = {

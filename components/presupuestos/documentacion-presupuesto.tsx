@@ -33,7 +33,8 @@ const FRONTEND_EXTS = new Set([
   '.zip', '.rar',
   '.skp', '.step', '.stp',
 ]);
-const FRONTEND_MAX_BYTES = 10 * 1024 * 1024;
+const MAX_UPLOAD_MB = 4;
+const FRONTEND_MAX_BYTES = MAX_UPLOAD_MB * 1024 * 1024;
 const TIPOS_LABEL = 'PDF, Word, Excel, imágenes, DWG, DXF, ZIP/RAR';
 
 function validarArchivoFrontend(file: File): string | null {
@@ -41,7 +42,8 @@ function validarArchivoFrontend(file: File): string | null {
   const ext = lastDot >= 0 ? file.name.slice(lastDot).toLowerCase() : '';
   if (!ext) return `"${file.name}": sin extensión, no permitido`;
   if (!FRONTEND_EXTS.has(ext)) return `Tipo no permitido. Permitidos: ${TIPOS_LABEL}`;
-  if (file.size > FRONTEND_MAX_BYTES) return `"${file.name}": excede el máximo de 10 MB`;
+  if (file.size > FRONTEND_MAX_BYTES)
+    return `"${file.name}" supera el límite de ${MAX_UPLOAD_MB} MB. Para archivos grandes, subí manualmente a Drive.`;
   return null;
 }
 
@@ -127,11 +129,39 @@ export function DocumentacionPresupuesto({ presupuestoId, archivosIniciales }: P
         method: 'POST',
         body: formData,
       });
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.error || 'Error al subir');
+
+      // Leer siempre como texto primero — nunca llamar .json() directamente,
+      // porque Vercel puede devolver texto plano si el payload supera su límite.
+      const text = await res.text();
+
+      // Detectar respuesta de plataforma (413 de Vercel/nginx antes del endpoint)
+      if (
+        res.status === 413 ||
+        text.includes('Request Entity Too Large') ||
+        text.includes('FUNCTION_PAYLOAD_TOO_LARGE') ||
+        text.includes('Payload Too Large')
+      ) {
+        throw new Error(`El archivo es demasiado grande para subir desde la app. Máximo permitido: ${MAX_UPLOAD_MB} MB.`);
       }
-      const data = await res.json();
+
+      if (!res.ok) {
+        let errMsg = 'Error al subir';
+        try {
+          const parsed = JSON.parse(text) as { error?: string };
+          errMsg = parsed.error || errMsg;
+        } catch {
+          if (text.trim()) errMsg = text.trim();
+        }
+        throw new Error(errMsg);
+      }
+
+      let data: { archivos?: Archivo[]; rechazados?: { nombre: string; razon: string }[] };
+      try {
+        data = JSON.parse(text) as typeof data;
+      } catch {
+        throw new Error('Respuesta inesperada del servidor al subir');
+      }
+
       await cargarArchivos();
       const n: number = data.archivos?.length ?? 0;
       const rechazados: { nombre: string; razon: string }[] = data.rechazados ?? [];
@@ -269,7 +299,7 @@ export function DocumentacionPresupuesto({ presupuestoId, archivosIniciales }: P
           </div>
 
           <p className="text-xs text-slate-400">
-            PDF, Word, Excel, imágenes (JPG/PNG/WEBP), DWG, DXF, ZIP/RAR, SKP, STEP · máx. 10 MB · se guardan en Google Drive
+            PDF, Word, Excel, imágenes (JPG/PNG/WEBP), DWG, DXF, ZIP/RAR, SKP, STEP · máx. {MAX_UPLOAD_MB} MB · se guardan en Google Drive
           </p>
         </div>
       </CardContent>
