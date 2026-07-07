@@ -1,6 +1,7 @@
 ﻿export const estadoBadgeClass: Record<string, string> = {
   PENDIENTE:   'bg-red-100 text-red-800 border-red-300',
   EN_PROCESO:  'bg-yellow-100 text-yellow-700 border-yellow-300',
+  FRENADO:     'bg-purple-100 text-purple-700 border-purple-200',
   FINALIZADO:  'bg-amber-800 text-white border-amber-900',
   PARA_ENVIAR: 'bg-blue-100 text-blue-700 border-blue-300',
   ENVIADO:     'bg-sky-100 text-[#0089C7] border-sky-300',
@@ -11,6 +12,7 @@
 export const estadoLabel: Record<string, string> = {
   PENDIENTE:   'Pendiente',
   EN_PROCESO:  'En proceso',
+  FRENADO:     'Frenado',
   FINALIZADO:  'Finalizado',
   PARA_ENVIAR: 'Para enviar',
   ENVIADO:     'Enviado',
@@ -23,6 +25,7 @@ import type { CSSProperties } from 'react';
 const ESTILOS_ESTADO: Record<string, CSSProperties> = {
   PENDIENTE:   { backgroundColor: '#FEE2E2', color: '#991B1B', border: '1px solid #FCA5A5' },
   EN_PROCESO:  { backgroundColor: '#FEF9C3', color: '#854D0E', border: '1px solid #FDE047' },
+  FRENADO:     { backgroundColor: '#F3E8FF', color: '#7E22CE', border: '1px solid #D8B4FE' },
   FINALIZADO:  { backgroundColor: '#8B6C3E', color: '#FFFFFF', border: '1px solid #6B4F2C' },
   PARA_ENVIAR: { backgroundColor: '#DBEAFE', color: '#1E40AF', border: '1px solid #93C5FD' },
   ENVIADO:     { backgroundColor: '#E0F2FE', color: '#0369A1', border: '1px solid #7DD3FC' },
@@ -54,6 +57,7 @@ export function getLabelEstado(estado: string): string {
 export const ESTADO_PRESUPUESTO = {
   PENDIENTE: 'PENDIENTE',
   EN_PROCESO: 'EN_PROCESO',
+  FRENADO: 'FRENADO',
   FINALIZADO: 'FINALIZADO',
   PARA_ENVIAR: 'PARA_ENVIAR',
   ENVIADO: 'ENVIADO',

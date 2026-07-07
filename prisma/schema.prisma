@@ -145,6 +145,7 @@ model Presupuesto {
   archivos          ArchivoPresupuesto[]
   cuentaCorriente          CuentaCorriente?
   auditoria                AuditoriaPresupuesto[]
+  transicionesEstado       PresupuestoEstadoTransicion[]
   division                 DivisionProductiva?
   fechaPrometidaCliente    DateTime?
   fechaObjetivoProduccion  DateTime?
@@ -211,6 +212,7 @@ model ArchivoPresupuesto {
 enum EstadoPresupuesto {
   PENDIENTE
   EN_PROCESO
+  FRENADO
   FINALIZADO
   PARA_ENVIAR
   ENVIADO
@@ -572,6 +574,22 @@ model AuditoriaPresupuesto {
   createdAt         DateTime    @default(now())
 
   @@index([presupuestoId])
+}
+
+model PresupuestoEstadoTransicion {
+  id                String      @id @default(cuid())
+  presupuestoId     String
+  presupuesto       Presupuesto @relation(fields: [presupuestoId], references: [id], onDelete: Cascade)
+  estadoAnterior    String?
+  estadoNuevo       String
+  changedAt         DateTime    @default(now())
+  responsableId     String?
+  responsableNombre String?
+  usuarioId         String
+  usuarioNombre     String
+
+  @@index([presupuestoId])
+  @@index([changedAt])
 }
 
 // ─── Métricas comerciales ─────────────────────────────────────────────────────

@@ -18,6 +18,7 @@ import { CambiarPrioridadBtn } from '@/components/presupuestos/cambiar-prioridad
 import { HistorialPresupuesto } from '@/components/presupuestos/historial-presupuesto';
 import { QuejaClienteCard } from '@/components/presupuestos/queja-cliente-card';
 import { FtpBtn } from '@/components/presupuestos/ftp-btn';
+import { TiemposPresupuesto } from '@/components/presupuestos/tiempos-presupuesto';
 import { auth } from '@/lib/auth';
 import type { EstadoPresupuesto } from '@prisma/client';
 import Link from 'next/link';
@@ -286,6 +287,12 @@ export default async function PresupuestoDetallePage({ params }: { params: { id:
         comentarioQuejaCliente={presupuesto.comentarioQuejaCliente ?? null}
         fechaQuejaCliente={presupuesto.fechaQuejaCliente?.toISOString() ?? null}
         quejaRegistradaPorNombre={presupuesto.quejaRegistradaPorNombre ?? null}
+      />
+
+      <TiemposPresupuesto
+        presupuestoId={presupuesto.id}
+        estadoActual={presupuesto.estado}
+        fechaCreacion={presupuesto.fechaCreacion}
       />
 
       <DocumentacionPresupuesto

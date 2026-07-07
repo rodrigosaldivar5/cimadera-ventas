@@ -28,7 +28,12 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
 
   const prev = await prisma.presupuesto.findUnique({
     where: { id: params.id },
-    select: { estado: true, fechaPrimerEnvio: true },
+    select: {
+      estado: true,
+      fechaPrimerEnvio: true,
+      responsableId: true,
+      responsable: { select: { nombre: true } },
+    },
   });
 
   const presupuesto = await prisma.presupuesto.update({
@@ -54,6 +59,19 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     accion: 'CAMBIO_ESTADO',
     camposModificados: { estado: { antes: prev?.estado, despues: estado } },
   });
+
+  // Registro de transición para cálculo de tiempos hábiles
+  prisma.presupuestoEstadoTransicion.create({
+    data: {
+      presupuestoId: params.id,
+      estadoAnterior: prev?.estado ?? null,
+      estadoNuevo: estado,
+      usuarioId: session.user.id,
+      usuarioNombre: session.user.nombre ?? session.user.email ?? 'Desconocido',
+      responsableId: prev?.responsableId ?? null,
+      responsableNombre: prev?.responsable?.nombre ?? null,
+    },
+  }).catch(() => {});
 
   if (estado === 'APROBADO' || estado === 'RECHAZADO') {
     registrarAuditoria({
@@ -86,7 +104,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
         },
       });
       const estadoLabels: Record<string, string> = {
-        PENDIENTE: 'Pendiente', EN_PROCESO: 'En proceso', FINALIZADO: 'Finalizado',
+        PENDIENTE: 'Pendiente', EN_PROCESO: 'En proceso', FRENADO: 'Frenado', FINALIZADO: 'Finalizado',
         PARA_ENVIAR: 'Para enviar', ENVIADO: 'Enviado', APROBADO: 'Aprobado', RECHAZADO: 'Rechazado',
       };
       await crearYEnviarNotificacion(coordUser.id, {

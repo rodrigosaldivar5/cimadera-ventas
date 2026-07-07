@@ -227,6 +227,46 @@ export function PresupuestosTable({ clientes, usuarios, criticos, userEmail }: P
   const [metricasHasta, setMetricasHasta] = useState('');
   const [metricasResponsableId, setMetricasResponsableId] = useState('');
 
+  // ── Métricas de tiempos ──────────────────────────────────────────
+  const [tiemposOpen, setTiemposOpen] = useState(false);
+  const [tiemposDesde, setTiemposDesde] = useState('');
+  const [tiemposHasta, setTiemposHasta] = useState('');
+  const [tiemposResponsableId, setTiemposResponsableId] = useState('');
+  const [tiemposLoading, setTiemposLoading] = useState(false);
+  type TiemposRow = {
+    responsableId: string | null; responsableNombre: string;
+    totalPresupuestos: number; minutosEnProceso: number; minutosFrenado: number;
+    minutosPromedio: number; porcentajeJornada: number;
+  };
+  const [tiemposData, setTiemposData] = useState<TiemposRow[]>([]);
+
+  const fetchTiempos = async () => {
+    setTiemposLoading(true);
+    try {
+      const params = new URLSearchParams();
+      if (tiemposDesde) params.set('desde', tiemposDesde);
+      if (tiemposHasta) params.set('hasta', tiemposHasta);
+      if (tiemposResponsableId) params.set('responsableId', tiemposResponsableId);
+      const res = await fetch(`/api/presupuestos/metricas-tiempos?${params}`);
+      const d = await res.json();
+      setTiemposData(d.resumenPorResponsable ?? []);
+    } catch {}
+    setTiemposLoading(false);
+  };
+
+  useEffect(() => {
+    if (tiemposOpen) { fetchTiempos(); }
+  }, [tiemposOpen, tiemposDesde, tiemposHasta, tiemposResponsableId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const fmtMin = (m: number) => {
+    if (m <= 0) return '—';
+    const h = Math.floor(m / 60);
+    const min = m % 60;
+    if (h === 0) return `${min}min`;
+    if (min === 0) return `${h}h`;
+    return `${h}h ${min}m`;
+  };
+
   const quejaMetrics = useMemo(() => {
     let base = todosLosPresupuestos.filter(
       (p) => p.fechaPrimerEnvio != null || ESTADOS_BASE_QUEJA.has(p.estado),
@@ -485,6 +525,86 @@ export function PresupuestosTable({ clientes, usuarios, criticos, userEmail }: P
                 </div>
               </div>
             )}
+          </div>
+        )}
+      </div>
+
+      {/* Métricas de tiempos */}
+      <div className="rounded-2xl border border-slate-200 bg-white shadow-[0_1px_4px_rgba(0,0,0,0.05)] overflow-hidden">
+        <button
+          onClick={() => setTiemposOpen((v) => !v)}
+          className="w-full flex items-center gap-2 px-4 py-3 text-left hover:bg-slate-50 transition-colors"
+        >
+          <BarChart2 className="h-4 w-4 text-purple-400 shrink-0" />
+          <span className="font-medium text-slate-700 text-sm">Métricas de tiempos</span>
+          {tiemposOpen ? (
+            <ChevronUp className="ml-auto h-4 w-4 text-slate-400" />
+          ) : (
+            <ChevronDown className="ml-auto h-4 w-4 text-slate-400" />
+          )}
+        </button>
+        {tiemposOpen && (
+          <div className="px-4 pb-4 space-y-4 border-t border-slate-100">
+            <div className="flex flex-wrap gap-3 pt-3">
+              <div className="flex items-center gap-2">
+                <Label className="text-xs text-slate-500 whitespace-nowrap">Desde</Label>
+                <Input type="date" value={tiemposDesde} onChange={(e) => setTiemposDesde(e.target.value)} className="w-36 h-8 text-sm" />
+              </div>
+              <div className="flex items-center gap-2">
+                <Label className="text-xs text-slate-500 whitespace-nowrap">Hasta</Label>
+                <Input type="date" value={tiemposHasta} onChange={(e) => setTiemposHasta(e.target.value)} className="w-36 h-8 text-sm" />
+              </div>
+              <Select value={tiemposResponsableId || '__all__'} onValueChange={(v) => setTiemposResponsableId(v === '__all__' ? '' : v)}>
+                <SelectTrigger className="w-44 h-8 text-sm">
+                  <SelectValue placeholder="Todos los responsables" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__all__">Todos los responsables</SelectItem>
+                  {usuarios.map((u) => (
+                    <SelectItem key={u.id} value={u.id}>{u.nombre}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {(tiemposDesde || tiemposHasta || tiemposResponsableId) && (
+                <Button variant="ghost" size="sm" className="h-8 text-xs text-slate-400 hover:text-slate-600"
+                  onClick={() => { setTiemposDesde(''); setTiemposHasta(''); setTiemposResponsableId(''); }}>
+                  Limpiar
+                </Button>
+              )}
+            </div>
+            {tiemposLoading ? (
+              <p className="text-sm text-slate-400 py-2">Cargando…</p>
+            ) : tiemposData.length === 0 ? (
+              <p className="text-sm text-slate-400 py-2">Sin datos de transiciones aún. Los tiempos se registran a partir de ahora.</p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="border-b border-slate-100">
+                      <th className="text-left py-1.5 pr-3 text-slate-500 font-medium">Responsable</th>
+                      <th className="text-right py-1.5 px-2 text-slate-500 font-medium">Presup.</th>
+                      <th className="text-right py-1.5 px-2 text-slate-500 font-medium">En proceso</th>
+                      <th className="text-right py-1.5 px-2 text-purple-500 font-medium">Frenado</th>
+                      <th className="text-right py-1.5 px-2 text-slate-500 font-medium">Promedio</th>
+                      <th className="text-right py-1.5 pl-2 text-slate-500 font-medium">% jornada</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {tiemposData.map((r) => (
+                      <tr key={r.responsableId ?? '__sin__'} className="border-b border-slate-50 hover:bg-slate-50">
+                        <td className="py-1.5 pr-3 text-slate-700 font-medium">{r.responsableNombre}</td>
+                        <td className="py-1.5 px-2 text-right tabular-nums text-slate-600">{r.totalPresupuestos}</td>
+                        <td className="py-1.5 px-2 text-right tabular-nums text-slate-700">{fmtMin(r.minutosEnProceso)}</td>
+                        <td className="py-1.5 px-2 text-right tabular-nums text-purple-600">{fmtMin(r.minutosFrenado)}</td>
+                        <td className="py-1.5 px-2 text-right tabular-nums text-slate-600">{fmtMin(r.minutosPromedio)}</td>
+                        <td className="py-1.5 pl-2 text-right tabular-nums text-slate-600">{r.porcentajeJornada}%</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+            <p className="text-xs text-slate-400">Horas hábiles (lun–vie 08:00–17:00 hora Buenos Aires)</p>
           </div>
         )}
       </div>
