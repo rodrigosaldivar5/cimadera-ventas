@@ -14,7 +14,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { formatCurrency } from '@/lib/utils';
-import { ESTADO_PRESUPUESTO, PRIORIDAD, getEstiloEstado, getLabelEstado, type EstadoPresupuesto, type Prioridad } from '@/lib/enums';
+import { ESTADO_PRESUPUESTO, PRIORIDAD, getEstiloEstado, getLabelEstado, MOTIVOS_PERDIDO_COMPUTABLE, MOTIVOS_NO_COMPUTABLE, MOTIVO_CIERRE_LABEL, type EstadoPresupuesto, type Prioridad } from '@/lib/enums';
 
 const prioridadBadgeClass: Record<string, string> = {
   ALTA:  'bg-red-100 text-red-700 border-red-300',
@@ -210,6 +210,23 @@ export function PresupuestosTable({ clientes, usuarios, criticos, userEmail }: P
     paginaActual * ITEMS_POR_PAGINA,
   );
 
+  // Críticos derivados del estado local (se actualiza al cambiar estado desde tabla)
+  const criticosActivos = useMemo(() => {
+    if (loading) return criticos;
+    return todosLosPresupuestos.filter(
+      (p) => p.prioridad === 'ALTA' && (p.estado === 'EN_PROCESO' || p.estado === 'PARA_ENVIAR'),
+    );
+  }, [loading, todosLosPresupuestos, criticos]);
+
+  // Resumen por estado según filtros activos
+  const resumen = useMemo(() => ({
+    total:      presupuestosFiltrados.length,
+    pendiente:  presupuestosFiltrados.filter(p => p.estado === 'PENDIENTE').length,
+    enProceso:  presupuestosFiltrados.filter(p => p.estado === 'EN_PROCESO').length,
+    frenado:    presupuestosFiltrados.filter(p => p.estado === 'FRENADO').length,
+    finalizado: presupuestosFiltrados.filter(p => p.estado === 'FINALIZADO').length,
+  }), [presupuestosFiltrados]);
+
   // ── UI state ─────────────────────────────────────────────────────
   const [criticosOpen, setCriticosOpen] = useState(true);
   const [editingPrecio, setEditingPrecio] = useState<{ id: string; value: string } | null>(null);
@@ -239,6 +256,16 @@ export function PresupuestosTable({ clientes, usuarios, criticos, userEmail }: P
     minutosPromedio: number; porcentajeJornada: number;
   };
   const [tiemposData, setTiemposData] = useState<TiemposRow[]>([]);
+
+  // Estado change
+  const [savingEstado, setSavingEstado] = useState<string | null>(null);
+  const [confirmarAprobado, setConfirmarAprobado] = useState<PresupuestoRow | null>(null);
+  const [confirmandoAprobado, setConfirmandoAprobado] = useState(false);
+  const [rechazarModal, setRechazarModal] = useState<PresupuestoRow | null>(null);
+  const [rechazarResultado, setRechazarResultado] = useState('');
+  const [rechazarMotivo, setRechazarMotivo] = useState('');
+  const [rechazarComentario, setRechazarComentario] = useState('');
+  const [rechazandoEstado, setRechazandoEstado] = useState(false);
 
   const fetchTiempos = async () => {
     setTiemposLoading(true);
@@ -370,6 +397,33 @@ export function PresupuestosTable({ clientes, usuarios, criticos, userEmail }: P
     }
   };
 
+  const changeEstado = async (
+    id: string,
+    estado: string,
+    extra?: { resultadoComercial?: string; motivoCierre?: string; comentarioCierre?: string },
+  ) => {
+    setSavingEstado(id);
+    try {
+      const res = await fetch(`/api/presupuestos/${id}/estado`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ estado, ...extra }),
+      });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({})) as { error?: string };
+        throw new Error(d.error ?? 'Error al cambiar estado');
+      }
+      setTodosLosPresupuestos(prev =>
+        prev.map(p => p.id === id ? { ...p, estado: estado as EstadoPresupuesto } : p),
+      );
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Error al cambiar estado';
+      setToastAvance({ msg, error: true });
+      setTimeout(() => setToastAvance(null), 3500);
+    }
+    setSavingEstado(null);
+  };
+
   const limpiarFiltros = () => {
     setFiltroEstados([]);
     setFiltroPrioridades([]);
@@ -388,7 +442,7 @@ export function PresupuestosTable({ clientes, usuarios, criticos, userEmail }: P
     <div className="space-y-4">
 
       {/* Críticos */}
-      {criticos.length > 0 && (
+      {criticosActivos.length > 0 && (
         <div className="rounded-2xl border border-red-200 bg-red-50 overflow-hidden shadow-[0_2px_8px_rgba(220,38,38,0.08)]">
           <button
             onClick={() => setCriticosOpen((v) => !v)}
@@ -396,13 +450,13 @@ export function PresupuestosTable({ clientes, usuarios, criticos, userEmail }: P
           >
             <AlertTriangle className="h-4 w-4 text-red-500 shrink-0" />
             <span className="font-semibold text-red-700 text-sm">
-              Presupuestos Críticos — {criticos.length} de alta prioridad
+              Presupuestos Críticos — {criticosActivos.length} de alta prioridad
             </span>
             {criticosOpen ? <ChevronUp className="ml-auto h-4 w-4 text-red-400" /> : <ChevronDown className="ml-auto h-4 w-4 text-red-400" />}
           </button>
           {criticosOpen && (
             <div className="px-4 pb-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-              {criticos.map((p) => {
+              {criticosActivos.map((p) => {
                 const dias = diasDesde(p.fechaRecepcion);
                 const urgente = dias > 3;
                 return (
@@ -529,85 +583,42 @@ export function PresupuestosTable({ clientes, usuarios, criticos, userEmail }: P
         )}
       </div>
 
-      {/* Métricas de tiempos */}
-      <div className="rounded-2xl border border-slate-200 bg-white shadow-[0_1px_4px_rgba(0,0,0,0.05)] overflow-hidden">
-        <button
-          onClick={() => setTiemposOpen((v) => !v)}
-          className="w-full flex items-center gap-2 px-4 py-3 text-left hover:bg-slate-50 transition-colors"
-        >
-          <BarChart2 className="h-4 w-4 text-purple-400 shrink-0" />
-          <span className="font-medium text-slate-700 text-sm">Métricas de tiempos</span>
-          {tiemposOpen ? (
-            <ChevronUp className="ml-auto h-4 w-4 text-slate-400" />
-          ) : (
-            <ChevronDown className="ml-auto h-4 w-4 text-slate-400" />
-          )}
-        </button>
-        {tiemposOpen && (
-          <div className="px-4 pb-4 space-y-4 border-t border-slate-100">
-            <div className="flex flex-wrap gap-3 pt-3">
-              <div className="flex items-center gap-2">
-                <Label className="text-xs text-slate-500 whitespace-nowrap">Desde</Label>
-                <Input type="date" value={tiemposDesde} onChange={(e) => setTiemposDesde(e.target.value)} className="w-36 h-8 text-sm" />
-              </div>
-              <div className="flex items-center gap-2">
-                <Label className="text-xs text-slate-500 whitespace-nowrap">Hasta</Label>
-                <Input type="date" value={tiemposHasta} onChange={(e) => setTiemposHasta(e.target.value)} className="w-36 h-8 text-sm" />
-              </div>
-              <Select value={tiemposResponsableId || '__all__'} onValueChange={(v) => setTiemposResponsableId(v === '__all__' ? '' : v)}>
-                <SelectTrigger className="w-44 h-8 text-sm">
-                  <SelectValue placeholder="Todos los responsables" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__all__">Todos los responsables</SelectItem>
-                  {usuarios.map((u) => (
-                    <SelectItem key={u.id} value={u.id}>{u.nombre}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {(tiemposDesde || tiemposHasta || tiemposResponsableId) && (
-                <Button variant="ghost" size="sm" className="h-8 text-xs text-slate-400 hover:text-slate-600"
-                  onClick={() => { setTiemposDesde(''); setTiemposHasta(''); setTiemposResponsableId(''); }}>
-                  Limpiar
-                </Button>
-              )}
+      {/* Resumen de presupuestos */}
+      {!loading && (
+        <div className="flex flex-wrap items-center gap-2 px-1">
+          <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider shrink-0">Resumen</span>
+          <div className="flex flex-wrap gap-2">
+            <div className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 shadow-sm">
+              <span className="text-sm font-bold text-slate-800 tabular-nums">{resumen.total}</span>
+              <span className="text-xs text-slate-500">asignados</span>
             </div>
-            {tiemposLoading ? (
-              <p className="text-sm text-slate-400 py-2">Cargando…</p>
-            ) : tiemposData.length === 0 ? (
-              <p className="text-sm text-slate-400 py-2">Sin datos de transiciones aún. Los tiempos se registran a partir de ahora.</p>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-xs">
-                  <thead>
-                    <tr className="border-b border-slate-100">
-                      <th className="text-left py-1.5 pr-3 text-slate-500 font-medium">Responsable</th>
-                      <th className="text-right py-1.5 px-2 text-slate-500 font-medium">Presup.</th>
-                      <th className="text-right py-1.5 px-2 text-slate-500 font-medium">En proceso</th>
-                      <th className="text-right py-1.5 px-2 text-purple-500 font-medium">Frenado</th>
-                      <th className="text-right py-1.5 px-2 text-slate-500 font-medium">Promedio</th>
-                      <th className="text-right py-1.5 pl-2 text-slate-500 font-medium">% jornada</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {tiemposData.map((r) => (
-                      <tr key={r.responsableId ?? '__sin__'} className="border-b border-slate-50 hover:bg-slate-50">
-                        <td className="py-1.5 pr-3 text-slate-700 font-medium">{r.responsableNombre}</td>
-                        <td className="py-1.5 px-2 text-right tabular-nums text-slate-600">{r.totalPresupuestos}</td>
-                        <td className="py-1.5 px-2 text-right tabular-nums text-slate-700">{fmtMin(r.minutosEnProceso)}</td>
-                        <td className="py-1.5 px-2 text-right tabular-nums text-purple-600">{fmtMin(r.minutosFrenado)}</td>
-                        <td className="py-1.5 px-2 text-right tabular-nums text-slate-600">{fmtMin(r.minutosPromedio)}</td>
-                        <td className="py-1.5 pl-2 text-right tabular-nums text-slate-600">{r.porcentajeJornada}%</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+            {resumen.pendiente > 0 && (
+              <div className="flex items-center gap-1.5 rounded-lg border border-red-200 bg-red-50 px-3 py-1.5">
+                <span className="text-sm font-bold text-red-700 tabular-nums">{resumen.pendiente}</span>
+                <span className="text-xs text-red-500">Pendiente{resumen.pendiente !== 1 ? 's' : ''}</span>
               </div>
             )}
-            <p className="text-xs text-slate-400">Horas hábiles (lun–vie 08:00–17:00 hora Buenos Aires)</p>
+            {resumen.enProceso > 0 && (
+              <div className="flex items-center gap-1.5 rounded-lg border border-yellow-300 bg-yellow-50 px-3 py-1.5">
+                <span className="text-sm font-bold text-yellow-700 tabular-nums">{resumen.enProceso}</span>
+                <span className="text-xs text-yellow-600">En proceso</span>
+              </div>
+            )}
+            {resumen.frenado > 0 && (
+              <div className="flex items-center gap-1.5 rounded-lg border border-purple-200 bg-purple-50 px-3 py-1.5">
+                <span className="text-sm font-bold text-purple-700 tabular-nums">{resumen.frenado}</span>
+                <span className="text-xs text-purple-500">Frenado{resumen.frenado !== 1 ? 's' : ''}</span>
+              </div>
+            )}
+            {resumen.finalizado > 0 && (
+              <div className="flex items-center gap-1.5 rounded-lg border border-amber-200 bg-amber-50 px-3 py-1.5">
+                <span className="text-sm font-bold text-amber-700 tabular-nums">{resumen.finalizado}</span>
+                <span className="text-xs text-amber-600">Finalizado{resumen.finalizado !== 1 ? 's' : ''}</span>
+              </div>
+            )}
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* Toolbar */}
       <div className="flex flex-col gap-3">
@@ -778,8 +789,20 @@ export function PresupuestosTable({ clientes, usuarios, criticos, userEmail }: P
                   key={p.id}
                   className={`border-b border-[#D4B896]/45 ${p.estado === 'ENVIADO' && p.archivos.length === 0 ? 'bg-amber-50' : ''}`}
                 >
-                  {colVisible('numero') && <TableCell className="font-bold text-slate-800">#{p.numero}</TableCell>}
-                  {colVisible('nombre') && <TableCell className="max-w-[140px] truncate font-medium text-slate-700">{p.nombrePresupuesto ?? '—'}</TableCell>}
+                  {colVisible('numero') && (
+                    <TableCell>
+                      <Link href={`/presupuestos/${p.id}`} className="font-bold text-slate-800 hover:text-[#00ADEF] hover:underline">
+                        #{p.numero}
+                      </Link>
+                    </TableCell>
+                  )}
+                  {colVisible('nombre') && (
+                    <TableCell className="max-w-[140px] truncate">
+                      <Link href={`/presupuestos/${p.id}`} className="font-medium text-slate-700 hover:text-[#00ADEF] hover:underline block truncate">
+                        {p.nombrePresupuesto ?? '—'}
+                      </Link>
+                    </TableCell>
+                  )}
                   {colVisible('cliente') && <TableCell className="max-w-[150px] truncate font-semibold text-slate-800">{p.cliente.razonSocial}</TableCell>}
                   {colVisible('obra') && <TableCell className="text-slate-500 text-sm max-w-[120px] truncate">{p.obra?.nombre ?? '—'}</TableCell>}
                   {colVisible('responsable') && <TableCell className="text-slate-500 text-sm">{p.responsable?.nombre ?? p.creadoPor.nombre}</TableCell>}
@@ -814,7 +837,37 @@ export function PresupuestosTable({ clientes, usuarios, criticos, userEmail }: P
                   {colVisible('estado') && (
                     <TableCell>
                       <div className="flex items-center gap-1.5 flex-wrap">
-                        <span style={getEstiloEstado(p.estado)}>{getLabelEstado(p.estado)}</span>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <button
+                              className="focus:outline-none disabled:opacity-60"
+                              disabled={savingEstado === p.id}
+                            >
+                              <span style={{ ...getEstiloEstado(p.estado), cursor: 'pointer' }}>
+                                {savingEstado === p.id ? '…' : getLabelEstado(p.estado)}
+                              </span>
+                            </button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="start" className="w-36">
+                            {Object.values(ESTADO_PRESUPUESTO).map((e) => (
+                              <DropdownMenuItem
+                                key={e}
+                                disabled={e === p.estado}
+                                className="gap-2 cursor-pointer"
+                                onSelect={() => {
+                                  if (e === 'APROBADO') { setConfirmarAprobado(p); return; }
+                                  if (e === 'RECHAZADO') { setRechazarModal(p); return; }
+                                  void changeEstado(p.id, e);
+                                }}
+                              >
+                                <span style={{ ...getEstiloEstado(e), fontSize: '11px', padding: '1px 6px' }}>
+                                  {getLabelEstado(e)}
+                                </span>
+                                {e === p.estado && <Check className="h-3 w-3 ml-auto shrink-0" />}
+                              </DropdownMenuItem>
+                            ))}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                         {p.estado === 'ENVIADO' && p.archivos.length === 0 && (
                           <span title="Sin adjuntos">
                             <AlertTriangle className="h-3.5 w-3.5 text-amber-500 shrink-0" />
@@ -904,6 +957,107 @@ export function PresupuestosTable({ clientes, usuarios, criticos, userEmail }: P
           {toastAvance.msg}
         </div>
       )}
+
+      {/* Dialog: confirmar APROBADO */}
+      <Dialog open={!!confirmarAprobado} onOpenChange={(open) => { if (!open) setConfirmarAprobado(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Confirmar aprobación</DialogTitle>
+            <DialogDescription>
+              ¿Aprobar el presupuesto <strong>#{confirmarAprobado?.numero}{confirmarAprobado?.nombrePresupuesto ? ` — ${confirmarAprobado.nombrePresupuesto}` : ''}</strong>?
+              Esta acción genera integraciones con Admin y Producción y no puede revertirse.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConfirmarAprobado(null)}>Cancelar</Button>
+            <Button
+              className="bg-green-600 hover:bg-green-700 text-white"
+              disabled={confirmandoAprobado}
+              onClick={async () => {
+                if (!confirmarAprobado) return;
+                setConfirmandoAprobado(true);
+                await changeEstado(confirmarAprobado.id, 'APROBADO');
+                setConfirmandoAprobado(false);
+                setConfirmarAprobado(null);
+              }}
+            >
+              {confirmandoAprobado ? 'Procesando…' : 'Sí, aprobar'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog: rechazar presupuesto */}
+      <Dialog
+        open={!!rechazarModal}
+        onOpenChange={(open) => {
+          if (!open) { setRechazarModal(null); setRechazarResultado(''); setRechazarMotivo(''); setRechazarComentario(''); }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Rechazar presupuesto #{rechazarModal?.numero}</DialogTitle>
+            <DialogDescription>Completar los datos de cierre para continuar.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-1.5">
+              <Label>Resultado comercial *</Label>
+              <Select value={rechazarResultado} onValueChange={(v) => { setRechazarResultado(v); setRechazarMotivo(''); }}>
+                <SelectTrigger><SelectValue placeholder="Seleccionar resultado" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="PERDIDO_COMPUTABLE">Perdido (computable)</SelectItem>
+                  <SelectItem value="NO_COMPUTABLE">No computable</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            {rechazarResultado && (
+              <div className="space-y-1.5">
+                <Label>Motivo *</Label>
+                <Select value={rechazarMotivo} onValueChange={setRechazarMotivo}>
+                  <SelectTrigger><SelectValue placeholder="Seleccionar motivo" /></SelectTrigger>
+                  <SelectContent>
+                    {(rechazarResultado === 'PERDIDO_COMPUTABLE' ? MOTIVOS_PERDIDO_COMPUTABLE : MOTIVOS_NO_COMPUTABLE).map((m) => (
+                      <SelectItem key={m} value={m}>{MOTIVO_CIERRE_LABEL[m] ?? m}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            <div className="space-y-1.5">
+              <Label>Comentario (opcional)</Label>
+              <Textarea value={rechazarComentario} onChange={(e) => setRechazarComentario(e.target.value)} rows={2} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => { setRechazarModal(null); setRechazarResultado(''); setRechazarMotivo(''); setRechazarComentario(''); }}
+            >
+              Cancelar
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={!rechazarResultado || !rechazarMotivo || rechazandoEstado}
+              onClick={async () => {
+                if (!rechazarModal || !rechazarResultado || !rechazarMotivo) return;
+                setRechazandoEstado(true);
+                await changeEstado(rechazarModal.id, 'RECHAZADO', {
+                  resultadoComercial: rechazarResultado,
+                  motivoCierre: rechazarMotivo,
+                  comentarioCierre: rechazarComentario || undefined,
+                });
+                setRechazandoEstado(false);
+                setRechazarModal(null);
+                setRechazarResultado('');
+                setRechazarMotivo('');
+                setRechazarComentario('');
+              }}
+            >
+              {rechazandoEstado ? 'Procesando…' : 'Rechazar'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={dialogAvanceAbierto} onOpenChange={setDialogAvanceAbierto}>
         <DialogContent>
