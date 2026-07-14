@@ -4,6 +4,10 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
+  Dialog, DialogContent, DialogHeader, DialogFooter,
+  DialogTitle, DialogDescription,
+} from '@/components/ui/dialog';
+import {
   Paperclip, X, Loader2, FolderOpen,
   FileText, FileSpreadsheet, FileCode, File, Download, ExternalLink,
   Image as ImageIcon, Archive,
@@ -88,6 +92,7 @@ export function DocumentacionPresupuesto({ presupuestoId, archivosIniciales }: P
   const [eliminando, setEliminando] = useState<string | null>(null);
   const [toast, setToast] = useState<{ msg: string; tipo: 'ok' | 'error' } | null>(null);
   const [dragging, setDragging] = useState(false);
+  const [confirmarEliminar, setConfirmarEliminar] = useState<Archivo | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const showToast = (msg: string, tipo: 'ok' | 'error' = 'ok') => {
@@ -218,10 +223,15 @@ export function DocumentacionPresupuesto({ presupuestoId, archivosIniciales }: P
   const eliminarArchivo = async (id: string) => {
     setEliminando(id);
     try {
-      await fetch(`/api/presupuestos/${presupuestoId}/archivos/${id}`, { method: 'DELETE' });
+      const res = await fetch(`/api/presupuestos/${presupuestoId}/archivos/${id}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error('Error al eliminar');
       setArchivos((prev) => prev.filter((a) => a.id !== id));
-    } catch {}
+      showToast('Archivo eliminado correctamente');
+    } catch {
+      showToast('Error al eliminar el archivo', 'error');
+    }
     setEliminando(null);
+    setConfirmarEliminar(null);
   };
 
   return (
@@ -313,7 +323,7 @@ export function DocumentacionPresupuesto({ presupuestoId, archivosIniciales }: P
                         size="sm"
                         variant="ghost"
                         className="text-red-400 hover:text-red-600 h-6 w-6 p-0 shrink-0"
-                        onClick={() => eliminarArchivo(a.id)}
+                        onClick={() => setConfirmarEliminar(a)}
                         disabled={eliminando === a.id}
                       >
                         {eliminando === a.id ? (
@@ -335,6 +345,51 @@ export function DocumentacionPresupuesto({ presupuestoId, archivosIniciales }: P
         </div>
       </CardContent>
     </Card>
+
+    <Dialog
+      open={!!confirmarEliminar}
+      onOpenChange={(open) => { if (!open && !eliminando) setConfirmarEliminar(null); }}
+    >
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Eliminar archivo</DialogTitle>
+          <DialogDescription>
+            ¿Estás seguro que querés eliminar este archivo?
+          </DialogDescription>
+        </DialogHeader>
+        {confirmarEliminar && (
+          <div className="text-sm text-slate-600">
+            <span className="font-medium">Archivo:</span> {confirmarEliminar.nombre}
+          </div>
+        )}
+        <p className="text-xs text-slate-400">
+          Se quitará de la documentación del presupuesto.
+        </p>
+        <DialogFooter>
+          <Button
+            variant="outline"
+            onClick={() => setConfirmarEliminar(null)}
+            disabled={!!eliminando}
+          >
+            Cancelar
+          </Button>
+          <Button
+            variant="destructive"
+            onClick={() => confirmarEliminar && eliminarArchivo(confirmarEliminar.id)}
+            disabled={!!eliminando}
+          >
+            {eliminando ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                Eliminando…
+              </>
+            ) : (
+              'Eliminar'
+            )}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
 
     {toast && (
       <div className={`fixed bottom-6 right-6 z-50 text-white text-sm px-4 py-2 rounded-lg shadow-lg animate-in fade-in slide-in-from-bottom-2 ${toast.tipo === 'error' ? 'bg-red-600' : 'bg-green-600'}`}>
