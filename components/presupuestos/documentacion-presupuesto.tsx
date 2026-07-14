@@ -4,7 +4,7 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
-  Paperclip, X, Loader2,
+  Paperclip, X, Loader2, FolderOpen,
   FileText, FileSpreadsheet, FileCode, File, Download, ExternalLink,
   Image as ImageIcon, Archive,
 } from 'lucide-react';
@@ -84,6 +84,7 @@ function BadgeStorage({ provider }: { provider?: string | null }) {
 export function DocumentacionPresupuesto({ presupuestoId, archivosIniciales }: Props) {
   const [archivos, setArchivos] = useState<Archivo[]>(archivosIniciales);
   const [subiendo, setSubiendo] = useState(false);
+  const [abriendo, setAbriendo] = useState(false);
   const [eliminando, setEliminando] = useState<string | null>(null);
   const [toast, setToast] = useState<{ msg: string; tipo: 'ok' | 'error' } | null>(null);
   const [dragging, setDragging] = useState(false);
@@ -107,6 +108,25 @@ export function DocumentacionPresupuesto({ presupuestoId, archivosIniciales }: P
   useEffect(() => {
     cargarArchivos();
   }, [cargarArchivos]);
+
+  const abrirCarpeta = async () => {
+    setAbriendo(true);
+    try {
+      const res = await fetch(`/api/presupuestos/${presupuestoId}/archivos/carpeta`, {
+        method: 'POST',
+      });
+      const data = await res.json() as { ok?: boolean; url?: string; error?: string };
+      if (!res.ok || !data.url) {
+        throw new Error(data.error ?? 'No se pudo abrir la carpeta');
+      }
+      window.open(data.url, '_blank', 'noopener,noreferrer');
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : 'Error al abrir carpeta de Drive';
+      showToast(msg, 'error');
+    } finally {
+      setAbriendo(false);
+    }
+  };
 
   const subirArchivos = async (files: FileList | File[]) => {
     const lista = Array.from(files);
@@ -214,21 +234,32 @@ export function DocumentacionPresupuesto({ presupuestoId, archivosIniciales }: P
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <p className="text-sm font-medium text-slate-700">Archivos adjuntos</p>
-            <label className="cursor-pointer">
-              <span className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-md border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 transition-colors">
-                {subiendo ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Paperclip className="h-3.5 w-3.5" />}
-                {subiendo ? 'Subiendo...' : 'Adjuntar'}
-              </span>
-              <input
-                ref={inputRef}
-                type="file"
-                accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.webp,.dwg,.dxf,.zip,.rar,.skp,.step,.stp"
-                multiple
-                className="sr-only"
-                onChange={handleFileInput}
-                disabled={subiendo}
-              />
-            </label>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={abrirCarpeta}
+                disabled={abriendo}
+                className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-md border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 transition-colors disabled:opacity-60"
+              >
+                {abriendo ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <FolderOpen className="h-3.5 w-3.5" />}
+                {abriendo ? 'Buscando...' : 'Carpeta'}
+              </button>
+              <label className="cursor-pointer">
+                <span className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-md border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 transition-colors">
+                  {subiendo ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Paperclip className="h-3.5 w-3.5" />}
+                  {subiendo ? 'Subiendo...' : 'Adjuntar'}
+                </span>
+                <input
+                  ref={inputRef}
+                  type="file"
+                  accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.webp,.dwg,.dxf,.zip,.rar,.skp,.step,.stp"
+                  multiple
+                  className="sr-only"
+                  onChange={handleFileInput}
+                  disabled={subiendo}
+                />
+              </label>
+            </div>
           </div>
 
           {/* Zona drag & drop */}
