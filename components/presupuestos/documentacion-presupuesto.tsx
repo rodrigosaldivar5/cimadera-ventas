@@ -37,9 +37,9 @@ const FRONTEND_EXTS = new Set([
   '.zip', '.rar',
   '.skp', '.step', '.stp',
 ]);
-const MAX_UPLOAD_MB = 4;
+const MAX_UPLOAD_MB = 20;
 const FRONTEND_MAX_BYTES = MAX_UPLOAD_MB * 1024 * 1024;
-const TIPOS_LABEL = 'PDF, Word, Excel, imágenes, DWG, DXF, ZIP/RAR';
+const TIPOS_LABEL = 'PDF, Word, Excel, imágenes, DWG, DXF, ZIP/RAR, SKP, STEP';
 
 function validarArchivoFrontend(file: File): string | null {
   const lastDot = file.name.lastIndexOf('.');
@@ -47,7 +47,7 @@ function validarArchivoFrontend(file: File): string | null {
   if (!ext) return `"${file.name}": sin extensión, no permitido`;
   if (!FRONTEND_EXTS.has(ext)) return `Tipo no permitido. Permitidos: ${TIPOS_LABEL}`;
   if (file.size > FRONTEND_MAX_BYTES)
-    return `"${file.name}" supera el límite de ${MAX_UPLOAD_MB} MB. Para archivos grandes, subí manualmente a Drive.`;
+    return `"${file.name}" supera el máximo permitido de ${MAX_UPLOAD_MB} MB.`;
   return null;
 }
 
@@ -88,6 +88,7 @@ function BadgeStorage({ provider }: { provider?: string | null }) {
 export function DocumentacionPresupuesto({ presupuestoId, archivosIniciales }: Props) {
   const [archivos, setArchivos] = useState<Archivo[]>(archivosIniciales);
   const [subiendo, setSubiendo] = useState(false);
+  const [progreso, setProgreso] = useState<number | null>(null);
   const [abriendo, setAbriendo] = useState(false);
   const [eliminando, setEliminando] = useState<string | null>(null);
   const [toast, setToast] = useState<{ msg: string; tipo: 'ok' | 'error' } | null>(null);
@@ -133,11 +134,39 @@ export function DocumentacionPresupuesto({ presupuestoId, archivosIniciales }: P
     }
   };
 
+  const subirArchivoDriveDirecto = (file: File, uploadUrl: string): Promise<{ id: string; webViewLink: string }> => {
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open('PUT', uploadUrl, true);
+      xhr.setRequestHeader('Content-Type', file.type || 'application/octet-stream');
+
+      xhr.upload.onprogress = (e) => {
+        if (e.lengthComputable) setProgreso(Math.round((e.loaded / e.total) * 100));
+      };
+
+      xhr.onload = () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          try {
+            const data = JSON.parse(xhr.responseText) as { id?: string; webViewLink?: string };
+            if (!data.id) { reject(new Error('Google Drive no devolvió ID del archivo')); return; }
+            resolve({ id: data.id, webViewLink: data.webViewLink ?? '' });
+          } catch {
+            reject(new Error('Respuesta inesperada de Google Drive'));
+          }
+        } else {
+          reject(new Error(`Error al subir a Google Drive (${xhr.status})`));
+        }
+      };
+
+      xhr.onerror = () => reject(new Error('Error de red al subir a Google Drive'));
+      xhr.send(file);
+    });
+  };
+
   const subirArchivos = async (files: FileList | File[]) => {
     const lista = Array.from(files);
     if (lista.length === 0) return;
 
-    // Validación previa en cliente (la definitiva es en backend)
     for (const file of lista) {
       const error = validarArchivoFrontend(file);
       if (error) {
@@ -147,67 +176,74 @@ export function DocumentacionPresupuesto({ presupuestoId, archivosIniciales }: P
     }
 
     setSubiendo(true);
-    const formData = new FormData();
-    lista.forEach((file) => formData.append('files', file));
-    try {
-      const res = await fetch(`/api/presupuestos/${presupuestoId}/archivos`, {
-        method: 'POST',
-        body: formData,
-      });
+    let subidos = 0;
+    let ultimoError = '';
 
-      // Leer siempre como texto primero — nunca llamar .json() directamente,
-      // porque Vercel puede devolver texto plano si el payload supera su límite.
-      const text = await res.text();
-
-      // Detectar respuesta de plataforma (413 de Vercel/nginx antes del endpoint)
-      if (
-        res.status === 413 ||
-        text.includes('Request Entity Too Large') ||
-        text.includes('FUNCTION_PAYLOAD_TOO_LARGE') ||
-        text.includes('Payload Too Large')
-      ) {
-        throw new Error(`El archivo es demasiado grande para subir desde la app. Máximo permitido: ${MAX_UPLOAD_MB} MB.`);
-      }
-
-      if (!res.ok) {
-        let errMsg = 'Error al subir';
-        try {
-          const parsed = JSON.parse(text) as { error?: string };
-          errMsg = parsed.error || errMsg;
-        } catch {
-          if (text.trim()) errMsg = text.trim();
-        }
-        throw new Error(errMsg);
-      }
-
-      let data: { archivos?: Archivo[]; rechazados?: { nombre: string; razon: string }[] };
+    for (const file of lista) {
       try {
-        data = JSON.parse(text) as typeof data;
-      } catch {
-        throw new Error('Respuesta inesperada del servidor al subir');
-      }
+        setProgreso(0);
 
-      await cargarArchivos();
-      const n: number = data.archivos?.length ?? 0;
-      const rechazados: { nombre: string; razon: string }[] = data.rechazados ?? [];
-      if (n > 0 && rechazados.length === 0) {
-        showToast(`${n} archivo(s) subido(s) a Drive correctamente`);
-      } else if (n > 0 && rechazados.length > 0) {
-        showToast(
-          `${n} subido(s). Rechazado(s): ${rechazados.map((r) => r.nombre).join(', ')}`,
-          'error',
-        );
-      } else {
-        showToast('No se subió ningún archivo', 'error');
+        const initRes = await fetch(`/api/presupuestos/${presupuestoId}/archivos/init-upload`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            nombre: file.name,
+            tamano: file.size,
+            contentType: file.type || undefined,
+          }),
+        });
+
+        if (!initRes.ok) {
+          const d = (await initRes.json()) as { error?: string };
+          throw new Error(d.error ?? 'Error al iniciar subida');
+        }
+
+        const { uploadUrl, folderId } = (await initRes.json()) as {
+          uploadUrl: string;
+          folderId: string;
+        };
+
+        const driveResult = await subirArchivoDriveDirecto(file, uploadUrl);
+
+        const ext = file.name.lastIndexOf('.') >= 0 ? file.name.slice(file.name.lastIndexOf('.') + 1).toLowerCase() : '';
+
+        const confirmRes = await fetch(`/api/presupuestos/${presupuestoId}/archivos/confirm-upload`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            driveFileId: driveResult.id,
+            nombre: file.name,
+            tipo: ext,
+            tamano: file.size,
+            folderId,
+          }),
+        });
+
+        if (!confirmRes.ok) {
+          const d = (await confirmRes.json()) as { error?: string };
+          throw new Error(d.error ?? 'Error al confirmar subida');
+        }
+
+        subidos++;
+      } catch (error) {
+        ultimoError = error instanceof Error ? error.message : 'Error al subir archivo';
+        console.error('[ADJUNTOS]', file.name, ultimoError);
       }
-    } catch (error) {
-      const msg = error instanceof Error ? error.message : 'Error al subir el archivo';
-      console.error('[ADJUNTOS]', msg);
-      showToast(msg, 'error');
-    } finally {
-      setSubiendo(false);
-      if (inputRef.current) inputRef.current.value = '';
     }
+
+    setProgreso(null);
+    await cargarArchivos();
+
+    if (subidos > 0 && !ultimoError) {
+      showToast(`${subidos} archivo(s) subido(s) a Drive correctamente`);
+    } else if (subidos > 0 && ultimoError) {
+      showToast(`${subidos} subido(s), pero hubo errores: ${ultimoError}`, 'error');
+    } else {
+      showToast(ultimoError || 'No se subió ningún archivo', 'error');
+    }
+
+    setSubiendo(false);
+    if (inputRef.current) inputRef.current.value = '';
   };
 
   const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -257,7 +293,7 @@ export function DocumentacionPresupuesto({ presupuestoId, archivosIniciales }: P
               <label className="cursor-pointer">
                 <span className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-md border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 transition-colors">
                   {subiendo ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Paperclip className="h-3.5 w-3.5" />}
-                  {subiendo ? 'Subiendo...' : 'Adjuntar'}
+                  {subiendo ? (progreso !== null ? `Subiendo ${progreso}%` : 'Subiendo...') : 'Adjuntar'}
                 </span>
                 <input
                   ref={inputRef}
@@ -340,7 +376,7 @@ export function DocumentacionPresupuesto({ presupuestoId, archivosIniciales }: P
           </div>
 
           <p className="text-xs text-slate-400">
-            PDF, Word, Excel, imágenes (JPG/PNG/WEBP), DWG, DXF, ZIP/RAR, SKP, STEP · máx. {MAX_UPLOAD_MB} MB · se guardan en Google Drive
+            Permitidos: PDF, Word, Excel, imágenes (JPG/PNG/WEBP), DWG, DXF, ZIP/RAR, SKP, STEP · máx. {MAX_UPLOAD_MB} MB · se guardan en Google Drive
           </p>
         </div>
       </CardContent>

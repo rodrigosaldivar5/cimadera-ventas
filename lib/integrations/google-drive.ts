@@ -171,6 +171,78 @@ export async function uploadPresupuestoAdjuntoToDrive(params: {
   return { fileId, url };
 }
 
+export async function initResumableUpload(params: {
+  folderId: string;
+  nombre: string;
+  mimeType: string;
+}): Promise<string> {
+  const auth = new google.auth.GoogleAuth({
+    credentials: {
+      client_email: process.env.GOOGLE_CLIENT_EMAIL,
+      private_key: process.env.GOOGLE_PRIVATE_KEY!.replace(/\\n/g, '\n'),
+    },
+    scopes: ['https://www.googleapis.com/auth/drive'],
+  });
+
+  const token = await auth.getAccessToken();
+  if (!token) throw new Error('No se pudo obtener token de Google Drive');
+
+  const metadata = {
+    name: buildSafeFileName(params.nombre),
+    parents: [params.folderId],
+  };
+
+  const res = await fetch(
+    'https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable&supportsAllDrives=true&fields=id,name,size,mimeType,webViewLink,parents',
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json; charset=UTF-8',
+        'X-Upload-Content-Type': params.mimeType,
+      },
+      body: JSON.stringify(metadata),
+    },
+  );
+
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Google Drive resumable init falló (${res.status}): ${text}`);
+  }
+
+  const uploadUrl = res.headers.get('Location');
+  if (!uploadUrl) throw new Error('Google Drive no devolvió Location para resumable upload');
+
+  return uploadUrl;
+}
+
+export async function verifyDriveFile(fileId: string): Promise<{
+  id: string;
+  name: string;
+  size: number;
+  mimeType: string;
+  webViewLink: string;
+  parents: string[];
+}> {
+  const drive = getDriveClient();
+  const res = await drive.files.get({
+    fileId,
+    supportsAllDrives: true,
+    fields: 'id, name, size, mimeType, webViewLink, parents',
+  });
+
+  if (!res.data.id) throw new Error('Archivo no encontrado en Google Drive');
+
+  return {
+    id: res.data.id,
+    name: res.data.name ?? '',
+    size: Number(res.data.size ?? 0),
+    mimeType: res.data.mimeType ?? '',
+    webViewLink: res.data.webViewLink ?? '',
+    parents: (res.data.parents as string[]) ?? [],
+  };
+}
+
 export async function trashDriveFile(fileId: string): Promise<void> {
   const drive = getDriveClient();
   await drive.files.update({
