@@ -5,8 +5,7 @@ import { auth } from '@/lib/auth';
 import { PresupuestosTable } from '@/components/presupuestos/presupuestos-table';
 
 export default async function PresupuestosPage() {
-  const [clientes, usuarios, criticos, session] = await Promise.all([
-    prisma.cliente.findMany({ where: { activo: true }, orderBy: { razonSocial: 'asc' }, select: { id: true, razonSocial: true } }),
+  const [usuarios, criticos, session] = await Promise.all([
     prisma.user.findMany({ where: { aprobado: true }, select: { id: true, nombre: true }, orderBy: { nombre: 'asc' } }),
     prisma.presupuesto.findMany({
       where: { prioridad: 'ALTA', estado: { in: ['EN_PROCESO', 'PARA_ENVIAR'] } },
@@ -19,7 +18,6 @@ export default async function PresupuestosPage() {
 
   return (
     <PresupuestosTable
-      clientes={clientes}
       usuarios={usuarios}
       criticos={criticos}
       userEmail={session?.user?.email ?? ''}

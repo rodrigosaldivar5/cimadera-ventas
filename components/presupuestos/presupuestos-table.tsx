@@ -13,6 +13,7 @@ import { EliminarPresupuestoBtn } from '@/components/presupuestos/eliminar-presu
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
+import { SearchableSelect } from '@/components/ui/searchable-select';
 import { formatCurrency } from '@/lib/utils';
 import { ESTADO_PRESUPUESTO, PRIORIDAD, getEstiloEstado, getLabelEstado, MOTIVOS_PERDIDO_COMPUTABLE, MOTIVOS_NO_COMPUTABLE, MOTIVO_CIERRE_LABEL, type EstadoPresupuesto, type Prioridad } from '@/lib/enums';
 
@@ -114,8 +115,7 @@ function ResizableHead({
 }
 
 interface Props {
-  clientes: { id: string; razonSocial: string }[];
-  usuarios: { id: string; nombre: string }[];
+  usuarios?: { id: string; nombre: string }[];
   criticos: PresupuestoCritico[];
   userEmail: string;
 }
@@ -135,7 +135,7 @@ const MOTIVOS_QUEJA: Record<string, string> = {
 
 const ESTADOS_BASE_QUEJA = new Set(['ENVIADO', 'APROBADO', 'RECHAZADO']);
 
-export function PresupuestosTable({ clientes, usuarios, criticos, userEmail }: Props) {
+export function PresupuestosTable({ criticos, userEmail }: Props) {
   const puedeEliminar = EMAILS_AUTORIZADOS_BORRAR.includes(userEmail);
 
   // ── Datos ─────────────────────────────────────────────────────────
@@ -161,9 +161,13 @@ export function PresupuestosTable({ clientes, usuarios, criticos, userEmail }: P
     if (typeof window === 'undefined') return [];
     try { const s = localStorage.getItem('pres_f_prioridades'); return s ? JSON.parse(s) : []; } catch { return []; }
   });
-  const [filtroClienteId, setFiltroClienteId] = useState<string>(() => {
+  const [filtroObraId, setFiltroObraId] = useState<string>(() => {
     if (typeof window === 'undefined') return '';
-    try { return localStorage.getItem('pres_f_clienteId') ?? ''; } catch { return ''; }
+    try { return localStorage.getItem('pres_f_obraId') ?? ''; } catch { return ''; }
+  });
+  const [filtroResponsableId, setFiltroResponsableId] = useState<string>(() => {
+    if (typeof window === 'undefined') return '';
+    try { return localStorage.getItem('pres_f_responsableId') ?? ''; } catch { return ''; }
   });
   const [filtroDesde, setFiltroDesde] = useState<string>(() => {
     if (typeof window === 'undefined') return '';
@@ -176,33 +180,46 @@ export function PresupuestosTable({ clientes, usuarios, criticos, userEmail }: P
 
   useEffect(() => { try { localStorage.setItem('pres_f_estados', JSON.stringify(filtroEstados)); } catch {} }, [filtroEstados]);
   useEffect(() => { try { localStorage.setItem('pres_f_prioridades', JSON.stringify(filtroPrioridades)); } catch {} }, [filtroPrioridades]);
-  useEffect(() => { try { localStorage.setItem('pres_f_clienteId', filtroClienteId); } catch {} }, [filtroClienteId]);
+  useEffect(() => { try { localStorage.setItem('pres_f_obraId', filtroObraId); } catch {} }, [filtroObraId]);
+  useEffect(() => { try { localStorage.setItem('pres_f_responsableId', filtroResponsableId); } catch {} }, [filtroResponsableId]);
   useEffect(() => { try { localStorage.setItem('pres_f_desde', filtroDesde); } catch {} }, [filtroDesde]);
   useEffect(() => { try { localStorage.setItem('pres_f_hasta', filtroHasta); } catch {} }, [filtroHasta]);
 
   // ── Paginación ────────────────────────────────────────────────────
   const [paginaActual, setPaginaActual] = useState(1);
-  useEffect(() => { setPaginaActual(1); }, [filtroEstados, filtroPrioridades, filtroClienteId, filtroDesde, filtroHasta]);
-
-  // ── Obras del cliente ─────────────────────────────────────────────
-  const [filtroObraId, setFiltroObraId] = useState('');
-  const [obrasCliente, setObrasCliente] = useState<{ id: string; nombre: string }[]>([]);
-  useEffect(() => {
-    if (!filtroClienteId) { setObrasCliente([]); setFiltroObraId(''); return; }
-    fetch(`/api/clientes/${filtroClienteId}/obras`).then(r => r.json()).then(d => setObrasCliente(d.obras ?? []));
-  }, [filtroClienteId]);
+  useEffect(() => { setPaginaActual(1); }, [filtroEstados, filtroPrioridades, filtroObraId, filtroResponsableId, filtroDesde, filtroHasta]);
 
   // ── Filtrado cliente-side ─────────────────────────────────────────
+  const obrasUnicas = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const p of todosLosPresupuestos) {
+      const id = p.obra?.id ?? p.obraId;
+      const nombre = p.obra?.nombre;
+      if (id && nombre) map.set(id, nombre);
+    }
+    return Array.from(map, ([value, label]) => ({ value, label })).sort((a, b) => a.label.localeCompare(b.label));
+  }, [todosLosPresupuestos]);
+
+  const responsablesUnicos = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const p of todosLosPresupuestos) {
+      const id = p.responsableId;
+      const nombre = p.responsable?.nombre;
+      if (id && nombre) map.set(id, nombre);
+    }
+    return Array.from(map, ([value, label]) => ({ value, label })).sort((a, b) => a.label.localeCompare(b.label));
+  }, [todosLosPresupuestos]);
+
   const presupuestosFiltrados = useMemo(() => {
     let r = [...todosLosPresupuestos];
     if (filtroEstados.length > 0)     r = r.filter(p => filtroEstados.includes(p.estado));
     if (filtroPrioridades.length > 0) r = r.filter(p => filtroPrioridades.includes(p.prioridad));
-    if (filtroClienteId) r = r.filter(p => p.cliente?.id === filtroClienteId || p.clienteId === filtroClienteId);
-    if (filtroObraId)    r = r.filter(p => p.obra?.id === filtroObraId || p.obraId === filtroObraId);
+    if (filtroObraId)         r = r.filter(p => p.obra?.id === filtroObraId || p.obraId === filtroObraId);
+    if (filtroResponsableId)  r = r.filter(p => p.responsableId === filtroResponsableId);
     if (filtroDesde) { const d = new Date(filtroDesde); r = r.filter(p => new Date(p.fechaCreacion) >= d); }
     if (filtroHasta) { const h = new Date(filtroHasta); h.setHours(23, 59, 59); r = r.filter(p => new Date(p.fechaCreacion) <= h); }
     return r;
-  }, [todosLosPresupuestos, filtroEstados, filtroPrioridades, filtroClienteId, filtroObraId, filtroDesde, filtroHasta]);
+  }, [todosLosPresupuestos, filtroEstados, filtroPrioridades, filtroObraId, filtroResponsableId, filtroDesde, filtroHasta]);
 
   const totalPaginas = Math.ceil(presupuestosFiltrados.length / ITEMS_POR_PAGINA);
   const presupuestosPagina = presupuestosFiltrados.slice(
@@ -412,12 +429,12 @@ export function PresupuestosTable({ clientes, usuarios, criticos, userEmail }: P
   const limpiarFiltros = () => {
     setFiltroEstados([]);
     setFiltroPrioridades([]);
-    setFiltroClienteId('');
     setFiltroObraId('');
+    setFiltroResponsableId('');
     setFiltroDesde('');
     setFiltroHasta('');
     try {
-      ['pres_f_estados', 'pres_f_prioridades', 'pres_f_clienteId', 'pres_f_desde', 'pres_f_hasta']
+      ['pres_f_estados', 'pres_f_prioridades', 'pres_f_obraId', 'pres_f_responsableId', 'pres_f_desde', 'pres_f_hasta']
         .forEach(k => localStorage.removeItem(k));
     } catch {}
   };
@@ -678,36 +695,32 @@ export function PresupuestosTable({ clientes, usuarios, criticos, userEmail }: P
             </DropdownMenuContent>
           </DropdownMenu>
 
-          <Select value={filtroClienteId || '__all__'} onValueChange={(v) => setFiltroClienteId(v === '__all__' ? '' : v)}>
+          <SearchableSelect
+            value={filtroObraId}
+            onValueChange={(v) => setFiltroObraId(v)}
+            options={[{ value: '', label: 'Todas las obras' }, ...obrasUnicas]}
+            placeholder="Todas las obras"
+            searchPlaceholder="Buscar obra…"
+            emptyText="Sin obras"
+            className="w-48 h-10"
+          />
+
+          <Select value={filtroResponsableId || '__all__'} onValueChange={(v) => setFiltroResponsableId(v === '__all__' ? '' : v)}>
             <SelectTrigger className="w-48">
-              <SelectValue placeholder="Cliente" />
+              <SelectValue placeholder="Todos los responsables" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="__all__">Todos los clientes</SelectItem>
-              {clientes.map((c) => (
-                <SelectItem key={c.id} value={c.id}>{c.razonSocial}</SelectItem>
+              <SelectItem value="__all__">Todos los responsables</SelectItem>
+              {responsablesUnicos.map((u) => (
+                <SelectItem key={u.value} value={u.value}>{u.label}</SelectItem>
               ))}
             </SelectContent>
           </Select>
 
-          {obrasCliente.length > 0 && (
-            <Select value={filtroObraId || '__all__'} onValueChange={(v) => setFiltroObraId(v === '__all__' ? '' : v)}>
-              <SelectTrigger className="w-44">
-                <SelectValue placeholder="Obra" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__all__">Todas las obras</SelectItem>
-                {obrasCliente.map((o) => (
-                  <SelectItem key={o.id} value={o.id}>{o.nombre}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
-
           <Input type="date" value={filtroDesde} onChange={(e) => setFiltroDesde(e.target.value)} className="w-36" />
           <Input type="date" value={filtroHasta} onChange={(e) => setFiltroHasta(e.target.value)} className="w-36" />
 
-          {(filtroEstados.length > 0 || filtroPrioridades.length > 0 || filtroClienteId || filtroDesde || filtroHasta) && (
+          {(filtroEstados.length > 0 || filtroPrioridades.length > 0 || filtroObraId || filtroResponsableId || filtroDesde || filtroHasta) && (
             <Button onClick={limpiarFiltros} variant="ghost" className="text-slate-400 hover:text-slate-600">
               Limpiar
             </Button>
