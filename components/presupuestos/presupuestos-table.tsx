@@ -240,9 +240,6 @@ export function PresupuestosTable({ clientes, usuarios, criticos, userEmail }: P
   const [enviandoAvance, setEnviandoAvance] = useState(false);
   const [toastAvance, setToastAvance] = useState<{ msg: string; error: boolean } | null>(null);
   const [metricasOpen, setMetricasOpen] = useState(false);
-  const [metricasDesde, setMetricasDesde] = useState('');
-  const [metricasHasta, setMetricasHasta] = useState('');
-  const [metricasResponsableId, setMetricasResponsableId] = useState('');
 
   // ── Métricas de tiempos ──────────────────────────────────────────
   const [tiemposOpen, setTiemposOpen] = useState(false);
@@ -295,21 +292,9 @@ export function PresupuestosTable({ clientes, usuarios, criticos, userEmail }: P
   };
 
   const quejaMetrics = useMemo(() => {
-    let base = todosLosPresupuestos.filter(
+    const base = presupuestosFiltrados.filter(
       (p) => p.fechaPrimerEnvio != null || ESTADOS_BASE_QUEJA.has(p.estado),
     );
-    if (metricasDesde) {
-      const d = new Date(metricasDesde);
-      base = base.filter((p) => new Date(p.fechaCreacion) >= d);
-    }
-    if (metricasHasta) {
-      const h = new Date(metricasHasta);
-      h.setHours(23, 59, 59);
-      base = base.filter((p) => new Date(p.fechaCreacion) <= h);
-    }
-    if (metricasResponsableId) {
-      base = base.filter((p) => p.responsableId === metricasResponsableId);
-    }
     const total = base.length;
     const conQueja = base.filter((p) => p.tieneQuejaCliente).length;
     const satisfaccion = total === 0 ? 100 : ((total - conQueja) / total) * 100;
@@ -323,7 +308,7 @@ export function PresupuestosTable({ clientes, usuarios, criticos, userEmail }: P
       porResponsable[nombre] = (porResponsable[nombre] ?? 0) + 1;
     }
     return { total, conQueja, satisfaccion, porMotivo, porResponsable };
-  }, [todosLosPresupuestos, metricasDesde, metricasHasta, metricasResponsableId]);
+  }, [presupuestosFiltrados]);
 
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>(() => {
     if (typeof window === 'undefined') return {};
@@ -503,38 +488,7 @@ export function PresupuestosTable({ clientes, usuarios, criticos, userEmail }: P
         </button>
         {metricasOpen && (
           <div className="px-4 pb-4 space-y-4 border-t border-slate-100">
-            {/* Filtros de métricas */}
-            <div className="flex flex-wrap gap-3 pt-3">
-              <div className="flex items-center gap-2">
-                <Label className="text-xs text-slate-500 whitespace-nowrap">Desde</Label>
-                <Input type="date" value={metricasDesde} onChange={(e) => setMetricasDesde(e.target.value)} className="w-36 h-8 text-sm" />
-              </div>
-              <div className="flex items-center gap-2">
-                <Label className="text-xs text-slate-500 whitespace-nowrap">Hasta</Label>
-                <Input type="date" value={metricasHasta} onChange={(e) => setMetricasHasta(e.target.value)} className="w-36 h-8 text-sm" />
-              </div>
-              <Select value={metricasResponsableId || '__all__'} onValueChange={(v) => setMetricasResponsableId(v === '__all__' ? '' : v)}>
-                <SelectTrigger className="w-44 h-8 text-sm">
-                  <SelectValue placeholder="Todos los responsables" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__all__">Todos los responsables</SelectItem>
-                  {usuarios.map((u) => (
-                    <SelectItem key={u.id} value={u.id}>{u.nombre}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {(metricasDesde || metricasHasta || metricasResponsableId) && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-8 text-xs text-slate-400 hover:text-slate-600"
-                  onClick={() => { setMetricasDesde(''); setMetricasHasta(''); setMetricasResponsableId(''); }}
-                >
-                  Limpiar
-                </Button>
-              )}
-            </div>
+            <p className="text-xs text-slate-400 pt-3">Calculado sobre los {presupuestosFiltrados.length} presupuestos filtrados en la tabla.</p>
 
             {/* KPIs principales */}
             <div className="grid grid-cols-3 gap-3">
