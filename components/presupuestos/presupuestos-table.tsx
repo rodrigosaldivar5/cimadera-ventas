@@ -702,7 +702,8 @@ export function PresupuestosTable({ criticos, userEmail }: Props) {
             placeholder="Todas las obras"
             searchPlaceholder="Buscar obra…"
             emptyText="Sin obras"
-            className="w-48 h-10"
+            className="min-w-[260px] h-10"
+            contentClassName="min-w-[320px]"
           />
 
           <Select value={filtroResponsableId || '__all__'} onValueChange={(v) => setFiltroResponsableId(v === '__all__' ? '' : v)}>

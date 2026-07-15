@@ -16,6 +16,7 @@ interface SearchableSelectProps {
   emptyText?: string;
   disabled?: boolean;
   className?: string;
+  contentClassName?: string;
 }
 
 export function SearchableSelect({
@@ -27,6 +28,7 @@ export function SearchableSelect({
   emptyText = 'Sin resultados',
   disabled = false,
   className,
+  contentClassName,
 }: SearchableSelectProps) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
@@ -77,8 +79,8 @@ export function SearchableSelect({
           align="start"
           sideOffset={4}
           onOpenAutoFocus={(e) => e.preventDefault()}
-          className="z-50 overflow-hidden rounded-md border bg-white text-popover-foreground shadow-md"
-          style={{ width: 'var(--radix-popover-trigger-width)' }}
+          className={cn("z-50 overflow-hidden rounded-md border bg-white text-popover-foreground shadow-md", contentClassName)}
+          style={{ minWidth: 'var(--radix-popover-trigger-width)' }}
         >
           <div className="flex items-center border-b px-3">
             <Search className="mr-2 h-4 w-4 shrink-0 text-slate-400" />
@@ -104,6 +106,7 @@ export function SearchableSelect({
                 type="button"
                 role="option"
                 aria-selected={opt.value === value}
+                title={opt.label}
                 onClick={() => {
                   onValueChange(opt.value);
                   setOpen(false);
