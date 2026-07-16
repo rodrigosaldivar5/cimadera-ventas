@@ -118,6 +118,8 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       mimeType,
     });
 
+    console.log('[INIT-UPLOAD] OK:', 'presupuestoId:', params.id, 'nombre:', nombre, 'tamano:', tamano, 'mimeType:', mimeType, 'folderId:', folderId);
+
     return NextResponse.json({
       ok: true,
       uploadUrl,
@@ -128,7 +130,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     });
   } catch (error) {
     const msg = error instanceof Error ? error.message : 'Error al iniciar upload';
-    console.error('[INIT-UPLOAD]', msg);
-    return NextResponse.json({ error: msg }, { status: 500 });
+    console.error('[INIT-UPLOAD] Error:', 'presupuestoId:', params.id, msg);
+    return NextResponse.json({ error: 'No se pudo preparar la subida. Intentá nuevamente.' }, { status: 500 });
   }
 }

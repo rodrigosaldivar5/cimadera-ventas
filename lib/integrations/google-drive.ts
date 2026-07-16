@@ -243,6 +243,31 @@ export async function verifyDriveFile(fileId: string): Promise<{
   };
 }
 
+export async function listFolderFiles(folderId: string): Promise<{
+  id: string;
+  name: string;
+  size: number;
+  mimeType: string;
+  webViewLink: string;
+}[]> {
+  const drive = getDriveClient();
+  const res = await drive.files.list({
+    q: `'${folderId}' in parents and trashed = false and mimeType != 'application/vnd.google-apps.folder'`,
+    fields: 'files(id, name, size, mimeType, webViewLink)',
+    supportsAllDrives: true,
+    includeItemsFromAllDrives: true,
+    pageSize: 100,
+  });
+
+  return (res.data.files ?? []).map((f) => ({
+    id: f.id!,
+    name: f.name ?? '',
+    size: Number(f.size ?? 0),
+    mimeType: f.mimeType ?? '',
+    webViewLink: f.webViewLink ?? '',
+  }));
+}
+
 export async function trashDriveFile(fileId: string): Promise<void> {
   const drive = getDriveClient();
   await drive.files.update({
