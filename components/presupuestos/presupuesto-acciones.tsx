@@ -20,6 +20,11 @@ import {
 import Link from 'next/link';
 import { generarPresupuestoPDF } from '@/lib/pdf/generar-presupuesto';
 import { formatCurrency } from '@/lib/utils';
+import {
+  clasificarTransicionPresupuesto,
+  LABEL_TIPO_MOVIMIENTO,
+  MOTIVOS_TRANSICION,
+} from '@/lib/mi-trabajo';
 
 type PresupuestoParaPDF = Parameters<typeof generarPresupuestoPDF>[0];
 
@@ -58,6 +63,11 @@ export function PresupuestoAcciones({ presupuesto, presupuestoPDF, presupuestoDa
   // ── Dialog sugerencia cuenta corriente ────────────────────────────────────
   const [suggestCuenta, setSuggestCuenta] = useState(false);
 
+  // ── Dialog transición especial ────────────────────────────────────────────
+  const [transicionDialog, setTransicionDialog] = useState(false);
+  const [transicionTipo, setTransicionTipo] = useState<string | null>(null);
+  const [transicionMotivo, setTransicionMotivo] = useState('');
+
   // ── Dialog nueva cuenta corriente ─────────────────────────────────────────
   const [nuevaCuentaOpen, setNuevaCuentaOpen] = useState(false);
   const [ccMonto, setCcMonto] = useState('');
@@ -79,14 +89,28 @@ export function PresupuestoAcciones({ presupuesto, presupuestoPDF, presupuestoDa
       return;
     }
 
+    const tipo = clasificarTransicionPresupuesto(presupuesto.estado, nuevoEstado);
+    if (tipo && !transicionDialog) {
+      setEstadoDialog(false);
+      setTransicionTipo(tipo);
+      setTransicionMotivo('');
+      setTransicionDialog(true);
+      return;
+    }
+
     setIsLoading(true);
+    const body: Record<string, unknown> = { estado: nuevoEstado };
+    if (transicionMotivo) body.motivoMovimiento = transicionMotivo;
     const res = await fetch(`/api/presupuestos/${presupuesto.id}/estado`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ estado: nuevoEstado }),
+      body: JSON.stringify(body),
     });
     setIsLoading(false);
     setEstadoDialog(false);
+    setTransicionDialog(false);
+    setTransicionTipo(null);
+    setTransicionMotivo('');
 
     if (res.ok && nuevoEstado === 'APROBADO' && presupuestoDatos && !presupuestoDatos.cuentaCorrienteId) {
       const monto = presupuestoDatos.precioFinal ?? presupuestoDatos.totalFinal ?? 0;
@@ -195,6 +219,47 @@ export function PresupuestoAcciones({ presupuesto, presupuestoPDF, presupuestoDa
           <DialogFooter>
             <Button variant="outline" onClick={() => setEstadoDialog(false)}>Cancelar</Button>
             <Button onClick={cambiarEstado} disabled={isLoading} className="bg-[#00ADEF] hover:bg-[#0089C7]">
+              {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Confirmar'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Dialog transición especial ── */}
+      <Dialog open={transicionDialog} onOpenChange={(v) => { if (!v) { setTransicionDialog(false); setTransicionTipo(null); setTransicionMotivo(''); } }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Confirmar cambio de estado</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="rounded-lg bg-amber-50 border border-amber-200 p-3">
+              <p className="text-sm text-amber-800">
+                Este cambio será registrado como{' '}
+                <span className="font-semibold">
+                  {transicionTipo ? LABEL_TIPO_MOVIMIENTO[transicionTipo as keyof typeof LABEL_TIPO_MOVIMIENTO] : ''}
+                </span>.
+                ¿Querés continuar?
+              </p>
+            </div>
+            <div>
+              <Label className="mb-1.5 block text-sm font-medium">Motivo (recomendado)</Label>
+              <Select value={transicionMotivo} onValueChange={setTransicionMotivo}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Seleccioná un motivo..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {MOTIVOS_TRANSICION.map((m) => (
+                    <SelectItem key={m} value={m}>{m}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setTransicionDialog(false); setTransicionTipo(null); setTransicionMotivo(''); }}>
+              Cancelar
+            </Button>
+            <Button onClick={cambiarEstado} disabled={isLoading} className="bg-amber-600 hover:bg-amber-700 text-white">
               {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Confirmar'}
             </Button>
           </DialogFooter>

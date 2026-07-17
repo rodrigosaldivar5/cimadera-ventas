@@ -16,6 +16,11 @@ import { Label } from '@/components/ui/label';
 import { SearchableSelect } from '@/components/ui/searchable-select';
 import { formatCurrency } from '@/lib/utils';
 import { ESTADO_PRESUPUESTO, PRIORIDAD, getEstiloEstado, getLabelEstado, MOTIVOS_PERDIDO_COMPUTABLE, MOTIVOS_NO_COMPUTABLE, MOTIVO_CIERRE_LABEL, type EstadoPresupuesto, type Prioridad } from '@/lib/enums';
+import {
+  clasificarTransicionPresupuesto,
+  LABEL_TIPO_MOVIMIENTO,
+  MOTIVOS_TRANSICION,
+} from '@/lib/mi-trabajo';
 
 const prioridadBadgeClass: Record<string, string> = {
   ALTA:  'bg-red-100 text-red-700 border-red-300',
@@ -281,6 +286,10 @@ export function PresupuestosTable({ criticos, userEmail }: Props) {
   const [rechazarComentario, setRechazarComentario] = useState('');
   const [rechazandoEstado, setRechazandoEstado] = useState(false);
 
+  // Transición especial
+  const [transicionModal, setTransicionModal] = useState<{ row: PresupuestoRow; nuevoEstado: string; tipo: string } | null>(null);
+  const [transicionMotivo, setTransicionMotivo] = useState('');
+
   const fetchTiempos = async () => {
     setTiemposLoading(true);
     try {
@@ -402,7 +411,7 @@ export function PresupuestosTable({ criticos, userEmail }: Props) {
   const changeEstado = async (
     id: string,
     estado: string,
-    extra?: { resultadoComercial?: string; motivoCierre?: string; comentarioCierre?: string },
+    extra?: { resultadoComercial?: string; motivoCierre?: string; comentarioCierre?: string; motivoMovimiento?: string },
   ) => {
     setSavingEstado(id);
     try {
@@ -825,6 +834,12 @@ export function PresupuestosTable({ criticos, userEmail }: Props) {
                                 onSelect={() => {
                                   if (e === 'APROBADO') { setConfirmarAprobado(p); return; }
                                   if (e === 'RECHAZADO') { setRechazarModal(p); return; }
+                                  const tipo = clasificarTransicionPresupuesto(p.estado, e);
+                                  if (tipo) {
+                                    setTransicionModal({ row: p, nuevoEstado: e, tipo });
+                                    setTransicionMotivo('');
+                                    return;
+                                  }
                                   void changeEstado(p.id, e);
                                 }}
                               >
@@ -1022,6 +1037,58 @@ export function PresupuestosTable({ criticos, userEmail }: Props) {
               }}
             >
               {rechazandoEstado ? 'Procesando…' : 'Rechazar'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Dialog transición especial ── */}
+      <Dialog open={!!transicionModal} onOpenChange={(open) => { if (!open) { setTransicionModal(null); setTransicionMotivo(''); } }}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Confirmar cambio de estado</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="rounded-lg bg-amber-50 border border-amber-200 p-3">
+              <p className="text-sm text-amber-800">
+                Este cambio será registrado como{' '}
+                <span className="font-semibold">
+                  {transicionModal?.tipo ? LABEL_TIPO_MOVIMIENTO[transicionModal.tipo as keyof typeof LABEL_TIPO_MOVIMIENTO] : ''}
+                </span>.
+                ¿Querés continuar?
+              </p>
+            </div>
+            <div>
+              <Label className="mb-1.5 block text-sm font-medium">Motivo (recomendado)</Label>
+              <Select value={transicionMotivo} onValueChange={setTransicionMotivo}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Seleccioná un motivo..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {MOTIVOS_TRANSICION.map((m) => (
+                    <SelectItem key={m} value={m}>{m}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setTransicionModal(null); setTransicionMotivo(''); }}>
+              Cancelar
+            </Button>
+            <Button
+              className="bg-amber-600 hover:bg-amber-700 text-white"
+              disabled={savingEstado === transicionModal?.row.id}
+              onClick={async () => {
+                if (!transicionModal) return;
+                await changeEstado(transicionModal.row.id, transicionModal.nuevoEstado, {
+                  motivoMovimiento: transicionMotivo || undefined,
+                });
+                setTransicionModal(null);
+                setTransicionMotivo('');
+              }}
+            >
+              {savingEstado === transicionModal?.row.id ? 'Procesando…' : 'Confirmar'}
             </Button>
           </DialogFooter>
         </DialogContent>

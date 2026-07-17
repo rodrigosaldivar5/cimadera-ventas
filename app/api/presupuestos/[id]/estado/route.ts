@@ -4,12 +4,13 @@ import { prisma } from '@/lib/prisma';
 import { EstadoPresupuesto } from '@prisma/client';
 import { registrarAuditoria } from '@/lib/auditoria';
 import { emitEvent, EVENT_TYPES } from '@/lib/events/event-emitter';
+import { clasificarTransicionPresupuesto } from '@/lib/mi-trabajo';
 
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
   const session = await auth();
   if (!session?.user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
 
-  const { estado, motivoRechazo, resultadoComercial, motivoCierre, comentarioCierre } = await req.json();
+  const { estado, motivoRechazo, resultadoComercial, motivoCierre, comentarioCierre, motivoMovimiento } = await req.json();
 
   if (!Object.values(EstadoPresupuesto).includes(estado)) {
     return NextResponse.json({ error: 'Estado inválido' }, { status: 400 });
@@ -53,14 +54,19 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     },
   });
 
+  const tipoMovimiento = clasificarTransicionPresupuesto(prev?.estado, estado);
+
   registrarAuditoria({
     presupuestoId: params.id,
     usuarioId: session.user.id,
     accion: 'CAMBIO_ESTADO',
-    camposModificados: { estado: { antes: prev?.estado, despues: estado } },
+    camposModificados: {
+      estado: { antes: prev?.estado, despues: estado },
+      ...(tipoMovimiento ? { tipoMovimiento } : {}),
+      ...(motivoMovimiento ? { motivoMovimiento } : {}),
+    },
   });
 
-  // Registro de transición para cálculo de tiempos hábiles
   prisma.presupuestoEstadoTransicion.create({
     data: {
       presupuestoId: params.id,
@@ -70,6 +76,8 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
       usuarioNombre: session.user.nombre ?? session.user.email ?? 'Desconocido',
       responsableId: prev?.responsableId ?? null,
       responsableNombre: prev?.responsable?.nombre ?? null,
+      tipoMovimiento,
+      motivoMovimiento: motivoMovimiento ?? null,
     },
   }).catch(() => {});
 
