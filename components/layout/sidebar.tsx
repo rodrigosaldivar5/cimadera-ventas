@@ -27,11 +27,12 @@ import {
   Smartphone,
   Activity,
   Building2,
+  ClipboardList,
 } from 'lucide-react';
 import { Logo } from '@/components/logo';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
 type NavItem = {
   href: string;
@@ -60,7 +61,14 @@ const navItemsBase: NavItem[] = [
     ],
   },
   { href: '/obras', label: 'Obras', icon: Building2 },
-  { href: '/presupuestos', label: 'Presupuestos', icon: FileText },
+  {
+    href: '/presupuestos',
+    label: 'Presupuestos',
+    icon: FileText,
+    children: [
+      { href: '/presupuestos/mi-trabajo', label: 'Mi trabajo', icon: ClipboardList },
+    ],
+  },
   { href: '/cuentas-corrientes', label: 'Cuentas corrientes', icon: Wallet },
   {
     href: '/tesoreria',
@@ -97,6 +105,11 @@ const navItemsBase: NavItem[] = [
   },
 ];
 
+const DEFAULT_WIDTH = 252;
+const MIN_WIDTH = 220;
+const MAX_WIDTH = 400;
+const LS_KEY = 'cimadera:sidebar-width';
+
 interface SidebarProps {
   userName: string;
   userEmail: string;
@@ -107,6 +120,68 @@ export function Sidebar({ userName, userEmail, rolNombre: rolNombreProp }: Sideb
   const pathname = usePathname();
   const [permisos, setPermisos] = useState<Record<string, Record<string, boolean>> | null>(null);
   const [rolNombre, setRolNombre] = useState<string | null>(rolNombreProp ?? null);
+
+  // ── Resize ────────────────────────────────────────────────────────────────
+  const [sidebarWidth, setSidebarWidth] = useState(DEFAULT_WIDTH);
+  const [isDragging, setIsDragging] = useState(false);
+  const dragWidthRef = useRef(DEFAULT_WIDTH);
+
+  // Leer localStorage solo en cliente (SSR safe)
+  useEffect(() => {
+    const saved = localStorage.getItem(LS_KEY);
+    if (saved) {
+      const n = parseInt(saved, 10);
+      if (n >= MIN_WIDTH && n <= MAX_WIDTH) {
+        setSidebarWidth(n);
+        dragWidthRef.current = n;
+      }
+    }
+  }, []);
+
+  // Cursor global y selección de texto durante el drag
+  useEffect(() => {
+    if (isDragging) {
+      document.body.style.cursor = 'col-resize';
+      document.body.style.userSelect = 'none';
+    } else {
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    }
+    return () => {
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    };
+  }, [isDragging]);
+
+  const handleResizeStart = (e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+    const startX = e.clientX;
+    const startWidth = sidebarWidth;
+
+    const onMouseMove = (ev: MouseEvent) => {
+      const next = Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, startWidth + ev.clientX - startX));
+      dragWidthRef.current = next;
+      setSidebarWidth(next);
+    };
+
+    const onMouseUp = () => {
+      setIsDragging(false);
+      document.removeEventListener('mousemove', onMouseMove);
+      document.removeEventListener('mouseup', onMouseUp);
+      localStorage.setItem(LS_KEY, String(dragWidthRef.current));
+    };
+
+    document.addEventListener('mousemove', onMouseMove);
+    document.addEventListener('mouseup', onMouseUp);
+  };
+
+  const handleResizeReset = () => {
+    setSidebarWidth(DEFAULT_WIDTH);
+    dragWidthRef.current = DEFAULT_WIDTH;
+    localStorage.setItem(LS_KEY, String(DEFAULT_WIDTH));
+  };
+  // ─────────────────────────────────────────────────────────────────────────
 
   useEffect(() => {
     fetch('/api/admin/mis-permisos')
@@ -130,6 +205,7 @@ export function Sidebar({ userName, userEmail, rolNombre: rolNombreProp }: Sideb
   const [openItems, setOpenItems] = useState<Record<string, boolean>>({
     '/admin': pathname.startsWith('/admin'),
     '/clientes': pathname.startsWith('/clientes/descuentos'),
+    '/presupuestos': pathname.startsWith('/presupuestos/mi-trabajo'),
     '/catalogo': pathname.startsWith('/catalogo'),
     '/tesoreria': pathname.startsWith('/tesoreria'),
   });
@@ -138,7 +214,10 @@ export function Sidebar({ userName, userEmail, rolNombre: rolNombreProp }: Sideb
     setOpenItems((prev) => ({ ...prev, [href]: !prev[href] }));
 
   return (
-    <aside className="sticky top-0 h-screen flex w-64 flex-col bg-[#1A1A1A]">
+    <aside
+      className="sticky top-0 h-screen flex flex-col bg-[#1A1A1A]"
+      style={{ width: sidebarWidth }}
+    >
       {/* Logo */}
       <div className="flex h-20 items-center justify-center px-4 border-b border-white/10">
         <Logo variant="light" />
@@ -248,6 +327,16 @@ export function Sidebar({ userName, userEmail, rolNombre: rolNombreProp }: Sideb
           Cerrar sesión
         </Button>
       </div>
+
+      {/* Resize handle — solo desktop (hidden en mobile vía lg:flex del wrapper padre) */}
+      <div
+        className={`absolute right-0 top-0 h-full w-1 cursor-col-resize transition-colors z-10 ${
+          isDragging ? 'bg-[#00ADEF]/50' : 'hover:bg-white/20'
+        }`}
+        onMouseDown={handleResizeStart}
+        onDoubleClick={handleResizeReset}
+        title="Ajustar ancho del menú · doble click para restablecer"
+      />
     </aside>
   );
 }

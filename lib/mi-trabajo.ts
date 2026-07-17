@@ -6,7 +6,7 @@ type UserSession = {
   rolNombre?: string | null;
 };
 
-type PerfilMiTrabajo = 'vendedor' | 'gerencia' | 'direccion';
+export type PerfilMiTrabajo = 'vendedor' | 'gerencia' | 'direccion';
 
 const ESTADOS_POR_PERFIL: Record<PerfilMiTrabajo, EstadoPresupuesto[]> = {
   vendedor: ['PENDIENTE', 'EN_PROCESO', 'FRENADO', 'FINALIZADO'],
