@@ -1,22 +1,24 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import {
   ClipboardList,
   Plus,
   Trash2,
   Check,
-  Undo2,
   AlertTriangle,
   ChevronUp,
   ChevronDown,
   FileText,
   ExternalLink,
+  Users,
+  Search,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
 import type { PerfilMiTrabajo } from '@/lib/mi-trabajo';
 
 type PresupuestoBasico = {
@@ -30,6 +32,7 @@ type PresupuestoBasico = {
 
 type TrabajoDiaItem = {
   id: string;
+  userId: string;
   presupuestoId: string;
   fechaKey: string;
   orden: number;
@@ -37,19 +40,37 @@ type TrabajoDiaItem = {
   completadoAt: string | null;
   nota: string | null;
   presupuesto: PresupuestoBasico;
+  user?: { id: string; nombre: string };
 };
 
-type MisPresupuestosItem = PresupuestoBasico & {
-  responsable: { nombre: string } | null;
+type PresupuestoItem = PresupuestoBasico & {
+  prioridad: string | null;
+  responsable: { id: string; nombre: string } | null;
   fechaCreacion: string;
+  fechaVencimiento: string | null;
+};
+
+type ResumenResponsable = {
+  id: string;
+  nombre: string;
+  pendientes: number;
+  enProceso: number;
+  frenados: number;
+  finalizados: number;
+  paraEnviar: number;
+  enviados: number;
+  abiertos: number;
+  aTerminarHoy: number;
+  completadosHoy: number;
 };
 
 interface Props {
   perfil: PerfilMiTrabajo;
-  misPresupuestos: MisPresupuestosItem[];
-  trabajoHoyInicial: TrabajoDiaItem[];
-  pendientesAnterioresInicial: TrabajoDiaItem[];
+  isManager: boolean;
+  presupuestos: PresupuestoItem[];
+  responsables: { id: string; nombre: string }[];
   fechaKey: string;
+  userId: string;
 }
 
 const ESTADO_COLORS: Record<string, string> = {
@@ -74,16 +95,24 @@ const ESTADO_LABELS: Record<string, string> = {
   RECHAZADO: 'Rechazado',
 };
 
+const TODOS_ESTADOS = ['PENDIENTE', 'EN_PROCESO', 'FRENADO', 'FINALIZADO', 'PARA_ENVIAR', 'ENVIADO'];
+
 export function MiTrabajoContent({
   perfil,
-  misPresupuestos,
-  trabajoHoyInicial,
-  pendientesAnterioresInicial,
+  isManager,
+  presupuestos,
+  responsables,
   fechaKey,
+  userId,
 }: Props) {
-  const [trabajoHoy, setTrabajoHoy] = useState<TrabajoDiaItem[]>(trabajoHoyInicial);
-  const [pendientesAnteriores, setPendientesAnteriores] = useState<TrabajoDiaItem[]>(pendientesAnterioresInicial);
+  const [selectedResponsable, setSelectedResponsable] = useState<string>(isManager ? '__all__' : userId);
+  const [filtroEstado, setFiltroEstado] = useState<string>('');
+  const [busqueda, setBusqueda] = useState('');
+  const [trabajoHoy, setTrabajoHoy] = useState<TrabajoDiaItem[]>([]);
+  const [pendientesAnteriores, setPendientesAnteriores] = useState<TrabajoDiaItem[]>([]);
+  const [resumenEquipo, setResumenEquipo] = useState<ResumenResponsable[]>([]);
   const [loading, setLoading] = useState<string | null>(null);
+  const [initialLoading, setInitialLoading] = useState(true);
   const [toast, setToast] = useState<{ msg: string; error?: boolean } | null>(null);
 
   const showToast = (msg: string, error = false) => {
@@ -91,17 +120,66 @@ export function MiTrabajoContent({
     setTimeout(() => setToast(null), 3000);
   };
 
-  const agregarAHoy = useCallback(async (presupuestoId: string) => {
+  const targetParam = isManager && selectedResponsable !== userId ? selectedResponsable : undefined;
+
+  const fetchTrabajoHoy = useCallback(async (targetId?: string) => {
+    const params = new URLSearchParams();
+    if (targetId && targetId !== '__all__') params.set('targetUserId', targetId);
+    const res = await fetch(`/api/presupuestos/mi-trabajo?${params}`);
+    if (res.ok) return res.json();
+    return [];
+  }, []);
+
+  const fetchPendientes = useCallback(async (targetId?: string) => {
+    const params = new URLSearchParams();
+    if (targetId) params.set('targetUserId', targetId);
+    const res = await fetch(`/api/presupuestos/mi-trabajo/pendientes?${params}`);
+    if (res.ok) return res.json();
+    return [];
+  }, []);
+
+  const fetchResumen = useCallback(async () => {
+    const res = await fetch('/api/presupuestos/mi-trabajo/resumen-equipo');
+    if (res.ok) return res.json();
+    return [];
+  }, []);
+
+  useEffect(() => {
+    setInitialLoading(true);
+
+    if (isManager && selectedResponsable === '__all__') {
+      Promise.all([fetchResumen(), fetchPendientes('__all__')]).then(([resumen, pend]) => {
+        setResumenEquipo(resumen);
+        setPendientesAnteriores(pend);
+        setTrabajoHoy([]);
+        setInitialLoading(false);
+      });
+    } else {
+      const target = isManager ? selectedResponsable : undefined;
+      Promise.all([fetchTrabajoHoy(target), fetchPendientes(target)]).then(([hoy, pend]) => {
+        setTrabajoHoy(hoy);
+        setPendientesAnteriores(pend);
+        setInitialLoading(false);
+      });
+      if (isManager) {
+        fetchResumen().then(setResumenEquipo);
+      }
+    }
+  }, [selectedResponsable, isManager, fetchTrabajoHoy, fetchPendientes, fetchResumen]);
+
+  const agregarAHoy = useCallback(async (presupuestoId: string, forUserId?: string) => {
     if (trabajoHoy.some((t) => t.presupuestoId === presupuestoId)) {
       showToast('Ya está en la lista de hoy', true);
       return;
     }
     setLoading(presupuestoId);
     try {
+      const body: Record<string, string> = { presupuestoId };
+      if (forUserId && isManager) body.targetUserId = forUserId;
       const res = await fetch('/api/presupuestos/mi-trabajo', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ presupuestoId }),
+        body: JSON.stringify(body),
       });
       if (!res.ok) {
         const data = await res.json();
@@ -109,14 +187,16 @@ export function MiTrabajoContent({
         return;
       }
       const item = await res.json();
-      setTrabajoHoy((prev) => [...prev, item]);
+      if (selectedResponsable !== '__all__') {
+        setTrabajoHoy((prev) => [...prev, item]);
+      }
       showToast('Agregado a hoy');
     } catch {
       showToast('Error de conexión', true);
     } finally {
       setLoading(null);
     }
-  }, [trabajoHoy]);
+  }, [trabajoHoy, isManager, selectedResponsable]);
 
   const quitarDeHoy = useCallback(async (id: string) => {
     setLoading(id);
@@ -189,15 +269,20 @@ export function MiTrabajoContent({
     setLoading(item.id);
     try {
       await fetch(`/api/presupuestos/mi-trabajo?id=${item.id}`, { method: 'DELETE' });
+      const body: Record<string, string> = { presupuestoId: item.presupuestoId };
+      if (isManager && selectedResponsable !== '__all__') body.targetUserId = selectedResponsable;
+      else if (isManager && item.userId) body.targetUserId = item.userId;
       const res = await fetch('/api/presupuestos/mi-trabajo', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ presupuestoId: item.presupuestoId }),
+        body: JSON.stringify(body),
       });
       if (res.ok) {
         const newItem = await res.json();
         setPendientesAnteriores((prev) => prev.filter((t) => t.id !== item.id));
-        setTrabajoHoy((prev) => [...prev, newItem]);
+        if (selectedResponsable !== '__all__') {
+          setTrabajoHoy((prev) => [...prev, newItem]);
+        }
         showToast('Movido a hoy');
       }
     } catch {
@@ -205,30 +290,70 @@ export function MiTrabajoContent({
     } finally {
       setLoading(null);
     }
-  }, []);
+  }, [isManager, selectedResponsable]);
 
   const idsEnHoy = new Set(trabajoHoy.map((t) => t.presupuestoId));
-  const presupuestosFiltrados = misPresupuestos.filter((p) => !idsEnHoy.has(p.id));
+
+  const presupuestosFiltrados = useMemo(() => {
+    let list = presupuestos.filter((p) => !idsEnHoy.has(p.id));
+
+    if (isManager && selectedResponsable !== '__all__') {
+      list = list.filter((p) => p.responsable?.id === selectedResponsable);
+    }
+    if (filtroEstado) {
+      list = list.filter((p) => p.estado === filtroEstado);
+    }
+    if (busqueda) {
+      const q = busqueda.toLowerCase();
+      list = list.filter(
+        (p) =>
+          String(p.numero).includes(q) ||
+          (p.nombrePresupuesto ?? '').toLowerCase().includes(q) ||
+          (p.cliente?.razonSocial ?? '').toLowerCase().includes(q) ||
+          (p.obra?.nombre ?? '').toLowerCase().includes(q) ||
+          (p.responsable?.nombre ?? '').toLowerCase().includes(q)
+      );
+    }
+    return list;
+  }, [presupuestos, idsEnHoy, isManager, selectedResponsable, filtroEstado, busqueda]);
 
   const completados = trabajoHoy.filter((t) => t.completado).length;
   const total = trabajoHoy.length;
 
-  const perfilLabel = perfil === 'vendedor' ? 'Vendedor' : perfil === 'gerencia' ? 'Gerencia' : 'Dirección';
+  const selectedNombre = selectedResponsable === '__all__'
+    ? null
+    : responsables.find((r) => r.id === selectedResponsable)?.nombre ?? null;
+
+  if (initialLoading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <div className="text-sm text-slate-400">Cargando...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <div className="flex items-center gap-3">
-          <ClipboardList className="h-7 w-7 text-[#00ADEF]" />
+          {isManager ? (
+            <Users className="h-7 w-7 text-[#00ADEF]" />
+          ) : (
+            <ClipboardList className="h-7 w-7 text-[#00ADEF]" />
+          )}
           <div>
-            <h1 className="text-2xl font-bold text-slate-900">Mi trabajo</h1>
+            <h1 className="text-2xl font-bold text-slate-900">
+              {isManager ? 'Trabajo del equipo' : 'Mi trabajo'}
+            </h1>
             <p className="text-sm text-slate-500">
-              Perfil: {perfilLabel} · {fechaKey}
+              {isManager
+                ? 'Organizá y priorizá los presupuestos por responsable.'
+                : `${fechaKey}`}
             </p>
           </div>
         </div>
-        {total > 0 && (
+        {selectedResponsable !== '__all__' && total > 0 && (
           <div className="text-sm text-slate-600">
             <span className="font-semibold text-green-600">{completados}</span>
             <span className="text-slate-400"> / {total}</span>
@@ -237,192 +362,298 @@ export function MiTrabajoContent({
         )}
       </div>
 
-      {/* Pendientes de días anteriores */}
-      {pendientesAnteriores.length > 0 && (
-        <Card className="border-amber-200 bg-amber-50/50">
-          <CardHeader className="pb-3">
-            <CardTitle className="flex items-center gap-2 text-amber-700 text-base">
-              <AlertTriangle className="h-4 w-4" />
-              Pendientes de días anteriores ({pendientesAnteriores.length})
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              {pendientesAnteriores.map((item) => (
-                <div
-                  key={item.id}
-                  className="flex items-center justify-between rounded-lg border border-amber-200 bg-white px-3 py-2"
-                >
-                  <div className="flex items-center gap-3 min-w-0">
-                    <span className="text-xs text-amber-600 font-mono whitespace-nowrap">{item.fechaKey}</span>
-                    <PresupuestoRow p={item.presupuesto} />
-                  </div>
-                  <div className="flex items-center gap-1 shrink-0 ml-2">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-7 px-2 text-amber-700 hover:text-amber-900 hover:bg-amber-100"
-                      onClick={() => moverAHoy(item)}
-                      disabled={loading === item.id}
-                      title="Mover a hoy"
-                    >
-                      <Plus className="h-3.5 w-3.5" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-7 px-2 text-red-500 hover:text-red-700 hover:bg-red-50"
-                      onClick={() => quitarDeHoy(item.id)}
-                      disabled={loading === item.id}
-                      title="Quitar"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </Button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+      {/* Filtro responsable (solo gerencia) */}
+      {isManager && (
+        <div className="flex items-center gap-3 flex-wrap">
+          <label className="text-sm font-medium text-slate-700">Responsable</label>
+          <select
+            value={selectedResponsable}
+            onChange={(e) => {
+              setSelectedResponsable(e.target.value);
+              setFiltroEstado('');
+              setBusqueda('');
+            }}
+            className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm text-slate-700 focus:border-[#00ADEF] focus:outline-none focus:ring-1 focus:ring-[#00ADEF]"
+          >
+            <option value="__all__">Todos</option>
+            {responsables.map((r) => (
+              <option key={r.id} value={r.id}>
+                {r.nombre}
+              </option>
+            ))}
+          </select>
+        </div>
       )}
 
-      {/* A terminar hoy */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-base">
-            <ClipboardList className="h-4 w-4 text-[#00ADEF]" />
-            A terminar hoy
-            {total > 0 && (
-              <Badge variant="outline" className="ml-1 text-xs">
-                {total}
-              </Badge>
-            )}
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {trabajoHoy.length === 0 ? (
-            <p className="text-sm text-slate-400 text-center py-6">
-              No hay presupuestos en la lista de hoy. Agregá desde &quot;Mis presupuestos&quot; abajo.
-            </p>
-          ) : (
-            <div className="space-y-1.5">
-              {trabajoHoy.map((item, idx) => (
-                <div
-                  key={item.id}
-                  className={`flex items-center justify-between rounded-lg border px-3 py-2 transition-colors ${
-                    item.completado
-                      ? 'border-green-200 bg-green-50/50'
-                      : 'border-slate-200 bg-white hover:bg-slate-50'
-                  }`}
-                >
-                  <div className="flex items-center gap-3 min-w-0">
-                    <button
-                      className={`flex h-5 w-5 shrink-0 items-center justify-center rounded border transition-colors ${
-                        item.completado
-                          ? 'bg-green-500 border-green-500 text-white'
-                          : 'border-slate-300 hover:border-[#00ADEF]'
-                      }`}
-                      onClick={() => toggleCompletado(item.id, !item.completado)}
-                      disabled={loading === item.id}
-                    >
-                      {item.completado && <Check className="h-3 w-3" />}
-                    </button>
-                    <PresupuestoRow p={item.presupuesto} strikethrough={item.completado} />
-                  </div>
-                  <div className="flex items-center gap-0.5 shrink-0 ml-2">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-7 w-7 p-0 text-slate-400 hover:text-slate-600"
-                      onClick={() => moverOrden(item.id, 'up')}
-                      disabled={idx === 0}
-                      title="Subir"
-                    >
-                      <ChevronUp className="h-3.5 w-3.5" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-7 w-7 p-0 text-slate-400 hover:text-slate-600"
-                      onClick={() => moverOrden(item.id, 'down')}
-                      disabled={idx === trabajoHoy.length - 1}
-                      title="Bajar"
-                    >
-                      <ChevronDown className="h-3.5 w-3.5" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-7 w-7 p-0 text-red-400 hover:text-red-600 hover:bg-red-50"
-                      onClick={() => quitarDeHoy(item.id)}
-                      disabled={loading === item.id}
-                      title="Quitar de hoy"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </Button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+      {/* Vista "Todos" — resumen gerencial */}
+      {isManager && selectedResponsable === '__all__' && (
+        <>
+          <ResumenEquipoCard
+            resumen={resumenEquipo}
+            onSelectResponsable={(id) => setSelectedResponsable(id)}
+          />
+          <PendientesAgrupadosCard
+            pendientes={pendientesAnteriores}
+            onMoverAHoy={moverAHoy}
+            onQuitar={quitarDeHoy}
+            loading={loading}
+          />
+        </>
+      )}
 
-      {/* Mis presupuestos */}
+      {/* Vista con responsable seleccionado */}
+      {selectedResponsable !== '__all__' && (
+        <>
+          {/* Pendientes de días anteriores */}
+          {pendientesAnteriores.length > 0 && (
+            <Card className="border-amber-200 bg-amber-50/50">
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-amber-700 text-base">
+                  <AlertTriangle className="h-4 w-4" />
+                  Pendientes de días anteriores{selectedNombre ? ` de ${selectedNombre}` : ''} ({pendientesAnteriores.length})
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  {pendientesAnteriores.map((item) => (
+                    <div
+                      key={item.id}
+                      className="flex items-center justify-between rounded-lg border border-amber-200 bg-white px-3 py-2"
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <span className="text-xs text-amber-600 font-mono whitespace-nowrap">{item.fechaKey}</span>
+                        <PresupuestoRow p={item.presupuesto} />
+                      </div>
+                      <div className="flex items-center gap-1 shrink-0 ml-2">
+                        <Button variant="ghost" size="sm" className="h-7 px-2 text-amber-700 hover:text-amber-900 hover:bg-amber-100" onClick={() => moverAHoy(item)} disabled={loading === item.id} title="Mover a hoy">
+                          <Plus className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button variant="ghost" size="sm" className="h-7 px-2 text-red-500 hover:text-red-700 hover:bg-red-50" onClick={() => quitarDeHoy(item.id)} disabled={loading === item.id} title="Quitar">
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* A terminar hoy */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-base">
+                <ClipboardList className="h-4 w-4 text-[#00ADEF]" />
+                A terminar hoy{selectedNombre ? ` de ${selectedNombre}` : ''}
+                {total > 0 && (
+                  <Badge variant="outline" className="ml-1 text-xs">{total}</Badge>
+                )}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {trabajoHoy.length === 0 ? (
+                <p className="text-sm text-slate-400 text-center py-6">
+                  No hay presupuestos en la lista de hoy.{' '}
+                  {isManager && selectedNombre
+                    ? `Agregá desde la tabla de abajo para ${selectedNombre}.`
+                    : 'Agregá desde la tabla de abajo.'}
+                </p>
+              ) : (
+                <div className="space-y-1.5">
+                  {trabajoHoy.map((item, idx) => (
+                    <div
+                      key={item.id}
+                      className={`flex items-center justify-between rounded-lg border px-3 py-2 transition-colors ${
+                        item.completado
+                          ? 'border-green-200 bg-green-50/50'
+                          : 'border-slate-200 bg-white hover:bg-slate-50'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <button
+                          className={`flex h-5 w-5 shrink-0 items-center justify-center rounded border transition-colors ${
+                            item.completado
+                              ? 'bg-green-500 border-green-500 text-white'
+                              : 'border-slate-300 hover:border-[#00ADEF]'
+                          }`}
+                          onClick={() => toggleCompletado(item.id, !item.completado)}
+                          disabled={loading === item.id}
+                        >
+                          {item.completado && <Check className="h-3 w-3" />}
+                        </button>
+                        <PresupuestoRow p={item.presupuesto} strikethrough={item.completado} />
+                      </div>
+                      <div className="flex items-center gap-0.5 shrink-0 ml-2">
+                        <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-slate-400 hover:text-slate-600" onClick={() => moverOrden(item.id, 'up')} disabled={idx === 0} title="Subir">
+                          <ChevronUp className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-slate-400 hover:text-slate-600" onClick={() => moverOrden(item.id, 'down')} disabled={idx === trabajoHoy.length - 1} title="Bajar">
+                          <ChevronDown className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-red-400 hover:text-red-600 hover:bg-red-50" onClick={() => quitarDeHoy(item.id)} disabled={loading === item.id} title="Quitar de hoy">
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </>
+      )}
+
+      {/* Presupuestos */}
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-base">
-            <FileText className="h-4 w-4 text-slate-500" />
-            Mis presupuestos
-            <Badge variant="outline" className="ml-1 text-xs">
-              {presupuestosFiltrados.length}
-            </Badge>
-          </CardTitle>
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <FileText className="h-4 w-4 text-slate-500" />
+              {isManager ? 'Presupuestos del equipo' : 'Mis presupuestos'}
+              <Badge variant="outline" className="ml-1 text-xs">{presupuestosFiltrados.length}</Badge>
+            </CardTitle>
+            <div className="flex items-center gap-2 flex-wrap">
+              <div className="relative">
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
+                <Input
+                  placeholder="Buscar..."
+                  value={busqueda}
+                  onChange={(e) => setBusqueda(e.target.value)}
+                  className="h-8 w-48 pl-8 text-sm"
+                />
+              </div>
+              <select
+                value={filtroEstado}
+                onChange={(e) => setFiltroEstado(e.target.value)}
+                className="h-8 rounded-md border border-slate-200 bg-white px-2 text-sm text-slate-700"
+              >
+                <option value="">Todos los estados</option>
+                {TODOS_ESTADOS.map((e) => (
+                  <option key={e} value={e}>{ESTADO_LABELS[e]}</option>
+                ))}
+              </select>
+              {isManager && selectedResponsable === '__all__' && (
+                <select
+                  value=""
+                  onChange={(e) => {
+                    if (e.target.value) setSelectedResponsable(e.target.value);
+                  }}
+                  className="h-8 rounded-md border border-slate-200 bg-white px-2 text-sm text-slate-700"
+                >
+                  <option value="">Filtrar responsable...</option>
+                  {responsables.map((r) => (
+                    <option key={r.id} value={r.id}>{r.nombre}</option>
+                  ))}
+                </select>
+              )}
+            </div>
+          </div>
         </CardHeader>
         <CardContent>
           {presupuestosFiltrados.length === 0 ? (
             <p className="text-sm text-slate-400 text-center py-6">
-              Todos tus presupuestos están en la lista de hoy.
+              No hay presupuestos para mostrar.
             </p>
           ) : (
-            <div className="space-y-1">
-              {presupuestosFiltrados.map((p) => (
-                <div
-                  key={p.id}
-                  className="flex items-center justify-between rounded-lg border border-slate-100 px-3 py-2 hover:bg-slate-50 transition-colors"
-                >
-                  <div className="flex items-center gap-3 min-w-0">
-                    <PresupuestoRow
-                      p={p}
-                      showResponsable={perfil !== 'vendedor'}
-                      responsableNombre={p.responsable?.nombre}
-                    />
-                  </div>
-                  <div className="flex items-center gap-1 shrink-0 ml-2">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-7 px-2 text-[#00ADEF] hover:text-[#0090c8] hover:bg-[#00ADEF]/10"
-                      onClick={() => agregarAHoy(p.id)}
-                      disabled={loading === p.id}
-                      title="Agregar a hoy"
-                    >
-                      <Plus className="h-3.5 w-3.5 mr-1" />
-                      <span className="text-xs">Hoy</span>
-                    </Button>
-                    <Link href={`/presupuestos/${p.id}`}>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-7 w-7 p-0 text-slate-400 hover:text-slate-600"
-                        title="Ver presupuesto"
-                      >
-                        <ExternalLink className="h-3.5 w-3.5" />
-                      </Button>
-                    </Link>
-                  </div>
-                </div>
-              ))}
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-slate-100 text-left text-xs text-slate-500">
+                    <th className="pb-2 pr-3 font-medium">Nro</th>
+                    <th className="pb-2 pr-3 font-medium">Nombre</th>
+                    <th className="pb-2 pr-3 font-medium">Cliente</th>
+                    <th className="pb-2 pr-3 font-medium hidden md:table-cell">Obra</th>
+                    {(isManager || perfil !== 'vendedor') && <th className="pb-2 pr-3 font-medium">Responsable</th>}
+                    <th className="pb-2 pr-3 font-medium">Estado</th>
+                    <th className="pb-2 pr-3 font-medium hidden lg:table-cell">Antigüedad</th>
+                    <th className="pb-2 font-medium text-right">Acciones</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {presupuestosFiltrados.slice(0, 50).map((p) => {
+                    const dias = Math.floor((Date.now() - new Date(p.fechaCreacion).getTime()) / 86400000);
+                    const targetUser = isManager
+                      ? selectedResponsable !== '__all__'
+                        ? selectedResponsable
+                        : p.responsable?.id
+                      : undefined;
+                    return (
+                      <tr key={p.id} className="border-b border-slate-50 hover:bg-slate-50/50">
+                        <td className="py-2 pr-3">
+                          <Link href={`/presupuestos/${p.id}`} className="font-medium text-slate-700 hover:text-[#00ADEF]">
+                            #{p.numero}
+                          </Link>
+                        </td>
+                        <td className="py-2 pr-3 max-w-[180px] truncate text-slate-600">
+                          {p.nombrePresupuesto ?? 'Sin nombre'}
+                        </td>
+                        <td className="py-2 pr-3 max-w-[150px] truncate text-slate-500">
+                          {p.cliente?.razonSocial ?? '-'}
+                        </td>
+                        <td className="py-2 pr-3 max-w-[120px] truncate text-slate-500 hidden md:table-cell">
+                          {p.obra?.nombre ?? '-'}
+                        </td>
+                        {(isManager || perfil !== 'vendedor') && (
+                          <td className="py-2 pr-3 text-slate-500 whitespace-nowrap">
+                            {p.responsable?.nombre ?? '-'}
+                          </td>
+                        )}
+                        <td className="py-2 pr-3">
+                          <Badge
+                            variant="outline"
+                            className={`text-[10px] ${ESTADO_COLORS[p.estado] ?? 'bg-slate-100 text-slate-600 border-slate-200'}`}
+                          >
+                            {ESTADO_LABELS[p.estado] ?? p.estado}
+                          </Badge>
+                        </td>
+                        <td className="py-2 pr-3 text-slate-400 text-xs whitespace-nowrap hidden lg:table-cell">
+                          {dias}d
+                        </td>
+                        <td className="py-2 text-right whitespace-nowrap">
+                          <div className="flex items-center justify-end gap-1">
+                            {selectedResponsable !== '__all__' && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-7 px-2 text-[#00ADEF] hover:text-[#0090c8] hover:bg-[#00ADEF]/10"
+                                onClick={() => agregarAHoy(p.id, targetUser)}
+                                disabled={loading === p.id}
+                                title={isManager && selectedNombre ? `Agregar a hoy de ${selectedNombre}` : 'Agregar a hoy'}
+                              >
+                                <Plus className="h-3.5 w-3.5 mr-1" />
+                                <span className="text-xs">Hoy</span>
+                              </Button>
+                            )}
+                            {selectedResponsable === '__all__' && targetUser && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-7 px-2 text-[#00ADEF] hover:text-[#0090c8] hover:bg-[#00ADEF]/10"
+                                onClick={() => agregarAHoy(p.id, targetUser)}
+                                disabled={loading === p.id}
+                                title={`Agregar a hoy de ${p.responsable?.nombre ?? 'responsable'}`}
+                              >
+                                <Plus className="h-3.5 w-3.5 mr-1" />
+                                <span className="text-xs">Hoy</span>
+                              </Button>
+                            )}
+                            <Link href={`/presupuestos/${p.id}`}>
+                              <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-slate-400 hover:text-slate-600" title="Ver presupuesto">
+                                <ExternalLink className="h-3.5 w-3.5" />
+                              </Button>
+                            </Link>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+              {presupuestosFiltrados.length > 50 && (
+                <p className="text-xs text-slate-400 text-center mt-3">
+                  Mostrando 50 de {presupuestosFiltrados.length} presupuestos. Usá los filtros para reducir la lista.
+                </p>
+              )}
             </div>
           )}
         </CardContent>
@@ -442,16 +673,166 @@ export function MiTrabajoContent({
   );
 }
 
+/* ── Resumen del equipo ────────────────────────────────────────────────── */
+function ResumenEquipoCard({
+  resumen,
+  onSelectResponsable,
+}: {
+  resumen: ResumenResponsable[];
+  onSelectResponsable: (id: string) => void;
+}) {
+  if (resumen.length === 0) return null;
+
+  return (
+    <Card>
+      <CardHeader className="pb-3">
+        <CardTitle className="flex items-center gap-2 text-base">
+          <Users className="h-4 w-4 text-[#00ADEF]" />
+          Resumen por responsable
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-slate-100 text-left text-xs text-slate-500">
+                <th className="pb-2 pr-3 font-medium">Responsable</th>
+                <th className="pb-2 pr-2 font-medium text-center">Abiertos</th>
+                <th className="pb-2 pr-2 font-medium text-center">
+                  <span className="text-red-600">Pend.</span>
+                </th>
+                <th className="pb-2 pr-2 font-medium text-center">
+                  <span className="text-yellow-600">En proc.</span>
+                </th>
+                <th className="pb-2 pr-2 font-medium text-center">
+                  <span className="text-purple-600">Fren.</span>
+                </th>
+                <th className="pb-2 pr-2 font-medium text-center">
+                  <span className="text-amber-600">Final.</span>
+                </th>
+                <th className="pb-2 pr-2 font-medium text-center">
+                  <span className="text-blue-600">P/enviar</span>
+                </th>
+                <th className="pb-2 pr-2 font-medium text-center">
+                  <span className="text-sky-600">Enviados</span>
+                </th>
+                <th className="pb-2 pr-2 font-medium text-center">Hoy</th>
+                <th className="pb-2 font-medium text-center">
+                  <span className="text-green-600">Complet.</span>
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {resumen.map((r) => (
+                <tr
+                  key={r.id}
+                  className="border-b border-slate-50 hover:bg-slate-50/50 cursor-pointer"
+                  onClick={() => onSelectResponsable(r.id)}
+                >
+                  <td className="py-2 pr-3 font-medium text-[#00ADEF] hover:underline">{r.nombre}</td>
+                  <td className="py-2 pr-2 text-center font-semibold">{r.abiertos}</td>
+                  <CellCount n={r.pendientes} color="red" />
+                  <CellCount n={r.enProceso} color="yellow" />
+                  <CellCount n={r.frenados} color="purple" />
+                  <CellCount n={r.finalizados} color="amber" />
+                  <CellCount n={r.paraEnviar} color="blue" />
+                  <CellCount n={r.enviados} color="sky" />
+                  <td className="py-2 pr-2 text-center">{r.aTerminarHoy || '-'}</td>
+                  <td className="py-2 text-center">
+                    {r.aTerminarHoy > 0 ? (
+                      <span className="text-green-600 font-medium">{r.completadosHoy}/{r.aTerminarHoy}</span>
+                    ) : (
+                      '-'
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function CellCount({ n, color }: { n: number; color: string }) {
+  if (n === 0) return <td className="py-2 pr-2 text-center text-slate-300">-</td>;
+  return (
+    <td className={`py-2 pr-2 text-center font-medium text-${color}-600`}>{n}</td>
+  );
+}
+
+/* ── Pendientes agrupados (vista "Todos") ──────────────────────────────── */
+function PendientesAgrupadosCard({
+  pendientes,
+  onMoverAHoy,
+  onQuitar,
+  loading,
+}: {
+  pendientes: TrabajoDiaItem[];
+  onMoverAHoy: (item: TrabajoDiaItem) => void;
+  onQuitar: (id: string) => void;
+  loading: string | null;
+}) {
+  if (pendientes.length === 0) return null;
+
+  const byUser: Record<string, { nombre: string; items: TrabajoDiaItem[] }> = {};
+  for (const p of pendientes) {
+    const uid = p.userId;
+    const nombre = p.user?.nombre ?? 'Desconocido';
+    if (!byUser[uid]) byUser[uid] = { nombre, items: [] };
+    byUser[uid].items.push(p);
+  }
+
+  return (
+    <Card className="border-amber-200 bg-amber-50/50">
+      <CardHeader className="pb-3">
+        <CardTitle className="flex items-center gap-2 text-amber-700 text-base">
+          <AlertTriangle className="h-4 w-4" />
+          Pendientes de días anteriores ({pendientes.length})
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-4">
+          {Object.entries(byUser).map(([uid, { nombre, items }]) => (
+            <div key={uid}>
+              <p className="text-xs font-semibold text-amber-800 mb-1.5">{nombre} ({items.length})</p>
+              <div className="space-y-1.5">
+                {items.map((item) => (
+                  <div
+                    key={item.id}
+                    className="flex items-center justify-between rounded-lg border border-amber-200 bg-white px-3 py-2"
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <span className="text-xs text-amber-600 font-mono whitespace-nowrap">{item.fechaKey}</span>
+                      <PresupuestoRow p={item.presupuesto} />
+                    </div>
+                    <div className="flex items-center gap-1 shrink-0 ml-2">
+                      <Button variant="ghost" size="sm" className="h-7 px-2 text-amber-700 hover:text-amber-900 hover:bg-amber-100" onClick={() => onMoverAHoy(item)} disabled={loading === item.id} title="Mover a hoy">
+                        <Plus className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button variant="ghost" size="sm" className="h-7 px-2 text-red-500 hover:text-red-700 hover:bg-red-50" onClick={() => onQuitar(item.id)} disabled={loading === item.id} title="Quitar">
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+/* ── Fila de presupuesto ──────────────────────────────────────────────── */
 function PresupuestoRow({
   p,
   strikethrough,
-  showResponsable,
-  responsableNombre,
 }: {
   p: PresupuestoBasico;
   strikethrough?: boolean;
-  showResponsable?: boolean;
-  responsableNombre?: string | null;
 }) {
   return (
     <div className={`flex items-center gap-2 min-w-0 ${strikethrough ? 'opacity-50' : ''}`}>
@@ -475,11 +856,6 @@ function PresupuestoRow({
       {p.cliente && (
         <span className="text-xs text-slate-400 truncate max-w-[150px] hidden sm:inline">
           {p.cliente.razonSocial}
-        </span>
-      )}
-      {showResponsable && responsableNombre && (
-        <span className="text-xs text-slate-400 truncate max-w-[120px] hidden md:inline">
-          · {responsableNombre}
         </span>
       )}
     </div>

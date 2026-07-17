@@ -1,7 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-import { getFechaKeyArgentina } from '@/lib/mi-trabajo';
+import { getFechaKeyArgentina, canManageTeamWork } from '@/lib/mi-trabajo';
+
+function resolveUserId(session: { user: { id: string; email?: string | null; rolNombre?: string | null } }, targetUserId?: string | null): string {
+  if (!targetUserId || targetUserId === session.user.id) return session.user.id;
+  if (!canManageTeamWork(session.user)) return session.user.id;
+  return targetUserId;
+}
+
+const PRESUPUESTO_SELECT = {
+  id: true,
+  numero: true,
+  nombrePresupuesto: true,
+  estado: true,
+  cliente: { select: { razonSocial: true } },
+  obra: { select: { nombre: true } },
+} as const;
 
 export async function GET(req: NextRequest) {
   const session = await auth();
@@ -9,22 +24,12 @@ export async function GET(req: NextRequest) {
 
   const { searchParams } = new URL(req.url);
   const fechaKey = searchParams.get('fecha') ?? getFechaKeyArgentina();
+  const effectiveUserId = resolveUserId(session, searchParams.get('targetUserId'));
 
   const items = await prisma.presupuestoTrabajoDia.findMany({
-    where: { userId: session.user.id, fechaKey },
+    where: { userId: effectiveUserId, fechaKey },
     orderBy: { orden: 'asc' },
-    include: {
-      presupuesto: {
-        select: {
-          id: true,
-          numero: true,
-          nombrePresupuesto: true,
-          estado: true,
-          cliente: { select: { razonSocial: true } },
-          obra: { select: { nombre: true } },
-        },
-      },
-    },
+    include: { presupuesto: { select: PRESUPUESTO_SELECT } },
   });
 
   return NextResponse.json(items);
@@ -34,45 +39,39 @@ export async function POST(req: NextRequest) {
   const session = await auth();
   if (!session?.user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
 
-  const { presupuestoId, nota } = await req.json();
+  const { presupuestoId, nota, targetUserId } = await req.json();
   if (!presupuestoId) {
     return NextResponse.json({ error: 'presupuestoId requerido' }, { status: 400 });
   }
 
+  if (targetUserId && targetUserId !== session.user.id && !canManageTeamWork(session.user)) {
+    return NextResponse.json({ error: 'No tenés permiso para modificar el trabajo de otro usuario.' }, { status: 403 });
+  }
+
+  const effectiveUserId = resolveUserId(session, targetUserId);
   const fechaKey = getFechaKeyArgentina();
 
   const existing = await prisma.presupuestoTrabajoDia.findUnique({
-    where: { userId_presupuestoId_fechaKey: { userId: session.user.id, presupuestoId, fechaKey } },
+    where: { userId_presupuestoId_fechaKey: { userId: effectiveUserId, presupuestoId, fechaKey } },
   });
   if (existing) {
     return NextResponse.json({ error: 'Ya está en la lista de hoy' }, { status: 409 });
   }
 
   const maxOrden = await prisma.presupuestoTrabajoDia.aggregate({
-    where: { userId: session.user.id, fechaKey },
+    where: { userId: effectiveUserId, fechaKey },
     _max: { orden: true },
   });
 
   const item = await prisma.presupuestoTrabajoDia.create({
     data: {
-      userId: session.user.id,
+      userId: effectiveUserId,
       presupuestoId,
       fechaKey,
       orden: (maxOrden._max.orden ?? -1) + 1,
       nota: nota ?? null,
     },
-    include: {
-      presupuesto: {
-        select: {
-          id: true,
-          numero: true,
-          nombrePresupuesto: true,
-          estado: true,
-          cliente: { select: { razonSocial: true } },
-          obra: { select: { nombre: true } },
-        },
-      },
-    },
+    include: { presupuesto: { select: PRESUPUESTO_SELECT } },
   });
 
   return NextResponse.json(item, { status: 201 });
@@ -87,8 +86,12 @@ export async function DELETE(req: NextRequest) {
   if (!id) return NextResponse.json({ error: 'id requerido' }, { status: 400 });
 
   const item = await prisma.presupuestoTrabajoDia.findUnique({ where: { id } });
-  if (!item || item.userId !== session.user.id) {
-    return NextResponse.json({ error: 'No encontrado' }, { status: 404 });
+  if (!item) return NextResponse.json({ error: 'No encontrado' }, { status: 404 });
+
+  const isOwner = item.userId === session.user.id;
+  const isManager = canManageTeamWork(session.user);
+  if (!isOwner && !isManager) {
+    return NextResponse.json({ error: 'No tenés permiso para modificar el trabajo de otro usuario.' }, { status: 403 });
   }
 
   await prisma.presupuestoTrabajoDia.delete({ where: { id } });
@@ -103,8 +106,12 @@ export async function PATCH(req: NextRequest) {
   if (!id) return NextResponse.json({ error: 'id requerido' }, { status: 400 });
 
   const item = await prisma.presupuestoTrabajoDia.findUnique({ where: { id } });
-  if (!item || item.userId !== session.user.id) {
-    return NextResponse.json({ error: 'No encontrado' }, { status: 404 });
+  if (!item) return NextResponse.json({ error: 'No encontrado' }, { status: 404 });
+
+  const isOwner = item.userId === session.user.id;
+  const isManager = canManageTeamWork(session.user);
+  if (!isOwner && !isManager) {
+    return NextResponse.json({ error: 'No tenés permiso para modificar el trabajo de otro usuario.' }, { status: 403 });
   }
 
   const data: Record<string, unknown> = {};
@@ -118,18 +125,7 @@ export async function PATCH(req: NextRequest) {
   const updated = await prisma.presupuestoTrabajoDia.update({
     where: { id },
     data,
-    include: {
-      presupuesto: {
-        select: {
-          id: true,
-          numero: true,
-          nombrePresupuesto: true,
-          estado: true,
-          cliente: { select: { razonSocial: true } },
-          obra: { select: { nombre: true } },
-        },
-      },
-    },
+    include: { presupuesto: { select: PRESUPUESTO_SELECT } },
   });
 
   return NextResponse.json(updated);

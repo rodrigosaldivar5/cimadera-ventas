@@ -1,17 +1,25 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-import { getFechaKeyArgentina } from '@/lib/mi-trabajo';
+import { getFechaKeyArgentina, canManageTeamWork } from '@/lib/mi-trabajo';
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   const session = await auth();
   if (!session?.user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+
+  const { searchParams } = new URL(req.url);
+  const targetUserId = searchParams.get('targetUserId');
+
+  let effectiveUserId: string | undefined = session.user.id;
+  if (targetUserId && canManageTeamWork(session.user)) {
+    effectiveUserId = targetUserId === '__all__' ? undefined : targetUserId;
+  }
 
   const hoy = getFechaKeyArgentina();
 
   const pendientes = await prisma.presupuestoTrabajoDia.findMany({
     where: {
-      userId: session.user.id,
+      ...(effectiveUserId ? { userId: effectiveUserId } : {}),
       fechaKey: { lt: hoy },
       completado: false,
     },
@@ -27,6 +35,7 @@ export async function GET() {
           obra: { select: { nombre: true } },
         },
       },
+      user: { select: { id: true, nombre: true } },
     },
   });
 

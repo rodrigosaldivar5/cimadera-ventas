@@ -20,6 +20,7 @@ const ROL_A_PERFIL: Record<string, PerfilMiTrabajo> = {
   Gerencia: 'gerencia',
   Gerente: 'gerencia',
   'Gerente Comercial': 'gerencia',
+  Administrador: 'gerencia',
   Dirección: 'direccion',
   Director: 'direccion',
 };
@@ -27,6 +28,25 @@ const ROL_A_PERFIL: Record<string, PerfilMiTrabajo> = {
 const EMAIL_OVERRIDE: Record<string, PerfilMiTrabajo> = {
   'coordinacion.general@cimadera.net': 'gerencia',
 };
+
+const ROLES_GESTION_EQUIPO = new Set([
+  'Administrador',
+  'Gerencia',
+  'Gerente',
+  'Gerente Comercial',
+  'Dirección',
+  'Director',
+]);
+
+const EMAIL_GESTION_EQUIPO = new Set([
+  'coordinacion.general@cimadera.net',
+]);
+
+export function canManageTeamWork(user: UserSession): boolean {
+  if (user.email && EMAIL_GESTION_EQUIPO.has(user.email)) return true;
+  if (user.rolNombre && ROLES_GESTION_EQUIPO.has(user.rolNombre)) return true;
+  return false;
+}
 
 export function getPerfilMiTrabajo(user: UserSession): PerfilMiTrabajo {
   if (user.email && EMAIL_OVERRIDE[user.email]) {
