@@ -135,6 +135,22 @@ export function DocumentacionPresupuesto({ presupuestoId, archivosIniciales }: P
     }
   };
 
+  const intentarSyncDrive = async (): Promise<number> => {
+    try {
+      const res = await fetch(`/api/presupuestos/${presupuestoId}/archivos/sync-drive`, {
+        method: 'POST',
+      });
+      const data = (await res.json()) as { ok?: boolean; creados?: number };
+      if (res.ok && data.ok) {
+        await cargarArchivos();
+        return data.creados ?? 0;
+      }
+    } catch {
+      console.error('[ADJUNTOS] sync-drive fallback también falló');
+    }
+    return 0;
+  };
+
   const subirArchivoDriveDirecto = (file: File, uploadUrl: string, mimeType: string): Promise<{ id: string; webViewLink: string }> => {
     return new Promise((resolve, reject) => {
       const xhr = new XMLHttpRequest();
@@ -150,19 +166,19 @@ export function DocumentacionPresupuesto({ presupuestoId, archivosIniciales }: P
         if (xhr.status >= 200 && xhr.status < 300) {
           try {
             const data = JSON.parse(xhr.responseText) as { id?: string; webViewLink?: string };
-            if (!data.id) { reject(new Error('Google Drive no devolvió ID del archivo')); return; }
+            if (!data.id) { reject(new Error('drive_no_id')); return; }
             resolve({ id: data.id, webViewLink: data.webViewLink ?? '' });
           } catch {
-            reject(new Error('Respuesta inesperada de Google Drive'));
+            reject(new Error('drive_parse_error'));
           }
         } else {
           console.error('[ADJUNTOS] PUT Drive error:', xhr.status, xhr.responseText?.slice(0, 200));
-          reject(new Error(`No se pudo subir el archivo a Google Drive (${xhr.status})`));
+          reject(new Error('drive_http_error'));
         }
       };
 
-      xhr.onerror = () => reject(new Error('No se pudo conectar con Google Drive. Revisá la conexión e intentá nuevamente.'));
-      xhr.ontimeout = () => reject(new Error('La subida tardó demasiado. Revisá la conexión e intentá nuevamente.'));
+      xhr.onerror = () => reject(new Error('drive_network_error'));
+      xhr.ontimeout = () => reject(new Error('drive_timeout'));
       xhr.send(file);
     });
   };
@@ -181,11 +197,12 @@ export function DocumentacionPresupuesto({ presupuestoId, archivosIniciales }: P
 
     setSubiendo(true);
     let subidos = 0;
+    let recuperados = 0;
     let ultimoError = '';
 
     for (const file of lista) {
       let etapa = 'init';
-      let driveFileId = '';
+      let initOk = false;
       try {
         setProgreso(0);
 
@@ -210,13 +227,13 @@ export function DocumentacionPresupuesto({ presupuestoId, archivosIniciales }: P
           throw new Error(initData.error ?? 'No se pudo preparar la subida.');
         }
 
+        initOk = true;
         etapa = 'upload';
         const driveResult = await subirArchivoDriveDirecto(
           file,
           initData.uploadUrl,
           initData.mimeType || file.type || 'application/octet-stream',
         );
-        driveFileId = driveResult.id;
 
         etapa = 'confirm';
         const ext = file.name.lastIndexOf('.') >= 0 ? file.name.slice(file.name.lastIndexOf('.') + 1).toLowerCase() : '';
@@ -235,28 +252,46 @@ export function DocumentacionPresupuesto({ presupuestoId, archivosIniciales }: P
         const confirmData = (await confirmRes.json()) as { ok?: boolean; error?: string };
 
         if (!confirmRes.ok || !confirmData.ok) {
-          throw new Error(confirmData.error ?? 'El archivo se subió a Drive, pero no se pudo registrar en la app.');
+          throw new Error(confirmData.error ?? 'confirm_failed');
         }
 
         subidos++;
       } catch (error) {
-        const msg = error instanceof Error ? error.message : 'Error al subir archivo';
-        if (etapa === 'confirm' && driveFileId) {
-          ultimoError = `${file.name}: se subió a Drive pero no se registró en la app. Usá "Sincronizar Drive" o abrí la carpeta.`;
-        } else {
-          ultimoError = msg;
-        }
+        const msg = error instanceof Error ? error.message : 'unknown';
         console.error('[ADJUNTOS]', file.name, 'etapa:', etapa, msg);
+
+        if (initOk && (etapa === 'upload' || etapa === 'confirm')) {
+          setProgreso(null);
+          setSincronizando(true);
+          await new Promise((r) => setTimeout(r, 2000));
+          const syncCreados = await intentarSyncDrive();
+          setSincronizando(false);
+
+          if (syncCreados > 0) {
+            recuperados += syncCreados;
+            continue;
+          }
+        }
+
+        if (etapa === 'init') {
+          ultimoError = 'No se pudo preparar la subida.';
+        } else {
+          ultimoError = 'No se pudo completar la subida. Revisá la carpeta de Drive o intentá nuevamente.';
+        }
       }
     }
 
     setProgreso(null);
-    await cargarArchivos();
+    if (subidos > 0 && recuperados === 0) await cargarArchivos();
 
-    if (subidos > 0 && !ultimoError) {
-      showToast(`${subidos} archivo(s) subido(s) a Drive correctamente`);
-    } else if (subidos > 0 && ultimoError) {
-      showToast(`${subidos} subido(s), pero hubo errores: ${ultimoError}`, 'error');
+    const total = subidos + recuperados;
+    if (total > 0 && !ultimoError) {
+      const parts: string[] = [];
+      if (subidos > 0) parts.push(`${subidos} subido(s)`);
+      if (recuperados > 0) parts.push(`${recuperados} sincronizado(s)`);
+      showToast(`${parts.join(', ')} a Drive correctamente`);
+    } else if (total > 0 && ultimoError) {
+      showToast(`${total} archivo(s) OK, pero hubo errores con otros`, 'error');
     } else {
       showToast(ultimoError || 'No se subió ningún archivo', 'error');
     }
