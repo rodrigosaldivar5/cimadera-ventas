@@ -51,6 +51,7 @@ model User {
   restablecimientosAprobados  SolicitudRestablecimiento[] @relation("AprobadorRestablecimiento")
   seguimientosComoResponsable SeguimientoComercial[]      @relation("SeguimientoResponsable")
   seguimientosCreados         SeguimientoComercial[]      @relation("SeguimientosCreados")
+  trabajoDia                  PresupuestoTrabajoDia[]
 }
 
 model PermisoRol {
@@ -176,6 +177,7 @@ model Presupuesto {
   comentarioQuejaCliente        String?
   fechaQuejaCliente             DateTime?
   quejaRegistradaPorNombre      String?
+  trabajoDia                    PresupuestoTrabajoDia[]
 }
 
 model Obra {
@@ -224,6 +226,14 @@ enum Prioridad {
   ALTA
   MEDIA
   BAJA
+}
+
+enum TipoMovimientoPresupuesto {
+  RETRABAJO_INTERNO
+  RETRABAJO_PAUSADO
+  CORRECCION_PREVIA_ENVIO
+  MODIFICACION_POST_ENVIO
+  PAUSA_POST_ENVIO
 }
 
 model LineaPresupuesto {
@@ -577,19 +587,42 @@ model AuditoriaPresupuesto {
 }
 
 model PresupuestoEstadoTransicion {
-  id                String      @id @default(cuid())
+  id                String                      @id @default(cuid())
   presupuestoId     String
-  presupuesto       Presupuesto @relation(fields: [presupuestoId], references: [id], onDelete: Cascade)
+  presupuesto       Presupuesto                 @relation(fields: [presupuestoId], references: [id], onDelete: Cascade)
   estadoAnterior    String?
   estadoNuevo       String
-  changedAt         DateTime    @default(now())
+  changedAt         DateTime                    @default(now())
   responsableId     String?
   responsableNombre String?
   usuarioId         String
   usuarioNombre     String
+  tipoMovimiento    TipoMovimientoPresupuesto?
+  motivoMovimiento  String?
 
   @@index([presupuestoId])
   @@index([changedAt])
+}
+
+// ─── Trabajo diario ──────────────────────────────────────────────────────────
+
+model PresupuestoTrabajoDia {
+  id             String      @id @default(cuid())
+  userId         String
+  user           User        @relation(fields: [userId], references: [id])
+  presupuestoId  String
+  presupuesto    Presupuesto @relation(fields: [presupuestoId], references: [id], onDelete: Cascade)
+  fechaKey       String
+  orden          Int         @default(0)
+  completado     Boolean     @default(false)
+  completadoAt   DateTime?
+  nota           String?
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  @@unique([userId, presupuestoId, fechaKey])
+  @@index([userId, fechaKey])
+  @@index([presupuestoId])
 }
 
 // ─── Métricas comerciales ─────────────────────────────────────────────────────
