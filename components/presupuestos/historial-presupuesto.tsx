@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
-import { Clock, User2 } from 'lucide-react';
+import { Clock, User2, ChevronDown, ChevronUp } from 'lucide-react';
 
 type EntradaAuditoria = {
   id: string;
@@ -66,42 +66,61 @@ export function HistorialPresupuesto({ presupuestoId }: { presupuestoId: string 
       .finally(() => setLoading(false));
   }, [presupuestoId]);
 
+  const [isOpen, setIsOpen] = useState(false);
+
   return (
     <Card className="shadow-lg">
-      <CardContent className="p-6 space-y-4">
-        <h2 className="text-lg font-semibold text-slate-700">Historial de cambios</h2>
-        {loading ? (
-          <p className="text-sm text-slate-400">Cargando...</p>
-        ) : entradas.length === 0 ? (
-          <p className="text-sm text-slate-400">Sin registros de auditoría</p>
-        ) : (
-          <div className="relative">
-            {entradas.map((e, i) => (
-              <div key={e.id} className="flex gap-3">
-                <div className="flex flex-col items-center">
-                  <div className="h-2.5 w-2.5 rounded-full bg-sky-400 mt-0.5 shrink-0" />
-                  {i < entradas.length - 1 && <div className="w-px flex-1 bg-slate-200 my-1 min-h-[16px]" />}
-                </div>
-                <div className="pb-4 min-w-0">
-                  <p className="text-sm font-medium text-slate-700">
-                    {ACCION_LABEL[e.accion] ?? e.accion}
-                  </p>
-                  <div className="flex flex-wrap items-center gap-3 mt-0.5">
-                    <span className="flex items-center gap-1 text-xs text-slate-400">
-                      <User2 className="h-3 w-3" />
-                      {e.usuario?.nombre ?? 'Sistema'}
-                    </span>
-                    <span className="flex items-center gap-1 text-xs text-slate-400">
-                      <Clock className="h-3 w-3" />
-                      {formatDateTime(e.createdAt)}
-                    </span>
+      <CardContent className="p-6">
+        <button
+          type="button"
+          onClick={() => setIsOpen(!isOpen)}
+          className="flex items-center justify-between w-full text-left"
+        >
+          <h2 className="text-lg font-semibold text-slate-700">Historial de cambios</h2>
+          <div className="flex items-center gap-2">
+            {!loading && entradas.length > 0 && (
+              <span className="text-xs text-slate-400">{entradas.length} movimiento{entradas.length !== 1 ? 's' : ''}</span>
+            )}
+            {isOpen ? <ChevronUp className="h-4 w-4 text-slate-400" /> : <ChevronDown className="h-4 w-4 text-slate-400" />}
+          </div>
+        </button>
+
+        {isOpen && (
+          <div className="mt-4 space-y-4">
+            {loading ? (
+              <p className="text-sm text-slate-400">Cargando...</p>
+            ) : entradas.length === 0 ? (
+              <p className="text-sm text-slate-400">Sin registros de auditoría</p>
+            ) : (
+              <div className="relative">
+                {entradas.map((e, i) => (
+                  <div key={e.id} className="flex gap-3">
+                    <div className="flex flex-col items-center">
+                      <div className="h-2.5 w-2.5 rounded-full bg-sky-400 mt-0.5 shrink-0" />
+                      {i < entradas.length - 1 && <div className="w-px flex-1 bg-slate-200 my-1 min-h-[16px]" />}
+                    </div>
+                    <div className="pb-4 min-w-0">
+                      <p className="text-sm font-medium text-slate-700">
+                        {ACCION_LABEL[e.accion] ?? e.accion}
+                      </p>
+                      <div className="flex flex-wrap items-center gap-3 mt-0.5">
+                        <span className="flex items-center gap-1 text-xs text-slate-400">
+                          <User2 className="h-3 w-3" />
+                          {e.usuario?.nombre ?? 'Sistema'}
+                        </span>
+                        <span className="flex items-center gap-1 text-xs text-slate-400">
+                          <Clock className="h-3 w-3" />
+                          {formatDateTime(e.createdAt)}
+                        </span>
+                      </div>
+                      {e.camposModificados && (
+                        <CamposDiff campos={e.camposModificados as Record<string, unknown>} />
+                      )}
+                    </div>
                   </div>
-                  {e.camposModificados && (
-                    <CamposDiff campos={e.camposModificados as Record<string, unknown>} />
-                  )}
-                </div>
+                ))}
               </div>
-            ))}
+            )}
           </div>
         )}
       </CardContent>

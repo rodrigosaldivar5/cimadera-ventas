@@ -10,7 +10,7 @@ import {
 import {
   Paperclip, X, Loader2, FolderOpen, RefreshCw,
   FileText, FileSpreadsheet, FileCode, File, Download, ExternalLink,
-  Image as ImageIcon, Archive,
+  Image as ImageIcon, Archive, ChevronDown, ChevronUp,
 } from 'lucide-react';
 
 type Archivo = {
@@ -348,12 +348,21 @@ export function DocumentacionPresupuesto({ presupuestoId, archivosIniciales }: P
     setConfirmarEliminar(null);
   };
 
+  const [seccionAbierta, setSeccionAbierta] = useState(false);
+
   return (
     <>
     <Card>
-      <CardHeader>
-        <CardTitle className="text-base">Documentación del presupuesto</CardTitle>
+      <CardHeader className="cursor-pointer" onClick={() => setSeccionAbierta(!seccionAbierta)}>
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-base">Documentación del presupuesto</CardTitle>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-slate-400">{archivos.length} archivo{archivos.length !== 1 ? 's' : ''}</span>
+            {seccionAbierta ? <ChevronUp className="h-4 w-4 text-slate-400" /> : <ChevronDown className="h-4 w-4 text-slate-400" />}
+          </div>
+        </div>
       </CardHeader>
+      {seccionAbierta && (
       <CardContent className="space-y-5">
         <div className="space-y-3">
           <div className="flex items-center justify-between">
@@ -468,6 +477,7 @@ export function DocumentacionPresupuesto({ presupuestoId, archivosIniciales }: P
           </p>
         </div>
       </CardContent>
+      )}
     </Card>
 
     <Dialog

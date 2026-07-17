@@ -22,7 +22,7 @@ import { TiemposPresupuesto } from '@/components/presupuestos/tiempos-presupuest
 import { auth } from '@/lib/auth';
 import type { EstadoPresupuesto } from '@prisma/client';
 import Link from 'next/link';
-import { ArrowLeft, Building2, User2, Calendar } from 'lucide-react';
+import { ArrowLeft, Building2, User2, Calendar, Landmark } from 'lucide-react';
 import { estadoBadgeClass, estadoLabel, getEstiloEstado, getLabelEstado, getEstiloResultadoComercial, getLabelResultadoComercial } from '@/lib/enums';
 
 const EMAILS_AUTORIZADOS_BORRAR = ['coordinacion.general@cimadera.net', 'admin@cimadera.net'];
@@ -169,8 +169,8 @@ export default async function PresupuestoDetallePage({ params }: { params: { id:
 
           <Separator />
 
-          {/* Info cliente + elaborado por + responsable */}
-          <div className="grid grid-cols-3 gap-6">
+          {/* Info cliente + obra + elaborado por + responsable */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
             <div className="space-y-2">
               <div className="flex items-center gap-2 text-sm font-semibold text-slate-500 uppercase tracking-wide">
                 <Building2 className="h-4 w-4" /> Cliente
@@ -182,6 +182,12 @@ export default async function PresupuestoDetallePage({ params }: { params: { id:
               {presupuesto.cliente.ciudad && (
                 <p className="text-sm text-slate-500">{presupuesto.cliente.ciudad}{presupuesto.cliente.provincia ? `, ${presupuesto.cliente.provincia}` : ''}</p>
               )}
+            </div>
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 text-sm font-semibold text-slate-500 uppercase tracking-wide">
+                <Landmark className="h-4 w-4" /> Obra
+              </div>
+              <p className="font-semibold text-slate-800">{presupuesto.obra?.nombre ?? 'Sin obra asignada'}</p>
             </div>
             <div className="space-y-2">
               <div className="flex items-center gap-2 text-sm font-semibold text-slate-500 uppercase tracking-wide">
