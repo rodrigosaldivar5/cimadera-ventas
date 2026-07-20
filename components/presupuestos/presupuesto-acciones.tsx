@@ -35,6 +35,7 @@ interface PresupuestoDatos {
   obraNombre?: string | null;
   precioFinal?: number | null;
   totalFinal: number;
+  totalConIva?: number | null;
   cuentaCorrienteId?: string | null;
   moneda?: string | null;
 }
@@ -113,7 +114,9 @@ export function PresupuestoAcciones({ presupuesto, presupuestoPDF, presupuestoDa
     setTransicionMotivo('');
 
     if (res.ok && nuevoEstado === 'APROBADO' && presupuestoDatos && !presupuestoDatos.cuentaCorrienteId) {
-      const monto = presupuestoDatos.precioFinal ?? presupuestoDatos.totalFinal ?? 0;
+      const monto = (presupuestoDatos.totalConIva && presupuestoDatos.totalConIva > 0)
+        ? presupuestoDatos.totalConIva
+        : (presupuestoDatos.precioFinal ?? presupuestoDatos.totalFinal ?? 0);
       setCcMonto(Number(monto).toFixed(2));
       setSuggestCuenta(true);
     } else {
@@ -343,9 +346,14 @@ export function PresupuestoAcciones({ presupuesto, presupuestoPDF, presupuestoDa
           </p>
           {presupuestoDatos && (
             <p className="text-2xl font-bold text-[#00ADEF] text-center">
-              {presupuestoDatos.moneda === 'USD'
-                ? `U$D ${Number(presupuestoDatos.precioFinal ?? presupuestoDatos.totalFinal).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-                : formatCurrency(Number(presupuestoDatos.precioFinal ?? presupuestoDatos.totalFinal))}
+              {(() => {
+                const m = (presupuestoDatos.totalConIva && presupuestoDatos.totalConIva > 0)
+                  ? presupuestoDatos.totalConIva
+                  : (presupuestoDatos.precioFinal ?? presupuestoDatos.totalFinal ?? 0);
+                return presupuestoDatos.moneda === 'USD'
+                  ? `U$D ${Number(m).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                  : formatCurrency(Number(m));
+              })()}
             </p>
           )}
           <DialogFooter className="flex-col gap-2 sm:flex-row sm:justify-center">

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { EstadoCuenta, TipoMovimiento } from '@prisma/client';
+import { getMontoFinalPresupuesto } from '@/lib/presupuestos/montos';
 
 export async function GET(req: NextRequest) {
   const session = await auth();
@@ -59,11 +60,25 @@ export async function POST(req: NextRequest) {
       montoContratoIva,
     } = data;
 
-    if (!clienteId || !montoOriginal || !indiceInicio || !indiceActual || !fechaInicio) {
+    if (!clienteId || !indiceInicio || !indiceActual || !fechaInicio) {
       return NextResponse.json({ error: 'Faltan campos requeridos' }, { status: 400 });
     }
 
-    const monto = Number(montoOriginal);
+    let monto = Number(montoOriginal);
+
+    if (presupuestoId) {
+      const presupuesto = await prisma.presupuesto.findUnique({
+        where: { id: presupuestoId },
+        select: { precioFinal: true, totalFinal: true, totalConIva: true },
+      });
+      if (presupuesto) {
+        monto = getMontoFinalPresupuesto(presupuesto);
+      }
+    }
+
+    if (!monto || monto <= 0) {
+      return NextResponse.json({ error: 'Monto inválido' }, { status: 400 });
+    }
     const idxInicio = Number(indiceInicio);
     const idxActual = Number(indiceActual);
     const saldoActualizado = monto * (idxActual / idxInicio);

@@ -18,6 +18,7 @@ import Link from 'next/link';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { getEstiloEstado, getLabelEstado } from '@/lib/enums';
 import { getFechaKeyArgentina, LABEL_TIPO_MOVIMIENTO } from '@/lib/mi-trabajo';
+import { getMontoFinalPresupuesto } from '@/lib/presupuestos/montos';
 import type { TipoMovimientoPresupuesto, EstadoPresupuesto, Prisma } from '@prisma/client';
 
 const PESOS_PROB: Record<string, number> = { ALTA: 1.0, MEDIA: 0.6, BAJA: 0.3 };
@@ -31,6 +32,12 @@ const MOTIVO_QUEJA_LABELS: Record<string, string> = {
 };
 
 const ESTADOS_ABIERTOS = ['PENDIENTE', 'EN_PROCESO', 'FRENADO', 'FINALIZADO', 'PARA_ENVIAR', 'ENVIADO'] as const;
+
+const MONTO_SELECT = {
+  precioFinal: true,
+  totalFinal: true,
+  totalConIva: true,
+} as const;
 
 export default async function DashboardPage({ searchParams }: { searchParams: { userId?: string; desde?: string; hasta?: string; tab?: string; responsableId?: string } }) {
   await requirePermiso('dashboard', 'ver', '/presupuestos');
@@ -74,20 +81,37 @@ export default async function DashboardPage({ searchParams }: { searchParams: { 
   const semaforoColor = runwaySemanas >= 12 ? '#28A745' : runwaySemanas >= 6 ? '#FFC107' : '#DC3545';
   const semaforoLabel = runwaySemanas >= 12 ? 'Saludable' : runwaySemanas >= 6 ? 'Atención' : 'Alerta';
 
-  const [totalMes, enviados, aprobados, rechazados, pendientes, ultimos, chartData] = await Promise.all([
+  const [totalMes, enviados, aprobados, rechazados, pendientes, ultimosAprobados, chartData] = await Promise.all([
     prisma.presupuesto.count({ where: { ...whereBase, fechaCreacion: { gte: inicioMes, lte: finMes } } }),
     prisma.presupuesto.count({ where: { ...whereBase, estado: 'ENVIADO' } }),
     prisma.presupuesto.findMany({
       where: { ...whereBase, estado: 'APROBADO', fechaCreacion: { gte: inicioMes, lte: finMes } },
-      select: { precioFinal: true, totalFinal: true },
+      select: MONTO_SELECT,
     }),
     prisma.presupuesto.count({ where: { ...whereBase, estado: 'RECHAZADO', fechaCreacion: { gte: inicioMes, lte: finMes } } }),
     prisma.presupuesto.count({ where: { ...whereBase, estado: { in: ['PENDIENTE', 'EN_PROCESO'] } } }),
+    // Últimos aprobados (reemplaza "últimos presupuestos")
     prisma.presupuesto.findMany({
-      where: whereBase,
+      where: { ...whereBase, estado: 'APROBADO' },
       take: 10,
-      orderBy: { fechaCreacion: 'desc' },
-      include: { cliente: true },
+      orderBy: { fechaCierreComercial: 'desc' },
+      select: {
+        id: true,
+        numero: true,
+        moneda: true,
+        ...MONTO_SELECT,
+        fechaCierreComercial: true,
+        fechaCreacion: true,
+        cliente: { select: { razonSocial: true } },
+        obra: { select: { nombre: true } },
+        responsable: { select: { nombre: true } },
+        transicionesEstado: {
+          where: { estadoNuevo: 'APROBADO' },
+          orderBy: { changedAt: 'desc' },
+          take: 1,
+          select: { changedAt: true },
+        },
+      },
     }),
     Promise.all(
       Array.from({ length: 6 }, (_, i) => {
@@ -129,9 +153,11 @@ export default async function DashboardPage({ searchParams }: { searchParams: { 
     cargaByResponsable,
     trabajoHoyAll,
     quejasData,
-    montosEnviados,
-    montosAprobados,
-    montosEnviadosPendientes,
+    // Enviado en período: presupuestos que transicionaron a ENVIADO dentro del período
+    enviadosEnPeriodoTransiciones,
+    // Pendiente de respuesta actual: estado ENVIADO hoy
+    pendienteRespuestaActual,
+    montosAprobadosPeriodo,
     grandesAbiertosARS,
     grandesAbiertosUSD,
     alertaSinObra,
@@ -188,18 +214,27 @@ export default async function DashboardPage({ searchParams }: { searchParams: { 
         responsable: { select: { nombre: true } },
       },
     }),
-    // 6. Resumen dirección — respeta responsable; enviados es estado actual (no período)
+    // 6a. Enviado en período: transiciones a ENVIADO dentro del período
+    prisma.presupuestoEstadoTransicion.findMany({
+      where: {
+        estadoNuevo: 'ENVIADO',
+        changedAt: { gte: inicioMes, lte: finMes },
+        ...(filtroResponsableId ? { responsableId: filtroResponsableId } : {}),
+      },
+      select: {
+        presupuestoId: true,
+        presupuesto: { select: { moneda: true, ...MONTO_SELECT } },
+      },
+    }),
+    // 6b. Pendiente de respuesta actual: estado ENVIADO hoy
     prisma.presupuesto.findMany({
       where: { estado: 'ENVIADO', ...filtroResp },
-      select: { moneda: true, precioFinal: true, totalFinal: true },
+      select: { moneda: true, ...MONTO_SELECT },
     }),
+    // 6c. Aprobados del período
     prisma.presupuesto.findMany({
       where: { estado: 'APROBADO', ...filtroPeriodo, ...filtroResp },
-      select: { moneda: true, precioFinal: true, totalFinal: true },
-    }),
-    prisma.presupuesto.findMany({
-      where: { estado: 'ENVIADO', ...filtroResp },
-      select: { moneda: true, precioFinal: true, totalFinal: true },
+      select: { moneda: true, ...MONTO_SELECT },
     }),
     // Grandes abiertos ARS — umbral $5.000.000
     prisma.presupuesto.findMany({
@@ -208,12 +243,13 @@ export default async function DashboardPage({ searchParams }: { searchParams: { 
         moneda: 'ARS',
         ...filtroResp,
         OR: [
+          { totalConIva: { gte: 5000000 } },
           { precioFinal: { gte: 5000000 } },
           { totalFinal: { gte: 5000000 } },
         ],
       },
-      select: { id: true, numero: true, nombrePresupuesto: true, moneda: true, precioFinal: true, totalFinal: true, cliente: { select: { razonSocial: true } } },
-      orderBy: { totalFinal: 'desc' },
+      select: { id: true, numero: true, nombrePresupuesto: true, moneda: true, ...MONTO_SELECT, cliente: { select: { razonSocial: true } } },
+      orderBy: { totalConIva: 'desc' },
       take: 10,
     }),
     // Grandes abiertos USD — umbral U$D 5.000
@@ -223,12 +259,13 @@ export default async function DashboardPage({ searchParams }: { searchParams: { 
         moneda: 'USD',
         ...filtroResp,
         OR: [
+          { totalConIva: { gte: 5000 } },
           { precioFinal: { gte: 5000 } },
           { totalFinal: { gte: 5000 } },
         ],
       },
-      select: { id: true, numero: true, nombrePresupuesto: true, moneda: true, precioFinal: true, totalFinal: true, cliente: { select: { razonSocial: true } } },
-      orderBy: { totalFinal: 'desc' },
+      select: { id: true, numero: true, nombrePresupuesto: true, moneda: true, ...MONTO_SELECT, cliente: { select: { razonSocial: true } } },
+      orderBy: { totalConIva: 'desc' },
       take: 10,
     }),
     // Alertas estáticas (sin temporalidad)
@@ -246,9 +283,6 @@ export default async function DashboardPage({ searchParams }: { searchParams: { 
   ]);
 
   // ── Alertas temporales: usar última transición al estado actual ─────
-  // Para cada estado con umbral de demora, buscamos presupuestos cuya
-  // última transición a ese estado (changedAt en PresupuestoEstadoTransicion)
-  // excede el tiempo límite. Esto es más preciso que usar fechaCreacion.
   const ALERTAS_DEMORA_ESTADOS: EstadoPresupuesto[] = ['PENDIENTE', 'EN_PROCESO', 'FRENADO', 'FINALIZADO', 'PARA_ENVIAR'];
   const ALERTAS_DEMORA: { estado: EstadoPresupuesto; horasLimite: number; label: string; tipo: string }[] = [
     { estado: 'PENDIENTE', horasLimite: 48, label: 'Pendientes hace más de 48 hs', tipo: 'pendientes_48h' },
@@ -258,7 +292,6 @@ export default async function DashboardPage({ searchParams }: { searchParams: { 
     { estado: 'PARA_ENVIAR', horasLimite: 168, label: '"Para enviar" sin enviarse', tipo: 'para_enviar_sin_enviar' },
   ];
 
-  // Obtener presupuestos abiertos con su última transición al estado actual
   const presupuestosParaAlertas = await prisma.presupuesto.findMany({
     where: {
       estado: { in: ALERTAS_DEMORA_ESTADOS },
@@ -277,7 +310,6 @@ export default async function DashboardPage({ searchParams }: { searchParams: { 
     },
   });
 
-  // Alerta especial: enviados sin seguimiento usa fechaUltimaActividadComercial
   const alertaEnviadosSinSeguimiento = await prisma.presupuesto.findMany({
     where: {
       estado: 'ENVIADO',
@@ -397,6 +429,8 @@ export default async function DashboardPage({ searchParams }: { searchParams: { 
       if (row.responsableId === u.id) counts[row.estado] = (counts[row.estado] ?? 0) + row._count.id;
     }
     const trabajoItems = trabajoHoyAll.filter((t) => t.userId === u.id);
+    const aTerminarHoy = trabajoItems.length;
+    const completadosHoy = trabajoItems.filter((t) => t.completado).length;
     return {
       id: u.id,
       nombre: u.nombre,
@@ -408,8 +442,9 @@ export default async function DashboardPage({ searchParams }: { searchParams: { 
       enviados: counts['ENVIADO'] ?? 0,
       abiertos: (counts['PENDIENTE'] ?? 0) + (counts['EN_PROCESO'] ?? 0) + (counts['FRENADO'] ?? 0) +
         (counts['FINALIZADO'] ?? 0) + (counts['PARA_ENVIAR'] ?? 0) + (counts['ENVIADO'] ?? 0),
-      aTerminarHoy: trabajoItems.length,
-      completadosHoy: trabajoItems.filter((t) => t.completado).length,
+      aTerminarHoy,
+      completadosHoy,
+      efectividadHoy: aTerminarHoy > 0 ? Math.round((completadosHoy / aTerminarHoy) * 100) : null,
     };
   }).filter((u) => u.abiertos > 0 || u.aTerminarHoy > 0);
 
@@ -440,27 +475,36 @@ export default async function DashboardPage({ searchParams }: { searchParams: { 
   };
 
   // ── Procesar resumen dirección ─────────────────────────────────────
-  const sumar = (items: { moneda: string; precioFinal: unknown; totalFinal: unknown }[], moneda: string) =>
-    items.filter((p) => p.moneda === moneda).reduce((s, p) => s + Number(p.precioFinal ?? p.totalFinal ?? 0), 0);
+  const sumarMontos = (items: { moneda: string; precioFinal: unknown; totalFinal: unknown; totalConIva: unknown }[], moneda: string) =>
+    items.filter((p) => p.moneda === moneda).reduce((s, p) => s + getMontoFinalPresupuesto(p), 0);
+
+  // Enviado en período: deduplicar por presupuestoId (un presupuesto puede tener varias transiciones a ENVIADO)
+  const enviadosPeriodoDedup = new Map<string, typeof enviadosEnPeriodoTransiciones[0]['presupuesto']>();
+  for (const t of enviadosEnPeriodoTransiciones) {
+    if (!enviadosPeriodoDedup.has(t.presupuestoId)) {
+      enviadosPeriodoDedup.set(t.presupuestoId, t.presupuesto);
+    }
+  }
+  const enviadosPeriodoItems = Array.from(enviadosPeriodoDedup.values());
 
   const grandesAbiertos = [
     ...grandesAbiertosARS.map((p) => ({
       id: p.id, numero: p.numero, nombre: p.nombrePresupuesto,
-      monto: Number(p.precioFinal ?? p.totalFinal ?? 0), moneda: p.moneda, cliente: p.cliente.razonSocial,
+      monto: getMontoFinalPresupuesto(p), moneda: p.moneda, cliente: p.cliente.razonSocial,
     })),
     ...grandesAbiertosUSD.map((p) => ({
       id: p.id, numero: p.numero, nombre: p.nombrePresupuesto,
-      monto: Number(p.precioFinal ?? p.totalFinal ?? 0), moneda: p.moneda, cliente: p.cliente.razonSocial,
+      monto: getMontoFinalPresupuesto(p), moneda: p.moneda, cliente: p.cliente.razonSocial,
     })),
   ];
 
   const resumenDireccion = {
-    enviadoARS: sumar(montosEnviados, 'ARS'),
-    enviadoUSD: sumar(montosEnviados, 'USD'),
-    aprobadoARS: sumar(montosAprobados, 'ARS'),
-    aprobadoUSD: sumar(montosAprobados, 'USD'),
-    pendienteRespuestaARS: sumar(montosEnviadosPendientes, 'ARS'),
-    pendienteRespuestaUSD: sumar(montosEnviadosPendientes, 'USD'),
+    enviadoPeriodoARS: sumarMontos(enviadosPeriodoItems, 'ARS'),
+    enviadoPeriodoUSD: sumarMontos(enviadosPeriodoItems, 'USD'),
+    aprobadoARS: sumarMontos(montosAprobadosPeriodo, 'ARS'),
+    aprobadoUSD: sumarMontos(montosAprobadosPeriodo, 'USD'),
+    pendienteRespuestaARS: sumarMontos(pendienteRespuestaActual, 'ARS'),
+    pendienteRespuestaUSD: sumarMontos(pendienteRespuestaActual, 'USD'),
     grandesAbiertos,
   };
 
@@ -471,7 +515,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: { 
     { title: 'Enviados (pendientes)', value: enviados, icon: Send, color: 'text-blue-500', bg: 'bg-blue-50', href: '/presupuestos?estado=ENVIADO' },
     {
       title: 'Aprobados este mes',
-      value: `${aprobados.length} · ${formatCurrency(aprobados.reduce((s, p) => s + Number(p.precioFinal ?? p.totalFinal ?? 0), 0))}`,
+      value: `${aprobados.length} · ${formatCurrency(aprobados.reduce((s, p) => s + getMontoFinalPresupuesto(p), 0))}`,
       icon: CheckCircle, color: 'text-green-500', bg: 'bg-green-50', href: '/presupuestos?estado=APROBADO',
     },
     { title: 'Rechazados este mes', value: rechazados, icon: XCircle, color: 'text-red-500', bg: 'bg-red-50', href: '/presupuestos?estado=RECHAZADO' },
@@ -505,6 +549,18 @@ export default async function DashboardPage({ searchParams }: { searchParams: { 
     </div>
   );
 
+  const fmtMonto = (p: typeof ultimosAprobados[0]) => {
+    const m = getMontoFinalPresupuesto(p);
+    if (p.moneda === 'USD') return `U$D ${m.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    return formatCurrency(m);
+  };
+
+  const getFechaAprobacion = (p: typeof ultimosAprobados[0]) => {
+    if (p.fechaCierreComercial) return p.fechaCierreComercial;
+    if (p.transicionesEstado[0]?.changedAt) return p.transicionesEstado[0].changedAt;
+    return p.fechaCreacion;
+  };
+
   const chartsGrid = (
     <div className="grid gap-6 lg:grid-cols-2">
       <Card>
@@ -521,7 +577,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: { 
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Últimos presupuestos</CardTitle>
+          <CardTitle className="text-base">Últimos aprobados</CardTitle>
         </CardHeader>
         <CardContent className="p-0">
           <Table>
@@ -529,31 +585,39 @@ export default async function DashboardPage({ searchParams }: { searchParams: { 
               <TableRow>
                 <TableHead>Nro</TableHead>
                 <TableHead>Cliente</TableHead>
-                <TableHead>Estado</TableHead>
+                <TableHead className="hidden md:table-cell">Obra</TableHead>
+                <TableHead className="hidden lg:table-cell">Responsable</TableHead>
+                <TableHead className="hidden sm:table-cell">Aprobado</TableHead>
                 <TableHead className="text-right">Total</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {ultimos.map((p) => (
+              {ultimosAprobados.map((p) => (
                 <TableRow key={p.id} className="cursor-pointer">
                   <TableCell className="font-medium">
                     <Link href={`/presupuestos/${p.id}`} className="text-[#00ADEF] hover:underline">
                       #{p.numero}
                     </Link>
                   </TableCell>
-                  <TableCell className="max-w-[140px] truncate">{p.cliente.razonSocial}</TableCell>
-                  <TableCell>
-                    <span style={getEstiloEstado(p.estado)}>{getLabelEstado(p.estado)}</span>
+                  <TableCell className="max-w-[120px] truncate">{p.cliente.razonSocial}</TableCell>
+                  <TableCell className="hidden md:table-cell max-w-[100px] truncate text-slate-500 text-xs">
+                    {p.obra?.nombre ?? 'Sin obra'}
+                  </TableCell>
+                  <TableCell className="hidden lg:table-cell text-slate-500 text-xs">
+                    {p.responsable?.nombre ?? '-'}
+                  </TableCell>
+                  <TableCell className="hidden sm:table-cell text-slate-500 text-xs">
+                    {format(getFechaAprobacion(p), 'dd/MM/yy', { locale: es })}
                   </TableCell>
                   <TableCell className="text-right font-medium">
-                    {formatCurrency(Number(p.totalFinal))}
+                    {fmtMonto(p)}
                   </TableCell>
                 </TableRow>
               ))}
-              {ultimos.length === 0 && (
+              {ultimosAprobados.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={4} className="text-center text-slate-400 py-8">
-                    No hay presupuestos aún
+                  <TableCell colSpan={6} className="text-center text-slate-400 py-8">
+                    No hay presupuestos aprobados aún
                   </TableCell>
                 </TableRow>
               )}

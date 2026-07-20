@@ -10,7 +10,6 @@ import {
   Shield,
   ChevronDown,
   ChevronUp,
-  ExternalLink,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -57,6 +56,7 @@ type CargaResponsable = {
   abiertos: number;
   aTerminarHoy: number;
   completadosHoy: number;
+  efectividadHoy: number | null;
 };
 
 type CalidadComercial = {
@@ -68,8 +68,8 @@ type CalidadComercial = {
 };
 
 type ResumenDireccion = {
-  enviadoARS: number;
-  enviadoUSD: number;
+  enviadoPeriodoARS: number;
+  enviadoPeriodoUSD: number;
   aprobadoARS: number;
   aprobadoUSD: number;
   pendienteRespuestaARS: number;
@@ -285,6 +285,12 @@ function LeanCard({ indicators }: { indicators: LeanIndicator[] }) {
   );
 }
 
+function efectividadColor(pct: number): string {
+  if (pct >= 80) return 'text-green-600';
+  if (pct >= 50) return 'text-yellow-600';
+  return 'text-red-600';
+}
+
 function CargaResponsableCard({ data }: { data: CargaResponsable[] }) {
   return (
     <Card>
@@ -308,14 +314,15 @@ function CargaResponsableCard({ data }: { data: CargaResponsable[] }) {
                 <th className="pb-2 pr-2 font-medium text-center"><span className="text-blue-600">P/enviar</span></th>
                 <th className="pb-2 pr-2 font-medium text-center"><span className="text-sky-600">Env.</span></th>
                 <th className="pb-2 pr-2 font-medium text-center">Hoy</th>
-                <th className="pb-2 font-medium text-center"><span className="text-green-600">Compl.</span></th>
+                <th className="pb-2 pr-2 font-medium text-center"><span className="text-green-600">Compl.</span></th>
+                <th className="pb-2 font-medium text-center">Efect.</th>
               </tr>
             </thead>
             <tbody>
               {data.map((r) => (
                 <tr key={r.id} className="border-b border-slate-50 hover:bg-slate-50/50">
                   <td className="py-2 pr-3 font-medium text-slate-700">
-                    <Link href={`/presupuestos/mi-trabajo`} className="hover:text-[#00ADEF]">
+                    <Link href="/presupuestos/mi-trabajo" className="hover:text-[#00ADEF]">
                       {r.nombre}
                     </Link>
                   </td>
@@ -327,9 +334,14 @@ function CargaResponsableCard({ data }: { data: CargaResponsable[] }) {
                   <Cell n={r.paraEnviar} color="blue" />
                   <Cell n={r.enviados} color="sky" />
                   <td className="py-2 pr-2 text-center">{r.aTerminarHoy || '-'}</td>
-                  <td className="py-2 text-center">
+                  <td className="py-2 pr-2 text-center">
                     {r.aTerminarHoy > 0 ? (
                       <span className="text-green-600 font-medium">{r.completadosHoy}/{r.aTerminarHoy}</span>
+                    ) : '-'}
+                  </td>
+                  <td className="py-2 text-center font-semibold">
+                    {r.efectividadHoy != null ? (
+                      <span className={efectividadColor(r.efectividadHoy)}>{r.efectividadHoy}%</span>
                     ) : '-'}
                   </td>
                 </tr>
@@ -417,12 +429,12 @@ function ResumenDireccionCard({ data }: { data: ResumenDireccion }) {
       {open && (
         <CardContent>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            <MontoCard label="Enviado ARS" monto={fmtARS(data.enviadoARS)} color="text-sky-700" />
-            <MontoCard label="Enviado USD" monto={fmtUSD(data.enviadoUSD)} color="text-sky-700" />
+            <MontoCard label="Enviado en período ARS" monto={fmtARS(data.enviadoPeriodoARS)} color="text-sky-700" />
+            <MontoCard label="Enviado en período USD" monto={fmtUSD(data.enviadoPeriodoUSD)} color="text-sky-700" />
             <MontoCard label="Aprobado ARS" monto={fmtARS(data.aprobadoARS)} color="text-green-700" />
             <MontoCard label="Aprobado USD" monto={fmtUSD(data.aprobadoUSD)} color="text-green-700" />
-            <MontoCard label="Pend. respuesta ARS" monto={fmtARS(data.pendienteRespuestaARS)} color="text-amber-700" />
-            <MontoCard label="Pend. respuesta USD" monto={fmtUSD(data.pendienteRespuestaUSD)} color="text-amber-700" />
+            <MontoCard label="Pend. respuesta actual ARS" monto={fmtARS(data.pendienteRespuestaARS)} color="text-amber-700" />
+            <MontoCard label="Pend. respuesta actual USD" monto={fmtUSD(data.pendienteRespuestaUSD)} color="text-amber-700" />
           </div>
           {data.grandesAbiertos.length > 0 && (
             <div className="mt-4">

@@ -94,6 +94,7 @@ export default async function PresupuestoDetallePage({ params }: { params: { id:
               obraNombre: presupuesto.obra?.nombre ?? null,
               precioFinal: presupuesto.precioFinal != null ? Number(presupuesto.precioFinal) : null,
               totalFinal: Number(presupuesto.totalFinal),
+              totalConIva: presupuesto.totalConIva != null ? Number(presupuesto.totalConIva) : null,
               cuentaCorrienteId: presupuesto.cuentaCorriente?.id ?? null,
               moneda: presupuesto.moneda,
             }}
