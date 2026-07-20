@@ -858,6 +858,9 @@ function PresupuestoRow({
           {p.cliente.razonSocial}
         </span>
       )}
+      <span className="text-xs text-slate-400 truncate max-w-[120px] hidden sm:inline">
+        · {p.obra?.nombre ?? 'Sin obra'}
+      </span>
     </div>
   );
 }
