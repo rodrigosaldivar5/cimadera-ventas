@@ -23,28 +23,36 @@ export function TotalesPresupuesto({ presupuestoId, totalFinal, precioFinal, tas
       ? `U$D ${n.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
       : formatCurrency(n);
 
-  const [neto, setNeto] = useState(String(precioFinal ?? totalFinal));
+  const netoInicial = precioFinal != null && precioFinal > 0 ? precioFinal : totalFinal;
+  const [neto, setNeto] = useState(String(netoInicial));
   const [editingNeto, setEditingNeto] = useState(false);
   const [tasa, setTasa] = useState(String(tasaIvaInicial));
   const [dirty, setDirty] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState(false);
 
   const netoNum = parseFloat(neto) || 0;
   const tasaNum = parseFloat(tasa) || 0;
   const montoIva = netoNum * (tasaNum / 100);
   const total = tasaNum === 0 ? netoNum : netoNum + montoIva;
 
-  const showSubtotalCalc = totalFinal > 0 && precioFinal != null;
+  const showSubtotalCalc = totalFinal > 0 && precioFinal != null && precioFinal > 0;
 
   const handleGuardar = async () => {
     setSaving(true);
-    await fetch(`/api/presupuestos/${presupuestoId}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ precioFinal: netoNum, tasaIva: tasaNum, montoIva, totalConIva: total }),
-    });
+    setError(false);
+    try {
+      const res = await fetch(`/api/presupuestos/${presupuestoId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ precioFinal: netoNum > 0 ? netoNum : null, tasaIva: tasaNum, montoIva, totalConIva: total }),
+      });
+      if (!res.ok) throw new Error();
+      setDirty(false);
+    } catch {
+      setError(true);
+    }
     setSaving(false);
-    setDirty(false);
   };
 
   return (
@@ -70,7 +78,7 @@ export function TotalesPresupuesto({ presupuestoId, totalFinal, precioFinal, tas
                 placeholder="Ingresá el monto neto"
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') setEditingNeto(false);
-                  if (e.key === 'Escape') { setNeto(String(precioFinal ?? totalFinal)); setEditingNeto(false); }
+                  if (e.key === 'Escape') { setNeto(String(netoInicial)); setEditingNeto(false); setDirty(false); }
                 }}
               />
               <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => setEditingNeto(false)}>
@@ -124,6 +132,10 @@ export function TotalesPresupuesto({ presupuestoId, totalFinal, precioFinal, tas
           </div>
           <span>{fmtAmt(total)}</span>
         </div>
+
+        {error && (
+          <p className="text-xs text-red-500 text-right">Error al guardar. Intentá de nuevo.</p>
+        )}
 
         {dirty && (
           <div className="flex justify-end pt-1">

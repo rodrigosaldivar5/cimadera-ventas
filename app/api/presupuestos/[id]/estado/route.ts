@@ -5,6 +5,7 @@ import { EstadoPresupuesto } from '@prisma/client';
 import { registrarAuditoria } from '@/lib/auditoria';
 import { emitEvent, EVENT_TYPES } from '@/lib/events/event-emitter';
 import { clasificarTransicionPresupuesto } from '@/lib/mi-trabajo';
+import { getNetoPresupuesto } from '@/lib/presupuestos/montos';
 
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
   const session = await auth();
@@ -139,7 +140,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     });
     if (p) {
       const divisionGlobal = p.division ?? 'MADERA';
-      const neto = Number(p.precioFinal ?? p.totalFinal ?? 0);
+      const neto = getNetoPresupuesto(p);
       const productos = p.lineas.map((l) => ({
         lineaId: l.id,
         productoNombre: l.productoNombre ?? l.item?.nombre ?? 'Sin nombre',
@@ -227,7 +228,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
           moneda: p.moneda,
           monto: {
             moneda: p.moneda,
-            neto: Number(p.precioFinal ?? p.totalFinal ?? 0),
+            neto: getNetoPresupuesto(p),
             totalConIva: Number(p.totalConIva ?? 0),
           },
           resultadoComercial: p.resultadoComercial,

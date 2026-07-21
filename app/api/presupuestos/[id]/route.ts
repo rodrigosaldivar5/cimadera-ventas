@@ -163,16 +163,20 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     const data = await req.json();
     const updateData: Record<string, unknown> = {};
     if ('responsableId' in data) updateData.responsableId = data.responsableId ?? null;
-    if ('precioFinal' in data) updateData.precioFinal = data.precioFinal != null && data.precioFinal !== '' ? Number(data.precioFinal) : null;
+    if ('precioFinal' in data) {
+      const pf = data.precioFinal != null && data.precioFinal !== '' ? Number(data.precioFinal) : 0;
+      updateData.precioFinal = pf > 0 ? pf : null;
+    }
 
     if ('precioFinal' in data || 'tasaIva' in data) {
       const current = await prisma.presupuesto.findUnique({
         where: { id: params.id },
         select: { precioFinal: true, totalFinal: true, tasaIva: true },
       });
-      const base = data.precioFinal != null
-        ? Number(data.precioFinal)
-        : (current?.precioFinal != null ? Number(current.precioFinal) : Number(current?.totalFinal ?? 0));
+      const pfSent = data.precioFinal != null ? Number(data.precioFinal) : 0;
+      const base = pfSent > 0
+        ? pfSent
+        : (current?.precioFinal != null && Number(current.precioFinal) > 0 ? Number(current.precioFinal) : Number(current?.totalFinal ?? 0));
       const tasa = data.tasaIva != null ? Number(data.tasaIva) : Number(current?.tasaIva ?? 21);
       const montoIva = base * (tasa / 100);
       const totalConIva = tasa === 0 ? base : base + montoIva;

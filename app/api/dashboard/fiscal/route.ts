@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { getNetoPresupuesto } from '@/lib/presupuestos/montos';
 import { startOfMonth, endOfMonth, startOfYear, endOfYear } from 'date-fns';
 
 export async function GET(req: NextRequest) {
@@ -57,7 +58,7 @@ export async function GET(req: NextRequest) {
     if (!grouped[key]) grouped[key] = { neto0: 0, neto105: 0, neto21: 0, iva105: 0, iva21: 0, totalConIva: 0 };
 
     const tasa = Number(r.tasaIva);
-    const neto = Number(r.precioFinal ?? r.totalFinal);
+    const neto = getNetoPresupuesto(r);
     const iva = Number(r.montoIva) > 0 ? Number(r.montoIva) : neto * (tasa / 100);
     const total = Number(r.totalConIva) > 0 ? Number(r.totalConIva) : (tasa === 0 ? neto : neto + iva);
 

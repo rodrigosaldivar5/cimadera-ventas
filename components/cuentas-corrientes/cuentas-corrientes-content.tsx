@@ -22,6 +22,7 @@ import {
   FileText, DollarSign, AlertTriangle, X, Download,
 } from 'lucide-react';
 import { formatCurrency, formatDate } from '@/lib/utils';
+import { getNetoPresupuesto, getMontoFinalPresupuesto } from '@/lib/presupuestos/montos';
 import type { CuentaCorriente, MovimientoCuenta, TipoMovimiento, EstadoCuenta } from '@prisma/client';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -148,8 +149,7 @@ function serializeCuenta(c: any): CuentaConRelaciones {
 }
 
 function resolverMontoContrato(p: { precioFinal?: number | null; totalFinal: number; totalConIva?: number | null; tasaIva?: number | null }): number {
-  if (p.totalConIva != null && Number(p.totalConIva) > 0) return Number(p.totalConIva);
-  return Number(p.precioFinal ?? p.totalFinal ?? 0);
+  return getMontoFinalPresupuesto(p);
 }
 
 // ── Main Component ────────────────────────────────────────────────────────────
@@ -358,7 +358,7 @@ export function CuentasCorrientesContent({ cuentasIniciales, clientes, presupues
       if (pres.moneda === 'USD' || pres.moneda === 'ARS') setNfMoneda(pres.moneda);
       const tasa = Number(pres.tasaIva ?? 0);
       if (tasa > 0 && pres.montoIva != null) {
-        setNfSnapshotIva({ tasaIva: tasa, neto: Number(pres.precioFinal ?? pres.totalFinal ?? 0), iva: Number(pres.montoIva) });
+        setNfSnapshotIva({ tasaIva: tasa, neto: getNetoPresupuesto(pres), iva: Number(pres.montoIva) });
       } else {
         setNfSnapshotIva(null);
       }
@@ -432,7 +432,7 @@ export function CuentasCorrientesContent({ cuentasIniciales, clientes, presupues
     setNfMonto(Number(monto).toFixed(2));
     const tasa = Number(ps.tasaIva ?? 0);
     if (tasa > 0 && ps.montoIva != null) {
-      setNfSnapshotIva({ tasaIva: tasa, neto: Number(ps.precioFinal ?? ps.totalFinal ?? 0), iva: Number(ps.montoIva) });
+      setNfSnapshotIva({ tasaIva: tasa, neto: getNetoPresupuesto(ps), iva: Number(ps.montoIva) });
     } else {
       setNfSnapshotIva(null);
     }
@@ -1012,8 +1012,8 @@ export function CuentasCorrientesContent({ cuentasIniciales, clientes, presupues
                   <div className="flex items-center gap-3 mt-0.5">
                     <span className="text-sm font-bold text-[#633806]">
                       {ps.moneda === 'USD'
-                        ? `U$D ${Number(ps.precioFinal ?? ps.totalFinal).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-                        : formatCurrency(Number(ps.precioFinal ?? ps.totalFinal))}
+                        ? `U$D ${getNetoPresupuesto(ps).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                        : formatCurrency(getNetoPresupuesto(ps))}
                     </span>
                     <span className="text-xs text-[#8a6030]">
                       Aprobado el {formatDate(new Date(ps.fechaCreacion))}
@@ -1691,7 +1691,7 @@ export function CuentasCorrientesContent({ cuentasIniciales, clientes, presupues
                     <SelectItem value="none">Sin presupuesto</SelectItem>
                     {nfPresupuestos.map((p) => (
                       <SelectItem key={p.id} value={p.id}>
-                        N° {String(p.numero).padStart(4, '0')} — {formatCurrency(Number(p.precioFinal ?? p.totalFinal ?? 0))}
+                        N° {String(p.numero).padStart(4, '0')} — {formatCurrency(getNetoPresupuesto(p))}
                       </SelectItem>
                     ))}
                   </SelectContent>

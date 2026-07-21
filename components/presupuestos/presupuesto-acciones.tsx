@@ -25,6 +25,7 @@ import {
   LABEL_TIPO_MOVIMIENTO,
   MOTIVOS_TRANSICION,
 } from '@/lib/mi-trabajo';
+import { getMontoFinalPresupuesto } from '@/lib/presupuestos/montos';
 
 type PresupuestoParaPDF = Parameters<typeof generarPresupuestoPDF>[0];
 
@@ -114,9 +115,7 @@ export function PresupuestoAcciones({ presupuesto, presupuestoPDF, presupuestoDa
     setTransicionMotivo('');
 
     if (res.ok && nuevoEstado === 'APROBADO' && presupuestoDatos && !presupuestoDatos.cuentaCorrienteId) {
-      const monto = (presupuestoDatos.totalConIva && presupuestoDatos.totalConIva > 0)
-        ? presupuestoDatos.totalConIva
-        : (presupuestoDatos.precioFinal ?? presupuestoDatos.totalFinal ?? 0);
+      const monto = getMontoFinalPresupuesto(presupuestoDatos);
       setCcMonto(Number(monto).toFixed(2));
       setSuggestCuenta(true);
     } else {
@@ -347,12 +346,10 @@ export function PresupuestoAcciones({ presupuesto, presupuestoPDF, presupuestoDa
           {presupuestoDatos && (
             <p className="text-2xl font-bold text-[#00ADEF] text-center">
               {(() => {
-                const m = (presupuestoDatos.totalConIva && presupuestoDatos.totalConIva > 0)
-                  ? presupuestoDatos.totalConIva
-                  : (presupuestoDatos.precioFinal ?? presupuestoDatos.totalFinal ?? 0);
+                const m = getMontoFinalPresupuesto(presupuestoDatos);
                 return presupuestoDatos.moneda === 'USD'
-                  ? `U$D ${Number(m).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-                  : formatCurrency(Number(m));
+                  ? `U$D ${m.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                  : formatCurrency(m);
               })()}
             </p>
           )}

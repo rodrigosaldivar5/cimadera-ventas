@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { getNetoPresupuesto } from '@/lib/presupuestos/montos';
 import { startOfMonth, endOfMonth, subMonths, format } from 'date-fns';
 import { es } from 'date-fns/locale';
 
@@ -46,7 +47,7 @@ export async function GET(req: NextRequest) {
       ]);
 
       const ventasARS = aprobados.reduce(
-        (s, p) => s + Number(p.precioFinal ?? p.totalFinal ?? 0),
+        (s, p) => s + getNetoPresupuesto(p),
         0,
       );
       const cobrosUSDTotal = cobrosUSD.reduce((s, m) => s + Number(m.monto), 0);
