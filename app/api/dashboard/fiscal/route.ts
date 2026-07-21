@@ -9,29 +9,37 @@ export async function GET(req: NextRequest) {
   if (!session?.user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
 
   const { searchParams } = new URL(req.url);
-  const periodo = searchParams.get('periodo') ?? 'mes_actual';
-  const mesParam = Number(searchParams.get('mes') ?? new Date().getMonth() + 1);
-  const anioParam = Number(searchParams.get('anio') ?? new Date().getFullYear());
-  const agruparPor = searchParams.get('agrupar') ?? 'mes';
+  const desdeParam = searchParams.get('desde');
+  const hastaParam = searchParams.get('hasta');
 
   const now = new Date();
   let inicio: Date;
   let fin: Date;
 
-  if (periodo === 'mes_actual') {
-    inicio = startOfMonth(now);
-    fin = endOfMonth(now);
-  } else if (periodo === 'anio_actual') {
-    inicio = startOfYear(now);
-    fin = endOfYear(now);
-  } else if (periodo === 'mes') {
-    const ref = new Date(anioParam, mesParam - 1, 1);
-    inicio = startOfMonth(ref);
-    fin = endOfMonth(ref);
+  if (desdeParam && hastaParam) {
+    inicio = new Date(desdeParam);
+    fin = new Date(hastaParam);
   } else {
-    inicio = startOfYear(new Date(anioParam, 0, 1));
-    fin = endOfYear(new Date(anioParam, 0, 1));
+    const periodo = searchParams.get('periodo') ?? 'mes_actual';
+    const mesParam = Number(searchParams.get('mes') ?? now.getMonth() + 1);
+    const anioParam = Number(searchParams.get('anio') ?? now.getFullYear());
+    if (periodo === 'mes_actual') {
+      inicio = startOfMonth(now);
+      fin = endOfMonth(now);
+    } else if (periodo === 'anio_actual') {
+      inicio = startOfYear(now);
+      fin = endOfYear(now);
+    } else if (periodo === 'mes') {
+      const ref = new Date(anioParam, mesParam - 1, 1);
+      inicio = startOfMonth(ref);
+      fin = endOfMonth(ref);
+    } else {
+      inicio = startOfYear(new Date(anioParam, 0, 1));
+      fin = endOfYear(new Date(anioParam, 0, 1));
+    }
   }
+
+  const agruparPor = searchParams.get('agrupar') ?? 'mes';
 
   const rows = await prisma.presupuesto.findMany({
     where: { estado: 'APROBADO', fechaCreacion: { gte: inicio, lte: fin } },

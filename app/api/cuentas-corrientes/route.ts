@@ -73,11 +73,20 @@ export async function POST(req: NextRequest) {
       });
       if (presupuesto) {
         monto = getMontoFinalPresupuesto(presupuesto);
+        console.log('[CC] Monto calculado para presupuesto', presupuestoId, {
+          precioFinal: presupuesto.precioFinal != null ? Number(presupuesto.precioFinal) : null,
+          totalFinal: Number(presupuesto.totalFinal),
+          totalConIva: presupuesto.totalConIva != null ? Number(presupuesto.totalConIva) : null,
+          montoCalculado: monto,
+        });
       }
     }
 
     if (!monto || monto <= 0) {
-      return NextResponse.json({ error: 'Monto inválido' }, { status: 400 });
+      return NextResponse.json(
+        { error: 'El presupuesto no tiene un monto válido para crear la cuenta corriente.' },
+        { status: 400 },
+      );
     }
     const idxInicio = Number(indiceInicio);
     const idxActual = Number(indiceActual);

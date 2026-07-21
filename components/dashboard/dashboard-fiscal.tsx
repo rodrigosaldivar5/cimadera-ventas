@@ -1,10 +1,8 @@
-﻿'use client';
+'use client';
 
 import { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Loader2, Download, Receipt, TrendingUp, FileText, DollarSign } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
@@ -38,6 +36,11 @@ type FiscalData = {
   fin: string;
 };
 
+interface DashboardFiscalProps {
+  desde?: string;
+  hasta?: string;
+}
+
 function periodoLabel(key: string): string {
   if (/^\d{4}$/.test(key)) return key;
   const [yyyy, mm] = key.split('-');
@@ -45,36 +48,37 @@ function periodoLabel(key: string): string {
   return `${meses[Number(mm) - 1]} ${yyyy}`;
 }
 
-export function DashboardFiscal() {
-  const now = new Date();
-  const [tipoPeriodo, setTipoPeriodo] = useState<'mes_actual' | 'anio_actual' | 'mes' | 'anio'>('mes_actual');
-  const [mesEspecifico, setMesEspecifico] = useState(String(now.getMonth() + 1));
-  const [anioEspecifico, setAnioEspecifico] = useState(String(now.getFullYear()));
+function formatPeriodoExport(desde?: string, hasta?: string): string {
+  if (!desde || !hasta) return 'Mes actual';
+  const d = new Date(desde);
+  const h = new Date(hasta);
+  const meses = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+  if (d.getMonth() === h.getMonth() && d.getFullYear() === h.getFullYear()) {
+    return `${meses[d.getMonth()]} ${d.getFullYear()}`;
+  }
+  return `${meses[d.getMonth()]} ${d.getFullYear()} - ${meses[h.getMonth()]} ${h.getFullYear()}`;
+}
+
+export function DashboardFiscal({ desde, hasta }: DashboardFiscalProps) {
   const [data, setData] = useState<FiscalData | null>(null);
   const [loading, setLoading] = useState(false);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
-    const params = new URLSearchParams({ periodo: tipoPeriodo });
-    const agrupar = tipoPeriodo === 'anio_actual' || tipoPeriodo === 'anio' ? 'anio' : 'mes';
-    params.set('agrupar', agrupar);
-    if (tipoPeriodo === 'mes') params.set('mes', mesEspecifico);
-    if (tipoPeriodo === 'mes' || tipoPeriodo === 'anio') params.set('anio', anioEspecifico);
+    const params = new URLSearchParams();
+    if (desde) params.set('desde', desde);
+    if (hasta) params.set('hasta', hasta);
     const res = await fetch(`/api/dashboard/fiscal?${params}`);
     if (res.ok) setData(await res.json());
     setLoading(false);
-  }, [tipoPeriodo, mesEspecifico, anioEspecifico]);
+  }, [desde, hasta]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
   const handleExportarPDF = async () => {
     if (!data) return;
     const { generarResumenFiscalPDF } = await import('@/lib/pdf/generar-resumen-fiscal');
-    const periodoStr =
-      tipoPeriodo === 'mes_actual' ? 'Mes actual' :
-      tipoPeriodo === 'anio_actual' ? 'Año actual' :
-      tipoPeriodo === 'mes' ? `${['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'][Number(mesEspecifico)-1]} ${anioEspecifico}` :
-      `Año ${anioEspecifico}`;
+    const periodoStr = formatPeriodoExport(desde, hasta);
     await generarResumenFiscalPDF({ filas: data.filas, totales: data.totales, has105: data.has105, periodo: periodoStr });
   };
 
@@ -82,46 +86,8 @@ export function DashboardFiscal() {
 
   return (
     <div className="space-y-5">
-      {/* Selector de período */}
       <div className="flex flex-wrap items-center gap-3">
-        <Select value={tipoPeriodo} onValueChange={(v) => setTipoPeriodo(v as typeof tipoPeriodo)}>
-          <SelectTrigger className="w-44">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="mes_actual">Este mes</SelectItem>
-            <SelectItem value="anio_actual">Este año</SelectItem>
-            <SelectItem value="mes">Mes específico</SelectItem>
-            <SelectItem value="anio">Año específico</SelectItem>
-          </SelectContent>
-        </Select>
-
-        {(tipoPeriodo === 'mes' || tipoPeriodo === 'anio') && (
-          <Input
-            type="number"
-            min={2020}
-            max={2099}
-            value={anioEspecifico}
-            onChange={(e) => setAnioEspecifico(e.target.value)}
-            className="w-24"
-            placeholder="Año"
-          />
-        )}
-        {tipoPeriodo === 'mes' && (
-          <Select value={mesEspecifico} onValueChange={setMesEspecifico}>
-            <SelectTrigger className="w-36">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'].map((m, i) => (
-                <SelectItem key={i+1} value={String(i+1)}>{m}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        )}
-
         {loading && <Loader2 className="h-4 w-4 animate-spin text-slate-400" />}
-
         <Button variant="outline" size="sm" onClick={handleExportarPDF} disabled={!data || data.filas.length === 0} className="ml-auto">
           <Download className="mr-1.5 h-4 w-4" />
           Exportar PDF fiscal
@@ -218,5 +184,3 @@ export function DashboardFiscal() {
     </div>
   );
 }
-
-

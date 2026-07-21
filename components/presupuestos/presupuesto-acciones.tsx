@@ -64,6 +64,7 @@ export function PresupuestoAcciones({ presupuesto, presupuestoPDF, presupuestoDa
 
   // ── Dialog sugerencia cuenta corriente ────────────────────────────────────
   const [suggestCuenta, setSuggestCuenta] = useState(false);
+  const [suggestMonto, setSuggestMonto] = useState(0);
 
   // ── Dialog transición especial ────────────────────────────────────────────
   const [transicionDialog, setTransicionDialog] = useState(false);
@@ -115,7 +116,12 @@ export function PresupuestoAcciones({ presupuesto, presupuestoPDF, presupuestoDa
     setTransicionMotivo('');
 
     if (res.ok && nuevoEstado === 'APROBADO' && presupuestoDatos && !presupuestoDatos.cuentaCorrienteId) {
-      const monto = getMontoFinalPresupuesto(presupuestoDatos);
+      const fresh = await res.json().catch(() => null);
+      const source = fresh
+        ? { precioFinal: fresh.precioFinal, totalFinal: fresh.totalFinal, totalConIva: fresh.totalConIva }
+        : presupuestoDatos;
+      const monto = getMontoFinalPresupuesto(source);
+      setSuggestMonto(monto);
       setCcMonto(Number(monto).toFixed(2));
       setSuggestCuenta(true);
     } else {
@@ -343,14 +349,11 @@ export function PresupuestoAcciones({ presupuesto, presupuestoPDF, presupuestoDa
             El Presupuesto N° {presupuesto.numero} fue marcado como Aprobado.<br />
             ¿Deseás añadirlo a Cuentas Corrientes?
           </p>
-          {presupuestoDatos && (
+          {suggestMonto > 0 && (
             <p className="text-2xl font-bold text-[#00ADEF] text-center">
-              {(() => {
-                const m = getMontoFinalPresupuesto(presupuestoDatos);
-                return presupuestoDatos.moneda === 'USD'
-                  ? `U$D ${m.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-                  : formatCurrency(m);
-              })()}
+              {presupuestoDatos?.moneda === 'USD'
+                ? `U$D ${suggestMonto.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                : formatCurrency(suggestMonto)}
             </p>
           )}
           <DialogFooter className="flex-col gap-2 sm:flex-row sm:justify-center">

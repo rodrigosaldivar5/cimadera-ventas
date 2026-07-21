@@ -738,7 +738,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: { 
         </TabsContent>
 
         <TabsContent value="fiscal" className="mt-4">
-          <DashboardFiscal />
+          <DashboardFiscal desde={desde} hasta={hasta} />
         </TabsContent>
 
         <TabsContent value="monetario" className="mt-4">
