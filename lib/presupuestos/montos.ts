@@ -7,7 +7,7 @@
  *   totalConIva  — neto + IVA, es el monto total real a cobrar
  *
  * Lógica:
- *   neto = precioFinal ?? totalFinal
+ *   neto = precioFinal > 0 ? precioFinal : totalFinal
  *   montoFinal = totalConIva si > 0, sino neto (presupuestos sin IVA o legacy)
  */
 

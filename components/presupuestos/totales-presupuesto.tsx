@@ -29,7 +29,7 @@ export function TotalesPresupuesto({ presupuestoId, totalFinal, precioFinal, tas
   const [tasa, setTasa] = useState(String(tasaIvaInicial));
   const [dirty, setDirty] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const netoNum = parseFloat(neto) || 0;
   const tasaNum = parseFloat(tasa) || 0;
@@ -40,17 +40,20 @@ export function TotalesPresupuesto({ presupuestoId, totalFinal, precioFinal, tas
 
   const handleGuardar = async () => {
     setSaving(true);
-    setError(false);
+    setError(null);
     try {
       const res = await fetch(`/api/presupuestos/${presupuestoId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ precioFinal: netoNum > 0 ? netoNum : null, tasaIva: tasaNum, montoIva, totalConIva: total }),
       });
-      if (!res.ok) throw new Error();
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.detail || body.error || 'Error desconocido');
+      }
       setDirty(false);
-    } catch {
-      setError(true);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al guardar');
     }
     setSaving(false);
   };
@@ -134,7 +137,7 @@ export function TotalesPresupuesto({ presupuestoId, totalFinal, precioFinal, tas
         </div>
 
         {error && (
-          <p className="text-xs text-red-500 text-right">Error al guardar. Intentá de nuevo.</p>
+          <p className="text-xs text-red-500 text-right">Error: {error}</p>
         )}
 
         {dirty && (

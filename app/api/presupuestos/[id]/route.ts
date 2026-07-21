@@ -150,8 +150,10 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
     }
 
     return NextResponse.json(presupuesto);
-  } catch {
-    return NextResponse.json({ error: 'Error al actualizar' }, { status: 500 });
+  } catch (err) {
+    console.error('[PUT /presupuestos]', params.id, err);
+    const detail = err instanceof Error ? err.message : String(err);
+    return NextResponse.json({ error: 'Error al actualizar', detail }, { status: 500 });
   }
 }
 
@@ -223,8 +225,10 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     }
 
     return NextResponse.json(presupuesto);
-  } catch {
-    return NextResponse.json({ error: 'Error al actualizar' }, { status: 500 });
+  } catch (err) {
+    console.error('[PATCH /presupuestos]', params.id, err);
+    const detail = err instanceof Error ? err.message : String(err);
+    return NextResponse.json({ error: 'Error al actualizar', detail }, { status: 500 });
   }
 }
 
