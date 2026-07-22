@@ -96,6 +96,18 @@ export function clasificarTransicionPresupuesto(
   return TRANSICIONES_ESPECIALES[key] ?? null;
 }
 
+export const ESTADOS_FINALIZADOS_COTIZADOR: EstadoPresupuesto[] = [
+  'FINALIZADO', 'PARA_ENVIAR', 'ENVIADO', 'APROBADO', 'RECHAZADO',
+];
+
+export const ESTADOS_ABIERTOS_COTIZADOR: EstadoPresupuesto[] = [
+  'PENDIENTE', 'EN_PROCESO', 'FRENADO',
+];
+
+export function esFinalizadoParaCotizador(estado: string): boolean {
+  return (ESTADOS_FINALIZADOS_COTIZADOR as string[]).includes(estado);
+}
+
 export function getFechaKeyArgentina(date?: Date): string {
   const d = date ?? new Date();
   return d.toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' });

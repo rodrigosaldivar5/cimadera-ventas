@@ -19,6 +19,13 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuCheckboxItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import type { PerfilMiTrabajo } from '@/lib/mi-trabajo';
 
 type PresupuestoBasico = {
@@ -95,7 +102,13 @@ const ESTADO_LABELS: Record<string, string> = {
   RECHAZADO: 'Rechazado',
 };
 
-const TODOS_ESTADOS = ['PENDIENTE', 'EN_PROCESO', 'FRENADO', 'FINALIZADO', 'PARA_ENVIAR', 'ENVIADO'];
+const TODOS_ESTADOS = ['PENDIENTE', 'EN_PROCESO', 'FRENADO', 'FINALIZADO', 'PARA_ENVIAR', 'ENVIADO', 'APROBADO', 'RECHAZADO'];
+
+const ESTADOS_DEFAULT: Record<PerfilMiTrabajo, string[]> = {
+  vendedor: ['PENDIENTE', 'EN_PROCESO', 'FRENADO', 'FINALIZADO'],
+  gerencia: ['FINALIZADO', 'PARA_ENVIAR', 'ENVIADO', 'APROBADO', 'RECHAZADO'],
+  direccion: ['PARA_ENVIAR', 'ENVIADO', 'APROBADO', 'RECHAZADO'],
+};
 
 export function MiTrabajoContent({
   perfil,
@@ -106,7 +119,8 @@ export function MiTrabajoContent({
   userId,
 }: Props) {
   const [selectedResponsable, setSelectedResponsable] = useState<string>(isManager ? '__all__' : userId);
-  const [filtroEstado, setFiltroEstado] = useState<string>('');
+  const [filtroEstados, setFiltroEstados] = useState<string[]>(ESTADOS_DEFAULT[perfil] ?? []);
+  const [estadosOpen, setEstadosOpen] = useState(false);
   const [busqueda, setBusqueda] = useState('');
   const [trabajoHoy, setTrabajoHoy] = useState<TrabajoDiaItem[]>([]);
   const [pendientesAnteriores, setPendientesAnteriores] = useState<TrabajoDiaItem[]>([]);
@@ -300,8 +314,8 @@ export function MiTrabajoContent({
     if (isManager && selectedResponsable !== '__all__') {
       list = list.filter((p) => p.responsable?.id === selectedResponsable);
     }
-    if (filtroEstado) {
-      list = list.filter((p) => p.estado === filtroEstado);
+    if (filtroEstados.length > 0) {
+      list = list.filter((p) => filtroEstados.includes(p.estado));
     }
     if (busqueda) {
       const q = busqueda.toLowerCase();
@@ -315,7 +329,7 @@ export function MiTrabajoContent({
       );
     }
     return list;
-  }, [presupuestos, idsEnHoy, isManager, selectedResponsable, filtroEstado, busqueda]);
+  }, [presupuestos, idsEnHoy, isManager, selectedResponsable, filtroEstados, busqueda]);
 
   const completados = trabajoHoy.filter((t) => t.completado).length;
   const total = trabajoHoy.length;
@@ -370,7 +384,7 @@ export function MiTrabajoContent({
             value={selectedResponsable}
             onChange={(e) => {
               setSelectedResponsable(e.target.value);
-              setFiltroEstado('');
+              setFiltroEstados(ESTADOS_DEFAULT[perfil] ?? []);
               setBusqueda('');
             }}
             className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm text-slate-700 focus:border-[#00ADEF] focus:outline-none focus:ring-1 focus:ring-[#00ADEF]"
@@ -522,16 +536,47 @@ export function MiTrabajoContent({
                   className="h-8 w-48 pl-8 text-sm"
                 />
               </div>
-              <select
-                value={filtroEstado}
-                onChange={(e) => setFiltroEstado(e.target.value)}
-                className="h-8 rounded-md border border-slate-200 bg-white px-2 text-sm text-slate-700"
-              >
-                <option value="">Todos los estados</option>
-                {TODOS_ESTADOS.map((e) => (
-                  <option key={e} value={e}>{ESTADO_LABELS[e]}</option>
-                ))}
-              </select>
+              <DropdownMenu open={estadosOpen} onOpenChange={setEstadosOpen}>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" className="h-8 w-44 justify-between font-normal text-sm">
+                    <span className="truncate">
+                      {filtroEstados.length === 0
+                        ? 'Todos los estados'
+                        : filtroEstados.length === 1
+                          ? ESTADO_LABELS[filtroEstados[0]]
+                          : `${filtroEstados.length} estados`}
+                    </span>
+                    <ChevronDown className="ml-2 h-3.5 w-3.5 opacity-50 shrink-0" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="w-52">
+                  {TODOS_ESTADOS.map((e) => (
+                    <DropdownMenuCheckboxItem
+                      key={e}
+                      checked={filtroEstados.includes(e)}
+                      onCheckedChange={(checked) =>
+                        setFiltroEstados(prev => checked ? [...prev, e] : prev.filter(x => x !== e))
+                      }
+                      onSelect={(ev) => ev.preventDefault()}
+                    >
+                      {ESTADO_LABELS[e]}
+                    </DropdownMenuCheckboxItem>
+                  ))}
+                  <DropdownMenuSeparator />
+                  <div className="flex gap-2 p-2">
+                    <Button variant="ghost" size="sm" className="flex-1 h-7 text-xs" onClick={() => setFiltroEstados([])}>
+                      Limpiar
+                    </Button>
+                    <Button
+                      size="sm"
+                      className="flex-1 h-7 text-xs bg-[#00ADEF] hover:bg-[#0089C7]"
+                      onClick={() => setEstadosOpen(false)}
+                    >
+                      Aplicar
+                    </Button>
+                  </div>
+                </DropdownMenuContent>
+              </DropdownMenu>
               {isManager && selectedResponsable === '__all__' && (
                 <select
                   value=""

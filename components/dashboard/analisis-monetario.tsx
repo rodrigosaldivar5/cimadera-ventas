@@ -9,7 +9,7 @@ type Row = {
   ventasARS: number;
   tcPromedio: number | null;
   equivUSD: number | null;
-  cobrosUSD: number;
+  ventasUSD: number;
   totalUSD: number;
 };
 
@@ -51,10 +51,10 @@ export function AnalisisMonetario({ desde, hasta }: { desde?: string; hasta?: st
     (acc, r) => ({
       ventasARS: acc.ventasARS + r.ventasARS,
       equivUSD: (acc.equivUSD ?? 0) + (r.equivUSD ?? 0),
-      cobrosUSD: acc.cobrosUSD + r.cobrosUSD,
+      ventasUSD: acc.ventasUSD + r.ventasUSD,
       totalUSD: acc.totalUSD + r.totalUSD,
     }),
-    { ventasARS: 0, equivUSD: 0, cobrosUSD: 0, totalUSD: 0 },
+    { ventasARS: 0, equivUSD: 0, ventasUSD: 0, totalUSD: 0 },
   );
 
   return (
@@ -65,7 +65,7 @@ export function AnalisisMonetario({ desde, hasta }: { desde?: string; hasta?: st
           <TableHead className="text-right">Ventas ARS</TableHead>
           <TableHead className="text-right">TC Promedio</TableHead>
           <TableHead className="text-right">Equiv. USD</TableHead>
-          <TableHead className="text-right">Cobros USD directos</TableHead>
+          <TableHead className="text-right">Ventas USD directas</TableHead>
           <TableHead className="text-right">Total USD</TableHead>
         </TableRow>
       </TableHeader>
@@ -76,7 +76,7 @@ export function AnalisisMonetario({ desde, hasta }: { desde?: string; hasta?: st
             <TableCell className="text-right">{fmtARS(r.ventasARS)}</TableCell>
             <TableCell className="text-right text-slate-500">{r.tcPromedio ? fmtTC(r.tcPromedio) : '—'}</TableCell>
             <TableCell className="text-right">{r.equivUSD != null ? fmtUSD(r.equivUSD) : '—'}</TableCell>
-            <TableCell className="text-right">{fmtUSD(r.cobrosUSD)}</TableCell>
+            <TableCell className="text-right">{fmtUSD(r.ventasUSD)}</TableCell>
             <TableCell className="text-right font-semibold text-[#00ADEF]">{fmtUSD(r.totalUSD)}</TableCell>
           </TableRow>
         ))}
@@ -86,7 +86,7 @@ export function AnalisisMonetario({ desde, hasta }: { desde?: string; hasta?: st
             <TableCell className="text-right">{fmtARS(totales.ventasARS)}</TableCell>
             <TableCell className="text-right text-slate-500">—</TableCell>
             <TableCell className="text-right">{fmtUSD(totales.equivUSD ?? 0)}</TableCell>
-            <TableCell className="text-right">{fmtUSD(totales.cobrosUSD)}</TableCell>
+            <TableCell className="text-right">{fmtUSD(totales.ventasUSD)}</TableCell>
             <TableCell className="text-right text-[#00ADEF]">{fmtUSD(totales.totalUSD)}</TableCell>
           </TableRow>
         )}

@@ -11,6 +11,7 @@ import { DashboardFiscal } from '@/components/dashboard/dashboard-fiscal';
 import { PeriodoSelector } from '@/components/dashboard/periodo-selector';
 import { AnalisisMonetario } from '@/components/dashboard/analisis-monetario';
 import { DashboardOperativo } from '@/components/dashboard/dashboard-operativo';
+import { DashboardVendedores } from '@/components/dashboard/dashboard-vendedores';
 import { FileText, Send, CheckCircle, XCircle, TrendingUp, Clock } from 'lucide-react';
 import { startOfMonth, endOfMonth, subMonths, format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -753,31 +754,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: { 
         </TabsContent>
 
         <TabsContent value="vendedor" className="space-y-6 mt-4">
-          <div className="flex flex-wrap gap-2">
-            {vendedores.map((v) => (
-              <Link
-                key={v.id}
-                href={`/dashboard?userId=${v.id}`}
-                className={`px-3 py-1.5 rounded-full text-sm font-medium border transition-colors ${
-                  userId === v.id
-                    ? 'bg-[#00ADEF] text-white border-[#00ADEF]'
-                    : 'border-slate-300 text-slate-600 hover:border-sky-400 hover:text-[#00ADEF]'
-                }`}
-              >
-                {v.nombre}
-              </Link>
-            ))}
-          </div>
-          {userId ? (
-            <>
-              {kpiGrid}
-              {chartsGrid}
-            </>
-          ) : (
-            <p className="text-sm text-slate-400 text-center py-10 border rounded-lg bg-white">
-              Seleccioná un vendedor para ver sus estadísticas.
-            </p>
-          )}
+          <DashboardVendedores desde={desde} hasta={hasta} />
         </TabsContent>
       </Tabs>
     </div>

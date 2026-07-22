@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-import { getNetoPresupuesto } from '@/lib/presupuestos/montos';
+import { getMontoFinalPresupuesto } from '@/lib/presupuestos/montos';
 import { startOfMonth, endOfMonth, subMonths, format } from 'date-fns';
 import { es } from 'date-fns/locale';
 
@@ -17,7 +17,6 @@ export async function GET(req: NextRequest) {
   const desde = desdeParam ? new Date(desdeParam) : subMonths(startOfMonth(now), 11);
   const hasta = hastaParam ? new Date(hastaParam) : endOfMonth(now);
 
-  // Build 1-month buckets across the range
   const meses: { inicio: Date; fin: Date; label: string }[] = [];
   let cursor = new Date(desde.getFullYear(), desde.getMonth(), 1);
   while (cursor <= hasta) {
@@ -31,14 +30,14 @@ export async function GET(req: NextRequest) {
 
   const rows = await Promise.all(
     meses.map(async ({ inicio, fin, label }) => {
-      const [aprobados, cobrosUSD, tipoCambios] = await Promise.all([
+      const [aprobadosARS, aprobadosUSD, tipoCambios] = await Promise.all([
         prisma.presupuesto.findMany({
-          where: { estado: 'APROBADO', fechaCreacion: { gte: inicio, lte: fin } },
-          select: { precioFinal: true, totalFinal: true },
+          where: { estado: 'APROBADO', moneda: 'ARS', fechaCreacion: { gte: inicio, lte: fin } },
+          select: { precioFinal: true, totalFinal: true, totalConIva: true },
         }),
-        prisma.movimientoCuenta.findMany({
-          where: { caja: 'USD', tipo: { in: ['ANTICIPO', 'PAGO_PARCIAL'] }, fecha: { gte: inicio, lte: fin } },
-          select: { monto: true },
+        prisma.presupuesto.findMany({
+          where: { estado: 'APROBADO', moneda: 'USD', fechaCreacion: { gte: inicio, lte: fin } },
+          select: { precioFinal: true, totalFinal: true, totalConIva: true },
         }),
         prisma.tipoCambio.findMany({
           where: { fecha: { gte: inicio, lte: fin } },
@@ -46,19 +45,22 @@ export async function GET(req: NextRequest) {
         }),
       ]);
 
-      const ventasARS = aprobados.reduce(
-        (s, p) => s + getNetoPresupuesto(p),
+      const ventasARS = aprobadosARS.reduce(
+        (s, p) => s + getMontoFinalPresupuesto(p),
         0,
       );
-      const cobrosUSDTotal = cobrosUSD.reduce((s, m) => s + Number(m.monto), 0);
+      const ventasUSD = aprobadosUSD.reduce(
+        (s, p) => s + getMontoFinalPresupuesto(p),
+        0,
+      );
       const tcPromedio =
         tipoCambios.length > 0
           ? tipoCambios.reduce((s, t) => s + Number(t.valor), 0) / tipoCambios.length
           : null;
       const equivUSD = tcPromedio && tcPromedio > 0 ? ventasARS / tcPromedio : null;
-      const totalUSD = (equivUSD ?? 0) + cobrosUSDTotal;
+      const totalUSD = (equivUSD ?? 0) + ventasUSD;
 
-      return { label, ventasARS, tcPromedio, equivUSD, cobrosUSD: cobrosUSDTotal, totalUSD };
+      return { label, ventasARS, tcPromedio, equivUSD, ventasUSD, totalUSD };
     }),
   );
 
