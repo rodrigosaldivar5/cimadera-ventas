@@ -91,29 +91,68 @@ export default async function DashboardPage({ searchParams }: { searchParams: { 
     }),
     prisma.presupuesto.count({ where: { ...whereBase, estado: 'RECHAZADO', fechaCreacion: { gte: inicioMes, lte: finMes } } }),
     prisma.presupuesto.count({ where: { ...whereBase, estado: { in: ['PENDIENTE', 'EN_PROCESO'] } } }),
-    // Últimos aprobados (reemplaza "últimos presupuestos")
-    prisma.presupuesto.findMany({
-      where: { ...whereBase, estado: 'APROBADO' },
-      take: 10,
-      orderBy: { fechaCierreComercial: 'desc' },
-      select: {
-        id: true,
-        numero: true,
-        moneda: true,
-        ...MONTO_SELECT,
-        fechaCierreComercial: true,
-        fechaCreacion: true,
+    // Últimos aprobados — consultar transiciones para orden correcto
+    (async () => {
+      const PRESUPUESTO_SELECT = {
+        id: true, numero: true, moneda: true, ...MONTO_SELECT,
+        fechaCierreComercial: true, fechaCreacion: true,
         cliente: { select: { razonSocial: true } },
         obra: { select: { nombre: true } },
         responsable: { select: { nombre: true } },
-        transicionesEstado: {
-          where: { estadoNuevo: 'APROBADO' },
-          orderBy: { changedAt: 'desc' },
-          take: 1,
-          select: { changedAt: true },
+      } as const;
+
+      type AprobadoRow = Awaited<ReturnType<typeof prisma.presupuesto.findFirst<{ select: typeof PRESUPUESTO_SELECT }>>> & {
+        transicionesEstado: { changedAt: Date }[];
+      };
+
+      // 1. Transiciones a APROBADO ordenadas por changedAt desc
+      const transiciones = await prisma.presupuestoEstadoTransicion.findMany({
+        where: {
+          estadoNuevo: 'APROBADO',
+          presupuesto: { estado: 'APROBADO', ...whereBase },
         },
-      },
-    }),
+        orderBy: { changedAt: 'desc' },
+        select: {
+          changedAt: true,
+          presupuestoId: true,
+          presupuesto: { select: PRESUPUESTO_SELECT },
+        },
+      });
+
+      // Deduplicar: conservar solo la transición más reciente por presupuesto
+      const seen = new Set<string>();
+      const result: AprobadoRow[] = [];
+      for (const t of transiciones) {
+        if (seen.has(t.presupuestoId)) continue;
+        seen.add(t.presupuestoId);
+        result.push({
+          ...t.presupuesto,
+          transicionesEstado: [{ changedAt: t.changedAt }],
+        } as AprobadoRow);
+        if (result.length >= 10) break;
+      }
+
+      // 2. Fallback legacy: presupuestos APROBADOS sin transición
+      if (result.length < 10) {
+        const excludeIds = Array.from(seen);
+        const legacy = await prisma.presupuesto.findMany({
+          where: {
+            ...whereBase,
+            estado: 'APROBADO',
+            ...(excludeIds.length > 0 ? { id: { notIn: excludeIds } } : {}),
+            transicionesEstado: { none: { estadoNuevo: 'APROBADO' } },
+          },
+          orderBy: [{ fechaCierreComercial: 'desc' }, { fechaCreacion: 'desc' }],
+          take: 10 - result.length,
+          select: PRESUPUESTO_SELECT,
+        });
+        for (const p of legacy) {
+          result.push({ ...p, transicionesEstado: [] } as unknown as AprobadoRow);
+        }
+      }
+
+      return result;
+    })(),
     Promise.all(
       Array.from({ length: 6 }, (_, i) => {
         const mes = subMonths(now, 5 - i);
@@ -557,8 +596,8 @@ export default async function DashboardPage({ searchParams }: { searchParams: { 
   };
 
   const getFechaAprobacion = (p: typeof ultimosAprobados[0]) => {
-    if (p.fechaCierreComercial) return p.fechaCierreComercial;
     if (p.transicionesEstado[0]?.changedAt) return p.transicionesEstado[0].changedAt;
+    if (p.fechaCierreComercial) return p.fechaCierreComercial;
     return p.fechaCreacion;
   };
 
