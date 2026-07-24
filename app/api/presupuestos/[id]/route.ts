@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { registrarAuditoria } from '@/lib/auditoria';
+import { normalizarRubrosPresupuesto } from '@/lib/presupuestos/normalizar-rubros';
 
 export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
   const session = await auth();
@@ -35,6 +36,11 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
       select: { estado: true, clienteId: true, obraId: true, fechaVencimiento: true, totalFinal: true, descuento: true, observaciones: true },
     });
 
+    const rubrosResult = normalizarRubrosPresupuesto(data.division, data.rubros);
+    if (!rubrosResult.ok) {
+      return NextResponse.json({ error: rubrosResult.error }, { status: 400 });
+    }
+
     // Eliminar puertas y líneas existentes para recrearlas
     await prisma.puertaPresupuesto.deleteMany({ where: { presupuestoId: params.id } });
     await prisma.lineaPresupuesto.deleteMany({ where: { presupuestoId: params.id } });
@@ -66,6 +72,8 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
         totalConIva: data.totalConIva ?? 0,
         preciosNetos: data.preciosNetos ?? true,
         division: data.division ?? null,
+        esEstandar: data.esEstandar != null ? !!data.esEstandar : undefined,
+        rubros: rubrosResult.rubros,
         fechaPrometidaCliente: data.fechaPrometidaCliente ? new Date(data.fechaPrometidaCliente) : null,
         fechaObjetivoProduccion: data.fechaObjetivoProduccion ? new Date(data.fechaObjetivoProduccion) : null,
         anticipoEsperado: data.anticipoEsperado != null ? data.anticipoEsperado : null,

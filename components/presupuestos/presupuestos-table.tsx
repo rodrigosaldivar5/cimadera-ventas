@@ -49,6 +49,9 @@ type PresupuestoRow = {
   clienteId?: string;
   obraId?: string;
   responsableId?: string | null;
+  division?: string | null;
+  esEstandar?: boolean;
+  rubros?: string[];
   tieneQuejaCliente?: boolean;
   motivoQuejaCliente?: string | null;
   cliente: { id?: string; razonSocial: string };
@@ -182,6 +185,14 @@ export function PresupuestosTable({ criticos, userEmail }: Props) {
     if (typeof window === 'undefined') return '';
     try { return localStorage.getItem('pres_f_hasta') ?? ''; } catch { return ''; }
   });
+  const [filtroEstandar, setFiltroEstandar] = useState<string>(() => {
+    if (typeof window === 'undefined') return '';
+    try { return localStorage.getItem('pres_f_estandar') ?? ''; } catch { return ''; }
+  });
+  const [filtroRubros, setFiltroRubros] = useState<string[]>(() => {
+    if (typeof window === 'undefined') return [];
+    try { const s = localStorage.getItem('pres_f_rubros'); return s ? JSON.parse(s) : []; } catch { return []; }
+  });
 
   useEffect(() => { try { localStorage.setItem('pres_f_estados', JSON.stringify(filtroEstados)); } catch {} }, [filtroEstados]);
   useEffect(() => { try { localStorage.setItem('pres_f_prioridades', JSON.stringify(filtroPrioridades)); } catch {} }, [filtroPrioridades]);
@@ -189,10 +200,12 @@ export function PresupuestosTable({ criticos, userEmail }: Props) {
   useEffect(() => { try { localStorage.setItem('pres_f_responsableId', filtroResponsableId); } catch {} }, [filtroResponsableId]);
   useEffect(() => { try { localStorage.setItem('pres_f_desde', filtroDesde); } catch {} }, [filtroDesde]);
   useEffect(() => { try { localStorage.setItem('pres_f_hasta', filtroHasta); } catch {} }, [filtroHasta]);
+  useEffect(() => { try { localStorage.setItem('pres_f_estandar', filtroEstandar); } catch {} }, [filtroEstandar]);
+  useEffect(() => { try { localStorage.setItem('pres_f_rubros', JSON.stringify(filtroRubros)); } catch {} }, [filtroRubros]);
 
   // ── Paginación ────────────────────────────────────────────────────
   const [paginaActual, setPaginaActual] = useState(1);
-  useEffect(() => { setPaginaActual(1); }, [filtroEstados, filtroPrioridades, filtroObraId, filtroResponsableId, filtroDesde, filtroHasta]);
+  useEffect(() => { setPaginaActual(1); }, [filtroEstados, filtroPrioridades, filtroObraId, filtroResponsableId, filtroDesde, filtroHasta, filtroEstandar, filtroRubros]);
 
   // ── Filtrado cliente-side ─────────────────────────────────────────
   const obrasUnicas = useMemo(() => {
@@ -223,8 +236,11 @@ export function PresupuestosTable({ criticos, userEmail }: Props) {
     if (filtroResponsableId)  r = r.filter(p => p.responsableId === filtroResponsableId);
     if (filtroDesde) { const d = new Date(filtroDesde); r = r.filter(p => new Date(p.fechaCreacion) >= d); }
     if (filtroHasta) { const h = new Date(filtroHasta); h.setHours(23, 59, 59); r = r.filter(p => new Date(p.fechaCreacion) <= h); }
+    if (filtroEstandar === 'si') r = r.filter(p => p.esEstandar);
+    if (filtroEstandar === 'no') r = r.filter(p => !p.esEstandar);
+    if (filtroRubros.length > 0) r = r.filter(p => filtroRubros.some(fr => (p.rubros ?? []).includes(fr)));
     return r;
-  }, [todosLosPresupuestos, filtroEstados, filtroPrioridades, filtroObraId, filtroResponsableId, filtroDesde, filtroHasta]);
+  }, [todosLosPresupuestos, filtroEstados, filtroPrioridades, filtroObraId, filtroResponsableId, filtroDesde, filtroHasta, filtroEstandar, filtroRubros]);
 
   const totalPaginas = Math.ceil(presupuestosFiltrados.length / ITEMS_POR_PAGINA);
   const presupuestosPagina = presupuestosFiltrados.slice(
@@ -442,8 +458,10 @@ export function PresupuestosTable({ criticos, userEmail }: Props) {
     setFiltroResponsableId('');
     setFiltroDesde('');
     setFiltroHasta('');
+    setFiltroEstandar('');
+    setFiltroRubros([]);
     try {
-      ['pres_f_estados', 'pres_f_prioridades', 'pres_f_obraId', 'pres_f_responsableId', 'pres_f_desde', 'pres_f_hasta']
+      ['pres_f_estados', 'pres_f_prioridades', 'pres_f_obraId', 'pres_f_responsableId', 'pres_f_desde', 'pres_f_hasta', 'pres_f_estandar', 'pres_f_rubros']
         .forEach(k => localStorage.removeItem(k));
     } catch {}
   };
@@ -730,7 +748,44 @@ export function PresupuestosTable({ criticos, userEmail }: Props) {
           <Input type="date" value={filtroDesde} onChange={(e) => setFiltroDesde(e.target.value)} className="w-36" />
           <Input type="date" value={filtroHasta} onChange={(e) => setFiltroHasta(e.target.value)} className="w-36" />
 
-          {(filtroEstados.length > 0 || filtroPrioridades.length > 0 || filtroObraId || filtroResponsableId || filtroDesde || filtroHasta) && (
+          <Select value={filtroEstandar || '__all__'} onValueChange={(v) => setFiltroEstandar(v === '__all__' ? '' : v)}>
+            <SelectTrigger className="w-36">
+              <SelectValue placeholder="Estándar" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__all__">Todos</SelectItem>
+              <SelectItem value="si">Estándar</SelectItem>
+              <SelectItem value="no">No estándar</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" className="h-10 gap-1">
+                Rubros {filtroRubros.length > 0 && <Badge variant="secondary" className="ml-1 h-5 px-1.5">{filtroRubros.length}</Badge>}
+                <ChevronDown className="h-3.5 w-3.5" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="w-44">
+              {(['MADERA', 'MELAMINA', 'ALUMINIO'] as const).map((r) => (
+                <DropdownMenuCheckboxItem
+                  key={r}
+                  checked={filtroRubros.includes(r)}
+                  onCheckedChange={(checked) => setFiltroRubros(prev => checked ? [...prev, r] : prev.filter(x => x !== r))}
+                >
+                  {r.charAt(0) + r.slice(1).toLowerCase()}
+                </DropdownMenuCheckboxItem>
+              ))}
+              <DropdownMenuSeparator />
+              <div className="p-2">
+                <Button variant="ghost" size="sm" className="w-full h-7 text-xs" onClick={() => setFiltroRubros([])}>
+                  Limpiar
+                </Button>
+              </div>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          {(filtroEstados.length > 0 || filtroPrioridades.length > 0 || filtroObraId || filtroResponsableId || filtroDesde || filtroHasta || filtroEstandar || filtroRubros.length > 0) && (
             <Button onClick={limpiarFiltros} variant="ghost" className="text-slate-400 hover:text-slate-600">
               Limpiar
             </Button>
@@ -768,9 +823,21 @@ export function PresupuestosTable({ criticos, userEmail }: Props) {
                 >
                   {colVisible('numero') && (
                     <TableCell>
-                      <Link href={`/presupuestos/${p.id}`} className="font-bold text-slate-800 hover:text-[#00ADEF] hover:underline">
-                        #{p.numero}
-                      </Link>
+                      <div className="flex items-center gap-1 flex-wrap">
+                        <Link href={`/presupuestos/${p.id}`} className="font-bold text-slate-800 hover:text-[#00ADEF] hover:underline">
+                          #{p.numero}
+                        </Link>
+                        {p.esEstandar && (
+                          <span className="inline-flex items-center px-1 py-px rounded text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 leading-tight" title="Presupuesto estándar (27 hs hábiles)" role="status">
+                            Est
+                          </span>
+                        )}
+                        {p.division === 'MIXTO' && (p.rubros ?? []).length > 0 && (
+                          <span className="inline-flex items-center px-1 py-px rounded text-[10px] font-medium bg-indigo-50 text-indigo-700 border border-indigo-200 leading-tight" title={`Mixto: ${(p.rubros ?? []).map((r: string) => r.charAt(0) + r.slice(1).toLowerCase()).join(' + ')}`} role="status">
+                            {(p.rubros ?? []).map((r: string) => r.slice(0, 3)).join('+')}
+                          </span>
+                        )}
+                      </div>
                     </TableCell>
                   )}
                   {colVisible('nombre') && (

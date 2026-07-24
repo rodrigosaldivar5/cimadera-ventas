@@ -61,6 +61,12 @@ export default async function EditarPresupuestoPage({ params }: { params: { id: 
         descuento: Number(presupuesto.descuento),
         estado: presupuesto.estado,
         moneda: presupuesto.moneda,
+        division: presupuesto.division ?? null,
+        esEstandar: presupuesto.esEstandar,
+        rubros: presupuesto.rubros,
+        fechaPrometidaCliente: presupuesto.fechaPrometidaCliente
+          ? presupuesto.fechaPrometidaCliente.toISOString().split('T')[0]
+          : '',
         itemsProducto,
         lineas: catalogLineas,
       }}

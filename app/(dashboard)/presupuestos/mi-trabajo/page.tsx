@@ -45,6 +45,7 @@ export default async function MiTrabajoPage() {
         responsable: { select: { id: true, nombre: true } },
         fechaCreacion: true,
         fechaVencimiento: true,
+        rubros: true,
       },
       take: 300,
     }),

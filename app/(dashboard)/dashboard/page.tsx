@@ -11,6 +11,7 @@ import { DashboardFiscal } from '@/components/dashboard/dashboard-fiscal';
 import { PeriodoSelector } from '@/components/dashboard/periodo-selector';
 import { AnalisisMonetario } from '@/components/dashboard/analisis-monetario';
 import { DashboardOperativo } from '@/components/dashboard/dashboard-operativo';
+import { CumplimientoDashboard } from '@/components/dashboard/cumplimiento-dashboard';
 import { DashboardVendedores } from '@/components/dashboard/dashboard-vendedores';
 import { FileText, Send, CheckCircle, XCircle, TrendingUp, Clock } from 'lucide-react';
 import { startOfMonth, endOfMonth, subMonths, format } from 'date-fns';
@@ -775,6 +776,13 @@ export default async function DashboardPage({ searchParams }: { searchParams: { 
             calidadComercial={calidadComercial}
             resumenDireccion={resumenDireccion}
           />
+          <div className="mt-6">
+            <CumplimientoDashboard
+              desde={desde}
+              hasta={hasta}
+              responsableId={filtroResponsableId}
+            />
+          </div>
         </TabsContent>
 
         <TabsContent value="fiscal" className="mt-4">

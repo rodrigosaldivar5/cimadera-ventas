@@ -116,6 +116,8 @@ export default function NuevoPresupuestoPage() {
   const [probabilidadCobro, setProbabilidadCobro] = useState<string>('');
   const [usuarios, setUsuarios] = useState<{ id: string; nombre: string }[]>([]);
   const [moneda, setMoneda] = useState<'ARS' | 'USD'>('ARS');
+  const [esEstandar, setEsEstandar] = useState(false);
+  const [rubros, setRubros] = useState<string[]>([]);
 
   const { register, handleSubmit, watch, setValue, formState: { errors } } = useForm<Paso1Data>({
     resolver: zodResolver(paso1Schema),
@@ -291,6 +293,8 @@ export default function NuevoPresupuestoPage() {
         responsableId: watch('responsableId') || null,
         observaciones: watch('observaciones') || null,
         division: watch('division') || null,
+        esEstandar,
+        rubros: watch('division') === 'MIXTO' ? rubros : undefined,
         fechaVencimiento: watch('fechaVencimiento') || null,
         fechaPrometidaCliente: watch('fechaPrometidaCliente') || null,
         fechaObjetivoProduccion: watch('fechaObjetivoProduccion') || null,
@@ -354,6 +358,7 @@ export default function NuevoPresupuestoPage() {
   const ivaResult = calcularIva(total, tasaIva);
 
   const guardar = async (data: Paso1Data, enviar: boolean) => {
+    if (data.division === 'MIXTO' && rubros.length < 2) return;
     setIsSubmitting(true);
     const numero = data.numero ?? nextNumero;
 
@@ -395,6 +400,8 @@ export default function NuevoPresupuestoPage() {
         montoIva: ivaResult.montoIva,
         totalConIva: ivaResult.totalConIva,
         preciosNetos,
+        esEstandar,
+        rubros: data.division === 'MIXTO' ? rubros : undefined,
         estado: enviar ? 'ENVIADO' : 'EN_PROCESO',
         obraId: watch('obraId') || data.obraId || null,
         anticipoEsperado: anticipoEsperado !== '' ? Number(anticipoEsperado) : null,
@@ -601,7 +608,11 @@ export default function NuevoPresupuestoPage() {
                   <Label>División productiva</Label>
                   <Select
                     value={watch('division') || '__none__'}
-                    onValueChange={(v) => setValue('division', v === '__none__' ? undefined : v as 'MADERA' | 'MELAMINA' | 'ALUMINIO' | 'MIXTO')}
+                    onValueChange={(v) => {
+                      const val = v === '__none__' ? undefined : v as 'MADERA' | 'MELAMINA' | 'ALUMINIO' | 'MIXTO';
+                      setValue('division', val);
+                      if (val !== 'MIXTO') setRubros([]);
+                    }}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Sin selección" />
@@ -614,6 +625,43 @@ export default function NuevoPresupuestoPage() {
                       <SelectItem value="MIXTO">Mixto</SelectItem>
                     </SelectContent>
                   </Select>
+                </div>
+
+                {/* Rubros MIXTO */}
+                {watch('division') === 'MIXTO' && (
+                  <div className="col-span-2 space-y-2">
+                    <Label>Rubros del presupuesto mixto *</Label>
+                    <div className="flex gap-4">
+                      {(['MADERA', 'MELAMINA', 'ALUMINIO'] as const).map((r) => (
+                        <label key={r} className="flex items-center gap-2 text-sm cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={rubros.includes(r)}
+                            onChange={(e) => setRubros(prev => e.target.checked ? [...prev, r] : prev.filter(x => x !== r))}
+                            className="rounded border-slate-300"
+                          />
+                          {r.charAt(0) + r.slice(1).toLowerCase()}
+                        </label>
+                      ))}
+                    </div>
+                    {rubros.length > 0 && rubros.length < 2 && (
+                      <p className="text-xs text-red-500">Seleccioná al menos 2 rubros para un presupuesto mixto</p>
+                    )}
+                  </div>
+                )}
+
+                {/* Estándar */}
+                <div className="col-span-2">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={esEstandar}
+                      onChange={(e) => setEsEstandar(e.target.checked)}
+                      className="rounded border-slate-300"
+                    />
+                    <span className="text-sm font-medium">Presupuesto estándar</span>
+                  </label>
+                  <p className="text-xs text-slate-400 ml-6">Objetivo de finalización: hasta 27 horas hábiles.</p>
                 </div>
 
                 {/* Tipo cliente */}

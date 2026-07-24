@@ -17,6 +17,7 @@ import { formatCurrency } from '@/lib/utils';
 import Link from 'next/link';
 import type { EstadoPresupuesto } from '@prisma/client';
 import { CotizadorDinamico, type ItemProducto } from '@/components/presupuestos/cotizador-dinamico';
+import type { DivisionProductiva, RubroComponentePresupuesto } from '@prisma/client';
 
 const paso1Schema = z.object({
   numero: z.number().int().min(1, 'Número inválido'),
@@ -65,6 +66,10 @@ interface PresupuestoInicial {
   descuento: number;
   estado: EstadoPresupuesto;
   moneda?: string;
+  division?: DivisionProductiva | null;
+  esEstandar?: boolean;
+  rubros?: RubroComponentePresupuesto[];
+  fechaPrometidaCliente?: string | null;
   itemsProducto: ItemProducto[];
   lineas: LineaAdicional[];
 }
@@ -83,6 +88,10 @@ export function EditarPresupuestoForm({ presupuesto }: { presupuesto: Presupuest
   const [obraId, setObraId] = useState(presupuesto.obraId);
   const [moneda, setMoneda] = useState<'ARS' | 'USD'>((presupuesto.moneda as 'ARS' | 'USD') ?? 'ARS');
   const [obras, setObras] = useState<{ id: string; nombre: string }[]>([]);
+  const [division, setDivision] = useState<string>(presupuesto.division ?? '');
+  const [esEstandar, setEsEstandar] = useState(presupuesto.esEstandar ?? false);
+  const [rubros, setRubros] = useState<string[]>(presupuesto.rubros ?? []);
+  const [fechaPrometidaCliente, setFechaPrometidaCliente] = useState(presupuesto.fechaPrometidaCliente ? presupuesto.fechaPrometidaCliente.slice(0, 10) : '');
 
   const { register, handleSubmit, watch, setValue, formState: { errors } } = useForm<Paso1Data>({
     resolver: zodResolver(paso1Schema),
@@ -163,6 +172,7 @@ export function EditarPresupuestoForm({ presupuesto }: { presupuesto: Presupuest
   const total = subtotal - descuentoMonto;
 
   const guardar = async (data: Paso1Data, enviar: boolean) => {
+    if (division === 'MIXTO' && rubros.length < 2) return;
     setIsSubmitting(true);
     const lineasPayload = [
       ...itemsProducto.map((item) => ({
@@ -187,6 +197,10 @@ export function EditarPresupuestoForm({ presupuesto }: { presupuesto: Presupuest
         ...data,
         moneda,
         obraId: obraId || null,
+        division: division || null,
+        esEstandar,
+        rubros,
+        fechaPrometidaCliente: fechaPrometidaCliente || null,
         puertas: [],
         lineas: lineasPayload,
         subtotal,
@@ -305,10 +319,78 @@ export function EditarPresupuestoForm({ presupuesto }: { presupuesto: Presupuest
                 />
               </div>
 
+              {/* División productiva */}
+              <div className="space-y-2">
+                <Label>División productiva</Label>
+                <Select
+                  value={division || '__none__'}
+                  onValueChange={(v) => {
+                    const val = v === '__none__' ? '' : v;
+                    setDivision(val);
+                    if (val !== 'MIXTO') setRubros([]);
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Sin selección" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">Sin selección</SelectItem>
+                    <SelectItem value="MADERA">Madera</SelectItem>
+                    <SelectItem value="MELAMINA">Melamina</SelectItem>
+                    <SelectItem value="ALUMINIO">Aluminio</SelectItem>
+                    <SelectItem value="MIXTO">Mixto</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Rubros MIXTO */}
+              {division === 'MIXTO' && (
+                <div className="space-y-2">
+                  <Label>Rubros del presupuesto mixto *</Label>
+                  <div className="flex gap-4">
+                    {(['MADERA', 'MELAMINA', 'ALUMINIO'] as const).map((r) => (
+                      <label key={r} className="flex items-center gap-2 text-sm cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={rubros.includes(r)}
+                          onChange={(e) => setRubros(prev => e.target.checked ? [...prev, r] : prev.filter(x => x !== r))}
+                          className="rounded border-slate-300"
+                        />
+                        {r.charAt(0) + r.slice(1).toLowerCase()}
+                      </label>
+                    ))}
+                  </div>
+                  {rubros.length === 0 && presupuesto.division === 'MIXTO' && (
+                    <p className="text-xs text-amber-600">Este presupuesto mixto todavía no tiene rubros especificados.</p>
+                  )}
+                  {rubros.length > 0 && rubros.length < 2 && (
+                    <p className="text-xs text-red-500">Seleccioná al menos 2 rubros para un presupuesto mixto</p>
+                  )}
+                </div>
+              )}
+
+              {/* Estándar */}
+              <div>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={esEstandar}
+                    onChange={(e) => setEsEstandar(e.target.checked)}
+                    className="rounded border-slate-300"
+                  />
+                  <span className="text-sm font-medium">Presupuesto estándar</span>
+                </label>
+                <p className="text-xs text-slate-400 ml-6">Objetivo de finalización: hasta 27 horas hábiles.</p>
+              </div>
+
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Fecha de vencimiento</Label>
                   <Input type="date" {...register('fechaVencimiento')} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Fecha prometida al cliente</Label>
+                  <Input type="date" value={fechaPrometidaCliente} onChange={(e) => setFechaPrometidaCliente(e.target.value)} />
                 </div>
                 <div className="space-y-2">
                   <Label>Descuento (%)</Label>

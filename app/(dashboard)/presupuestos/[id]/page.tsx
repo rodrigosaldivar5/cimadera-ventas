@@ -165,6 +165,23 @@ export default async function PresupuestoDetallePage({ params }: { params: { id:
               {presupuesto.fechaVencimiento && (
                 <p className="text-xs text-slate-400">Vence: {formatDate(presupuesto.fechaVencimiento)}</p>
               )}
+              <div className="flex items-center gap-1.5 justify-end mt-2 flex-wrap">
+                {presupuesto.division && (
+                  <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-slate-100 text-slate-700">
+                    {presupuesto.division === 'MIXTO' ? 'Mixto' : presupuesto.division.charAt(0) + presupuesto.division.slice(1).toLowerCase()}
+                  </span>
+                )}
+                {presupuesto.division === 'MIXTO' && presupuesto.rubros.length > 0 && (
+                  <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-indigo-50 text-indigo-700">
+                    {presupuesto.rubros.map((r: string) => r.charAt(0) + r.slice(1).toLowerCase()).join(' + ')}
+                  </span>
+                )}
+                {presupuesto.esEstandar && (
+                  <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-emerald-50 text-emerald-700">
+                    Estándar
+                  </span>
+                )}
+              </div>
             </div>
           </div>
 

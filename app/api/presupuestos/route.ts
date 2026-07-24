@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma';
 import { EstadoPresupuesto, Prioridad } from '@prisma/client';
 import { getNextNumeroPresupuesto } from '@/lib/presupuesto-utils';
 import { registrarAuditoria } from '@/lib/auditoria';
+import { normalizarRubrosPresupuesto } from '@/lib/presupuestos/normalizar-rubros';
 
 export async function GET(req: NextRequest) {
   const session = await auth();
@@ -66,6 +67,11 @@ export async function POST(req: NextRequest) {
       opciones?: { atributoNombre: string; opcionNombre: string; precioUnitario: number; cantidad: number; subtotal: number }[];
     };
 
+    const rubrosResult = normalizarRubrosPresupuesto(data.division, data.rubros);
+    if (!rubrosResult.ok) {
+      return NextResponse.json({ error: rubrosResult.error }, { status: 400 });
+    }
+
     const numero = data.numero ? Number(data.numero) : await getNextNumeroPresupuesto();
 
     const presupuesto = await prisma.presupuesto.create({
@@ -90,6 +96,8 @@ export async function POST(req: NextRequest) {
         preciosNetos: data.preciosNetos ?? true,
         fechaEnvio: data.estado === 'ENVIADO' ? new Date() : null,
         division: data.division ?? null,
+        esEstandar: !!data.esEstandar,
+        rubros: rubrosResult.rubros,
         fechaPrometidaCliente: data.fechaPrometidaCliente ? new Date(data.fechaPrometidaCliente) : null,
         fechaObjetivoProduccion: data.fechaObjetivoProduccion ? new Date(data.fechaObjetivoProduccion) : null,
         anticipoEsperado: data.anticipoEsperado != null ? data.anticipoEsperado : null,

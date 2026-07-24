@@ -178,6 +178,9 @@ model Presupuesto {
   fechaQuejaCliente             DateTime?
   quejaRegistradaPorNombre      String?
   trabajoDia                    PresupuestoTrabajoDia[]
+  // ── Clasificación estándar y rubros ────────────────────────────────
+  esEstandar                    Boolean                @default(false)
+  rubros                        RubroComponentePresupuesto[] @default([])
 }
 
 model Obra {
@@ -678,6 +681,14 @@ enum DivisionProductiva {
   MELAMINA
   ALUMINIO
   MIXTO
+}
+
+// ─── Rubros componentes (para presupuestos mixtos) ───────────────────────
+
+enum RubroComponentePresupuesto {
+  MADERA
+  MELAMINA
+  ALUMINIO
 }
 
 // ─── Event Sourcing ───────────────────────────────────────────────────────────

@@ -55,6 +55,7 @@ type PresupuestoItem = PresupuestoBasico & {
   responsable: { id: string; nombre: string } | null;
   fechaCreacion: string;
   fechaVencimiento: string | null;
+  rubros?: string[];
 };
 
 type ResumenResponsable = {
@@ -121,6 +122,7 @@ export function MiTrabajoContent({
   const [selectedResponsable, setSelectedResponsable] = useState<string>(isManager ? '__all__' : userId);
   const [filtroEstados, setFiltroEstados] = useState<string[]>(ESTADOS_DEFAULT[perfil] ?? []);
   const [estadosOpen, setEstadosOpen] = useState(false);
+  const [filtroRubros, setFiltroRubros] = useState<string[]>([]);
   const [busqueda, setBusqueda] = useState('');
   const [trabajoHoy, setTrabajoHoy] = useState<TrabajoDiaItem[]>([]);
   const [pendientesAnteriores, setPendientesAnteriores] = useState<TrabajoDiaItem[]>([]);
@@ -317,6 +319,9 @@ export function MiTrabajoContent({
     if (filtroEstados.length > 0) {
       list = list.filter((p) => filtroEstados.includes(p.estado));
     }
+    if (filtroRubros.length > 0) {
+      list = list.filter((p) => filtroRubros.some(fr => (p.rubros ?? []).includes(fr)));
+    }
     if (busqueda) {
       const q = busqueda.toLowerCase();
       list = list.filter(
@@ -329,7 +334,7 @@ export function MiTrabajoContent({
       );
     }
     return list;
-  }, [presupuestos, idsEnHoy, isManager, selectedResponsable, filtroEstados, busqueda]);
+  }, [presupuestos, idsEnHoy, isManager, selectedResponsable, filtroEstados, filtroRubros, busqueda]);
 
   const completados = trabajoHoy.filter((t) => t.completado).length;
   const total = trabajoHoy.length;
@@ -573,6 +578,32 @@ export function MiTrabajoContent({
                       onClick={() => setEstadosOpen(false)}
                     >
                       Aplicar
+                    </Button>
+                  </div>
+                </DropdownMenuContent>
+              </DropdownMenu>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" className="h-8 gap-1 text-sm font-normal">
+                    Rubros {filtroRubros.length > 0 && <Badge variant="secondary" className="ml-1 h-4 px-1 text-[10px]">{filtroRubros.length}</Badge>}
+                    <ChevronDown className="ml-1 h-3.5 w-3.5 opacity-50" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="w-44">
+                  {(['MADERA', 'MELAMINA', 'ALUMINIO'] as const).map((r) => (
+                    <DropdownMenuCheckboxItem
+                      key={r}
+                      checked={filtroRubros.includes(r)}
+                      onCheckedChange={(checked) => setFiltroRubros(prev => checked ? [...prev, r] : prev.filter(x => x !== r))}
+                      onSelect={(ev) => ev.preventDefault()}
+                    >
+                      {r.charAt(0) + r.slice(1).toLowerCase()}
+                    </DropdownMenuCheckboxItem>
+                  ))}
+                  <DropdownMenuSeparator />
+                  <div className="p-2">
+                    <Button variant="ghost" size="sm" className="w-full h-7 text-xs" onClick={() => setFiltroRubros([])}>
+                      Limpiar
                     </Button>
                   </div>
                 </DropdownMenuContent>
